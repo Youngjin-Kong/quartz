@@ -227,65 +227,65 @@ hashcat -m 13100 hash.txt /usr/share/wordlists/rockyou.txt --force --potfile-dis
 
 ## Commonly Used Modes (-m)
 
-|**ID**|**알고리즘 (Algorithm)**|
-|---|---|
-|0|MD5|
-|10|MD5 ($pass.$salt)|
-|20|MD5 ($salt.$pass)|
-|110|SHA1:salt|
-|120|SHA1:pass|
-|131|MSSQL (2000)|
-|132|MSSQL (2005)|
-|200|MySQL323|
-|300|MySQL4.1/MySQL5|
-|400|phpass|
-|900|MD4|
-|1000|NTLM|
-|1100|Domain Cached Credentials (DCC), MS Cache|
-|1600|Apache $apr1$ MD5, md5apr1, MD5 (APR)|
-|1700|SHA2-512|
-|1731|MSSQL (2012, 2014)|
-|1800|sha512crypt $6$, SHA512 (Unix)|
-|2500|WPA/WPA2|
-|2501|WPA/WPA2 PMK|
-|2600|md5(md5($pass))|
-|3000|LM|
-|3200|bcrypt|
-|4500|sha1(sha1($pass))|
-|4800|iSCSI CHAP authentication, MD5(CHAP)|
-|5200|Password Safe v3|
-|5500|NetNTLMv1 / NetNTLMv1+ESS|
-|5600|NetNTLMv2|
-|5700|Cisco-IOS type 4 (SHA256)|
-|6800|LastPass + LastPass sniffed|
-|7300|IPMI 2 RAKP HMAC-SHA1|
-|7350|IPMI2 RAKP HMAC-MD5|
-|7400|sha256crypt $5$, SHA256 (Unix)|
-|7500|Kerberos 5, etype 23, AS-REQ Pre-Auth|
-|8100|Citrix NetScaler (SHA1)|
-|8300|DNSSEC (NSEC3)|
-|8900|scrypt|
-|9500|MS Office 2010|
-|9600|MSOffice 2013|
-|11600|7Zip|
-|12800|MS-AzureSync PBKDF2-HMAC-SHA256|
-|13100|Kerberos 5, etype 23, TGS-REP|
-|13400|KeePass 1 (AES/Twofish) and KeePass 2 (AES)|
-|13600|WinZip|
-|15000|FileZilla Server > 0.9.55|
-|18200|Kerberos 5, etype 23, AS-REP|
-|19600|Kerberos 5, etype 17, TGS-REP|
-|19700|Kerberos 5, etype 18, TGS-REP|
-|19800|Kerberos 5, etype 17, Pre-Auth|
-|19900|Kerberos 5, etype 18, Pre-Auth|
-|22100|Bitlocker|
-|22400|AES Crypt (SHA256)|
-|27000|NetNTLMv1 / NetNTLMv1+ESS (NT)|
-|27100|NetNTLMv2 (NT)|
-|27300|SNMPv3 HMAC-SHA512-384|
-|28900|Kerberos 5, etype 18, DB|
-|29521|LUKS v1 SHA-256 + AES|
-|29700|KeePass 1 (AES/Twofish) and KeePass 2 (AES) – keyfile only mode|
+| **ID** | **알고리즘 (Algorithm)**                                            |
+| ------ | --------------------------------------------------------------- |
+| 0      | MD5                                                             |
+| 10     | MD5 ($pass.$salt)                                               |
+| 20     | MD5 ($salt.$pass)                                               |
+| 110    | SHA1:salt                                                       |
+| 120    | SHA1:pass                                                       |
+| 131    | MSSQL (2000)                                                    |
+| 132    | MSSQL (2005)                                                    |
+| 200    | MySQL323                                                        |
+| 300    | MySQL4.1/MySQL5                                                 |
+| 400    | phpass                                                          |
+| 900    | MD4                                                             |
+| 1000   | NTLM                                                            |
+| 1100   | Domain Cached Credentials (DCC), MS Cache                       |
+| 1600   | Apache $apr1$ MD5, md5apr1, MD5 (APR)                           |
+| 1700   | SHA2-512                                                        |
+| 1731   | MSSQL (2012, 2014)                                              |
+| 1800   | sha512crypt $6$, SHA512 (Unix)                                  |
+| 2500   | WPA/WPA2                                                        |
+| 2501   | WPA/WPA2 PMK                                                    |
+| 2600   | md5(md5($pass))                                                 |
+| 3000   | LM                                                              |
+| 3200   | bcrypt                                                          |
+| 4500   | sha1(sha1($pass))                                               |
+| 4800   | iSCSI CHAP authentication, MD5(CHAP)                            |
+| 5200   | Password Safe v3                                                |
+| 5500   | NetNTLMv1 / NetNTLMv1+ESS                                       |
+| 5600   | NetNTLMv2                                                       |
+| 5700   | Cisco-IOS type 4 (SHA256)                                       |
+| 6800   | LastPass + LastPass sniffed                                     |
+| 7300   | IPMI 2 RAKP HMAC-SHA1                                           |
+| 7350   | IPMI2 RAKP HMAC-MD5                                             |
+| 7400   | sha256crypt $5$, SHA256 (Unix)                                  |
+| 7500   | Kerberos 5, etype 23, AS-REQ Pre-Auth                           |
+| 8100   | Citrix NetScaler (SHA1)                                         |
+| 8300   | DNSSEC (NSEC3)                                                  |
+| 8900   | scrypt                                                          |
+| 9500   | MS Office 2010                                                  |
+| 9600   | MSOffice 2013                                                   |
+| 11600  | 7Zip                                                            |
+| 12800  | MS-AzureSync PBKDF2-HMAC-SHA256                                 |
+| 13100  | Kerberos 5, etype 23, TGS-REP                                   |
+| 13400  | KeePass 1 (AES/Twofish) and KeePass 2 (AES)                     |
+| 13600  | WinZip                                                          |
+| 15000  | FileZilla Server > 0.9.55                                       |
+| 18200  | Kerberos 5, etype 23, AS-REP                                    |
+| 19600  | Kerberos 5, etype 17, TGS-REP                                   |
+| 19700  | Kerberos 5, etype 18, TGS-REP                                   |
+| 19800  | Kerberos 5, etype 17, Pre-Auth                                  |
+| 19900  | Kerberos 5, etype 18, Pre-Auth                                  |
+| 22100  | Bitlocker                                                       |
+| 22400  | AES Crypt (SHA256)                                              |
+| 27000  | NetNTLMv1 / NetNTLMv1+ESS (NT)                                  |
+| 27100  | NetNTLMv2 (NT)                                                  |
+| 27300  | SNMPv3 HMAC-SHA512-384                                          |
+| 28900  | Kerberos 5, etype 18, DB                                        |
+| 29521  | LUKS v1 SHA-256 + AES                                           |
+| 29700  | KeePass 1 (AES/Twofish) and KeePass 2 (AES) – keyfile only mode |
 
 
 
