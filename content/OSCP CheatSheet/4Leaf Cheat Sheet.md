@@ -4,7 +4,10 @@
 nmap -sCV -p- -Pn -A --min-rate 5000 10.129.5.22 -oN nmap.log
 ```
 
-
+FFUF
+```bash
+ffuf -u http://10.129.9.222 -H "Host: FUZZ.usage.htb" -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-20000.txt -ac
+```
 # Tool
 
 | Tool name   | description        |                              |
