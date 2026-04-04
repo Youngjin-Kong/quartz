@@ -124,6 +124,8 @@ get user.txt
 ## BloodHound
 ```bash
 ### **BloodHound를 사용한 데이터 분석**
+#config 파일 위치 /home/kali/.config/bloodhound/bloodhound.config.json
+
 
 - Kali Linux에서 Neo4j 서비스 시작
 
