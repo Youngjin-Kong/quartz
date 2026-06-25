@@ -11,10 +11,14 @@ nmap -sCVU
 ### FeroxBuster
 
 ```c
+feroxbuster -u http://192.168.150.10:9090/ -s 200 -t 200 -x php,txt,html,bak,zip -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+
 feroxbuster -u <http://10.129.2.213:50000> -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 
 #https
 --insecure
+
+feroxbuster -u http://TARGET \ -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \ -x php,txt,html,bak,zip -t 50 -o ferox_TARGET.txt
 ```
 
 ### gobuster
