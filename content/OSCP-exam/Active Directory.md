@@ -1105,3 +1105,52 @@ reg.exe : ERROR: A required privilege is not held by the client.
 
 ```
 
+
+## 복기
+AD 세트까지 다 읽었습니다. 이제 **네 개를 종합**하면 3월 시험의 진짜 패턴이 선명하게 보입니다.
+
+### AD 세트 분석 (40점)
+
+**WS26 (192.168.91.206) — ✅ 성공 (10점)**  
+r.andrews 셸 → `whoami /priv`에 **SeImpersonatePrivilege** → GodPotato로 SYSTEM → 4leaf 관리자 생성 → proof.txt. **교과서적이고 깔끔합니다.** 여기서 SeImpersonate를 보고 바로 Potato로 간 건 정확한 반사였어요.
+
+**루팅 + 피벗 — ✅ 잘함**  
+Administrator 폴더의 backup.zip → john 크랙(myspace1) → web.config에서 **b.martin:MartiniAllNight222** 확보. ligolo-ng 피벗도 정상 구축. 이 흐름 다 좋았습니다.
+
+**SRV22 (172.16.91.202) — ❌ 여기서 막힘 (핵심)**  
+b.martin WinRM 셸 확보 → **Jenkins 2.440.3 + CVE-2024-23897** 발견 → 익스플로잇(51993.py, jenkins-cli.jar)까지 다운로드. 그런데 **"????"** 로 끝납니다. `reg save hklm\sam`도 "권한 없음"으로 실패(b.martin은 SRV22에서 admin 아님). **Jenkins 익스플로잇을 완성 못 해서 SRV22 privesc 실패.**
+
+**DC20 (172.16.91.200) — ❌**  
+자격증명 검증·BloodHound 수집은 했지만, **SRV22를 못 뚫어서** DA로 가는 크리덴셜을 못 얻음.
+
+→ **SRV22가 병목이었습니다.** Jenkins만 완성했으면 SRV22(10점) + 그 안의 크리덴셜로 DC20(20점)까지 30점이 열렸을 겁니다.
+
+**SRV22에서 했어야 할 것:** CVE-2024-23897(임의 파일 읽기)로 Jenkins 시크릿(`secrets/master.key`, `hudson.util.Secret`, `credentials.xml`) 읽어 **저장된 자격증명 복호화**, 또는 Jenkins 관리자 접근 → **Script Console(Groovy) → 리버스셸**(Jenkins 서비스 계정, 보통 SeImpersonate 보유) → Potato → SYSTEM → proof.txt → SAM/LSASS 덤프 → DC20용 크리덴셜.
+
+---
+
+### 🔴 4개 박스 종합 — 3월 시험의 진짜 패턴
+
+점수를 추정하면: 111(local만 10) + WS26(10) ≈ **20점** (합격 70). 그런데 중요한 건 점수가 아니라 **왜 막혔나의 패턴**입니다:
+
+|박스|찾은 것|막힌 지점|놓친 것|
+|---|---|---|---|
+|110|웹(빈 Index)|"비어보임"에서 멈춤|디렉토리 더 파기 / vhost / 과한 필터 제거|
+|111|foothold→local|`whoami /priv` juicy 없음|**winPEAS 안 돌림**|
+|112|업로드 지점|업로드 필터|**우회 순회 안 함**(.phtml/htaccess…)|
+|SRV22|Jenkins CVE|익스 미완성|**CVE-2024-23897 완주**|
+
+**핵심 진단 — 당신 약점은 "열거"가 아니었습니다.**
+
+네 박스 모두 **입구는 찾았습니다.** 웹·공유·업로드·Jenkins 다 발견했어요. 진짜 공통 실패는:
+
+> **"찾았는데 즉시 안 되는 순간"에 멈춘 것.**
+
+- 빈 웹 → "없네" (X) → 더 파기 (O)
+- juicy 권한 없음 → "끝" (X) → winPEAS (O)
+- 업로드 막힘 → "안 되네" (X) → 우회 6종 순회 (O)
+- Jenkins 발견 → 익스 반쯤 (X) → 완주 (O)
+
+즉 **enumeration으로 "발견"까진 되는데, 그 다음 "완성(exploitation/privesc 심화)"에서 첫 저항에 포기**합니다. 이건 기법을 아예 몰라서가 아니라 — 실제로 111의 winPEAS도, 112의 htaccess도 당신이 **이미 아는 것**이었죠 — **"막힘 = 다음 무기로 전환"이라는 반사와, 하나를 끝까지 미는 집요함**이 부족했던 겁니다.
+
+**이게 오히려 좋은 소식입니다.** 열거를 못 하는 사람은 갈 길이 멀지만, 당신은 **입구를 다 찾았어요.** 필요한 건 "발견 → 완성" 구간의 **① 반사(막히면 전환) ② 기법 완주 연습**뿐입니다. 지금까지 만든 문서(반사규칙·마스터·foothold 체크리스트)가 정확히 ①을 겨냥하고, 남은 모의시험이 ②를 훈련합니다.
