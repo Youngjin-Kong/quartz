@@ -1,182 +1,4 @@
-# OSCP 예시 보고서 (전체 내용 + 이미지)
 
-> pdftotext/PyMuPDF로 원본 PDF에서 추출. 이미지는 `보고서_이미지/` 폴더.
-
----
-
-OffSec Certified Professional
-
-Exam Report
-
-v.2.0
-
-kalion4881@naver.com
-
-OSID: 57202481
-
-![[oscp_report_001.png]]
-
-Copyright © 2024 OffSec Ltd. All rights reserved.
-
-No part of this publication, in whole or in part, may be reproduced, copied, transferred or any other right reserved to its copyright owner,
-
-including photocopying and all other copying, any transfer or transmission using any network or other means of communication, any broadcast
-
-for distant learning, in any form or by any means such as any information storage, transmission or retrieval system, without prior written
-
-permission from OffSec.
-
-Table of Contents
-
-1 OffSec Certified Professional Exam Report ...................................................... 4
-
-1.1 Introduction ................................................................................................................ 4
-
-1.2 Objective .................................................................................................................... 4
-
-1.3 Requirements ............................................................................................................. 4
-
-2 High-Level Summary .......................................................................................... 4
-
-2.1 Recommendations .................................................................................................... 5
-
-3 Methodologies ................................................................................................... 5
-
-3.1 Information Gathering ............................................................................................... 5
-
-3.2 Service Enumeration ................................................................................................. 5
-
-3.3 Penetration................................................................................................................. 6
-
-3.4 Maintaining Access ................................................................................................... 6
-
-3.5 House Cleaning ......................................................................................................... 6
-
-4 Independent Challenges .................................................................................... 7
-
-4.1 Target #1 – 192.168.107.110 .................................................................................. 7
-
-4.1.1 Service Enumeration ............................................................................................. 7
-
-4.1.2 Initial Access ......................................................................................................... 8
-
-4.1.3 Privilege Escalation..............................................................................................13
-
-4.2 Target #2 – 192.168.107.111 ................................................................................ 18
-
-4.2.1 Service Enumeration ............................................................................................18
-
-4.2.2 Initial Access ........................................................................................................19
-
-4.2.3 Privilege Escalation (Failed) .................................................................................32
-
-4.3 Target #3 – 192.168.107.112 (Failed) .................................................................. 33
-
-4.3.1 Service Enumeration ............................................................................................33
-
-4.3.2 Initial Access ........................................................................................................34
-
-5 Active Directory Set ........................................................................................ 38
-
-5.1 WS26 - 192.168.107.206 ........................................................................................ 39
-
-5.1.1 Service Enumeration ............................................................................................39
-
-5.1.2 Information Gathering ..........................................................................................39
-
-5.1.3 Initial Access to WS26 .........................................................................................40
-
-5.1.4 Network Pivoting ..................................................................................................41
-
-5.1.5 Domain Information Gathering .............................................................................42
-
-5.1.6 Lateral Movement (r.andrews to g.jarvis) .............................................................45
-
-5.1.7 Privilege Escalation..............................................................................................46
-
-5.1.8 Post Exploitation ..................................................................................................48
-
-5.2 SRV22 - 172.16.107.202 ......................................................................................... 49
-
-5.2.1 Service Enumeration ............................................................................................49
-
-5.2.2 Initial Access ........................................................................................................49
-
-5.2.3 Privilege Escalation..............................................................................................50
-
-5.3 DC20 - 172.16.107.200 ........................................................................................... 58
-
-5.3.1 Service Enumeration ............................................................................................58
-
-5.3.2 Initial Access ........................................................................................................58
-
-5.3.3 Privilege Escalation ..............................................................................................60
-
-1 OffSec Certified Professional Exam Report
-
-1.1 Introduction
-
-The OffSec Certified Professional exam report contains all efforts that were conducted in order to pass the OffSec Certified Professional exam. This report should contain all items that were used to pass the overall exam and it will be graded from a standpoint of correctness and fullness to all aspects of the exam. The purpose of this report is to ensure that the student has a full understanding of penetration testing methodologies as well as the technical knowledge to pass the qualifications for the OffSec Certified Professional.
-
-1.2 Objective
-
-The objective of this assessment is to perform an internal penetration test against the OffSec Lab and Exam network. The student is tasked with following a methodical approach to obtaining access to the objective goals. This test should simulate an actual penetration test and how you would start from beginning to end, including the overall report. An example page has already been created for you in the latter portions of this document that should give you ample information on what is expected to pass this course. Use the sample report as a guideline to get you through the reporting.
-
-1.3 Requirements
-
-The student will be required to fill out this penetration testing report fully and to include the following sections:
-
- Overall High-Level Summary and Recommendations (non-technical)
-
- Methodology walkthrough and detailed outline of steps taken
-
- Each finding with included screenshots, walkthrough, sample code, and proof.txt if applicable.
-
- Any additional items that were not included
-
-2 High-Level Summary
-
-Hyeonjin Lee was tasked with performing an internal penetration test towards OffSec Labs. An internal penetration test is a dedicated attack against internally connected systems. The focus of this test is to perform attacks, similar to those of a hacker and attempt to infiltrate OffSec’s internal lab systems – the THINC.local domain. Hyeonjin’s overall objective was to evaluate the network, identify systems, and exploit flaws while reporting the findings back to OffSec.
-
-When performing the internal penetration test, there were several alarming vulnerabilities that were identified on OffSec’s network. When performing the attacks, Hyeonjin was able to gain access to multiple machines, primarily due to outdated patches and poor security configurations. During the testing, Hyeonjin had administrative level access to multiple systems. All systems were successfully exploited and access granted.
-
-2.1 Recommendations
-
-Hyeonjin recommends patching the vulnerabilities identified during the testing to ensure that an attacker cannot exploit these systems in the future. One thing to remember is that these systems require frequent patching and once patched, should remain on a regular patch program to protect additional vulnerabilities that are discovered at a later date.
-
-3 Methodologies
-
-Hyeonjin utilized a widely adopted approach to performing penetration testing that is effective in testing how well the OffSec Labs and Exam environments are secure. Below is a breakout of how Hyeonjin was able to identify and exploit the variety of systems and includes all individual vulnerabilities found.
-
-3.1 Information Gathering
-
-The information gathering portion of a penetration test focuses on identifying the scope of the penetration test. During this penetration test, Hyeonjin was tasked with exploiting the lab and exam network. The specific IP addresses were:
-
-Exam Network:
-
-(ACTIVE DIRECTORY SET) 172.16.107.200, 172.16.107.202, 192.168.107.206
-
-(STAND-ALONE) 192.168.107.110, 192.168.107.111, 192.168.107.112
-
-3.2 Service Enumeration
-
-The service enumeration portion of a penetration test focuses on gathering information about what services are alive on a system or systems. This is valuable for an attacker as it provides detailed information on potential attack vectors into a system. Understanding what applications are running on the system gives an attacker needed information before performing the actual penetration test. In some cases, some ports may not be listed.
-
-3.3 Penetration
-
-The penetration testing portions of the assessment focus heavily on gaining access to a variety of systems. During this penetration test, Hyeonjin was able to successfully gain access to 5 out of the 6 systems.
-
-3.4 Maintaining Access
-
-Maintaining access to a system is important to us as attackers, ensuring that we can get back into a system after it has been exploited is invaluable. The maintaining access phase of the penetration test focuses on ensuring that once the focused attack has occurred (i.e. a buffer overflow), we have administrative access over the system again. Many exploits may only be exploitable once and we may never be able to get back into a system after we have already performed the exploit.
-
-3.5 House Cleaning
-
-The house cleaning portions of the assessment ensures that remnants of the penetration test are removed. Often fragments of tools or user accounts are left on an organizations computer which can cause security issues down the road. Ensuring that we are meticulous and no remnants of our penetration test are left over is important.
-
-After the trophies on both the lab network and exam network were completed, Hyeonjin removed all user accounts and passwords as well as the Meterpreter services installed on the system. OffSec should not have to remove any user accounts or services from the system.
-
-4 Independent Challenges
 
 4.1 Target #1 – 192.168.107.110
 
@@ -216,23 +38,30 @@ Port Scan Results IP Address Ports Open
 
 Performed an Nmap TCP port scan against the target host.
 
-┌──(kali㉿kali)-[~/oscp/110] └─$ sudo nmap 192.168.107.110 --open --min-rate 3000 -oN scan [sudo] password for kali: Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-28 07:56 -0500 Nmap scan report for 192.168.107.110 Host is up (0.20s latency). Not shown: 998 closed tcp ports (reset) PORT STATE SERVICE 21/tcp open ftp 22/tcp open ssh Nmap done: 1 IP address (1 host up) scanned in 1.65 seconds
+```bash
+┌──(kali㉿kali)-[~/oscp/110] 
+└─$ sudo nmap 192.168.107.110 --open --min-rate 3000 -oN scan [sudo] password for kali: Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-28 07:56 -0500 Nmap scan report for 192.168.107.110 Host is up (0.20s latency). Not shown: 998 closed tcp ports (reset) PORT STATE SERVICE 21/tcp open ftp 22/tcp open ssh Nmap done: 1 IP address (1 host up) scanned in 1.65 seconds
 
 Performed an Nmap UDP port scan against the target host.
+```
 
-┌──(kali㉿kali)-[~/oscp/110] └─$ sudo nmap 192.168.107.110 --open --min-rate 3000 -sU Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-28 08:02 -0500 Nmap scan report for 192.168.107.110 Host is up (0.19s latency). Not shown: 993 open|filtered udp ports (no-response), 6 closed udp ports (port-unreach) PORT STATE SERVICE 161/udp open snmp Nmap done: 1 IP address (1 host up) scanned in 3.04 seconds
+```bash
+┌──(kali㉿kali)-[~/oscp/110] 
+└─$ sudo nmap 192.168.107.110 --open --min-rate 3000 -sU Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-28 08:02 -0500 Nmap scan report for 192.168.107.110 Host is up (0.19s latency). Not shown: 993 open|filtered udp ports (no-response), 6 closed udp ports (port-unreach) PORT STATE SERVICE 161/udp open snmp Nmap done: 1 IP address (1 host up) scanned in 3.04 seconds
 
 4.1.2 Initial Access
 
 Confirmed that anonymous FTP login is permitted on the target host (192.168.107.110).
-
-┌──(kali㉿kali)-[~/oscp/110] └─$ ftp 192.168.107.110 Connected to 192.168.107.110. 220 (vsFTPd 3.0.5) Name (192.168.107.110:kali): anonymous 331 Please specify the password. Password: 230 Login successful. Remote system type is UNIX. Using binary mode to transfer files. ftp>
+```
+┌──(kali㉿kali)-[~/oscp/110] 
+└─$ ftp 192.168.107.110 Connected to 192.168.107.110. 220 (vsFTPd 3.0.5) Name (192.168.107.110:kali): anonymous 331 Please specify the password. Password: 230 Login successful. Remote system type is UNIX. Using binary mode to transfer files. ftp>
 
 ![[oscp_report_002.png]]
 
 Discovered and downloaded the db_connect.php file from the db directory via anonymous FTP access.
 
-┌──(kali㉿kali)-[~/oscp/110] └─$ ftp 192.168.107.110 Connected to 192.168.107.110. 220 (vsFTPd 3.0.5) Name (192.168.107.110:kali): anonymous 331 Please specify the password. Password: 230 Login successful.
+┌──(kali㉿kali)-[~/oscp/110] 
+└─$ ftp 192.168.107.110 Connected to 192.168.107.110. 220 (vsFTPd 3.0.5) Name (192.168.107.110:kali): anonymous 331 Please specify the password. Password: 230 Login successful.
 
 Remote system type is UNIX. Using binary mode to transfer files. ftp> ls 229 Entering Extended Passive Mode (|||41709|) 150 Here comes the directory listing. drwxr-xr-x 2 0 0 4096 Jun 02 2023 db 226 Directory send OK. ftp> cd db 250 Directory successfully changed. ftp> dir 229 Entering Extended Passive Mode (|||26076|) 150 Here comes the directory listing. -rwxrwxr-x 1 65534 65534 238 Jun 02 2023 db_connect.php 226 Directory send OK. ftp> get db_connect.php local: db_connect.php remote: db_connect.php 229 Entering Extended Passive Mode (|||37010|) 150 Opening BINARY mode data connection for db_connect.php (238 bytes). 100% |****************************************************************************************************************************************************************************************************************| 238 174.88 KiB/s 00:00 ETA 226 Transfer complete. 238 bytes received in 00:00 (1.22 KiB/s)
 
