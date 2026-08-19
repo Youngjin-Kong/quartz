@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/web/lfi-rfi
+  - tech/cred/crack
+type: machine
+platform: htb
+os: linux
+ip: 10.129.230.220
+domain: builder.htb
+ports: [22, 8080]
+services: [http, ssh]
+cves: [CVE-2024-23897]
+status: solved
+tech_count: 2
+---
 ## Nmap
 
 ```bash

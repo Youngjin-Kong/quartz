@@ -1,3 +1,40 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/acl-abuse
+  - tech/ad/ntlm-relay
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/win/service-abuse
+  - tech/win/alwaysinstall
+  - tech/lin/suid
+  - tech/lin/sudo-abuse
+  - tech/lin/cron
+  - tech/lin/nfs
+  - tech/web/deserialization
+  - tech/svc/smb
+  - tech/svc/snmp
+  - tech/exec/psexec
+  - tech/exec/wmi
+  - tech/cred/crack
+  - tech/cred/mimikatz
+  - tech/pivot/chisel
+  - tech/pivot/ligolo
+  - tech/pivot/ssh-tunnel
+  - tech/pivot/socat
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/payload/revshell
+type: reference
+platform: cheatsheet
+tech_count: 29
+---
 ### **Chall01 공략을 위한 정밀 행동 계획**
 
 이제 새로운 환경입니다. 이전의 나쁜 습관은 버리고 아래의 **객관적 정찰 프로세스**를 따르십시오.

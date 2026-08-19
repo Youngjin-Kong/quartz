@@ -1,3 +1,27 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/solved
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/bloodhound
+  - tech/web/webdav
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/cred/spray
+type: machine
+platform: pg
+os: windows
+ip: 192.168.178.122
+domain: hutch.offsec
+ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
+status: solved
+tech_count: 8
+---
 ```bash
 ┌──(kali㉿kali)-[~/PG/Hutch]
 └─$ cat ~/.zshrc | grep nnmap

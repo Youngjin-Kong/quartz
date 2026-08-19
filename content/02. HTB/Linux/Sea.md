@@ -1,3 +1,19 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - status/unsolved
+  - tech/lin/passwd-write
+  - tech/web/xss
+  - tech/cred/crack
+  - tech/enum/dirbust
+type: machine
+platform: htb
+domain: sea.htb
+cves: [CVE-2023-41425]
+status: unsolved
+tech_count: 4
+---
 # Target IP
 
 # 10.129.66.148

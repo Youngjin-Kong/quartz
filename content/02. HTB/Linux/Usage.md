@@ -1,3 +1,28 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/lin/container-escape
+  - tech/lin/passwd-write
+  - tech/web/sqli
+  - tech/web/file-upload
+  - tech/exec/ssh-key
+  - tech/enum/dirbust
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.9.222
+domain: usage.htb
+ports: [22, 80]
+services: [http, ssh]
+cves: [CVE-2023-24249]
+status: solved
+tech_count: 8
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Usage]

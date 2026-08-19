@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/svc/smb
+  - tech/enum/dirbust
+type: machine
+platform: htb
+os: linux
+ip: 10.129.8.122
+domain: editorial.htb
+ports: [22, 80]
+services: [http, ssh]
+status: solved
+tech_count: 3
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Editorial]

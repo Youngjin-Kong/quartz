@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/enum/dirbust
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: windows
+ip: 192.168.120.66
+ports: [80, 135, 139, 445, 8082, 9092]
+services: [http, microsoft-ds, msrpc, netbios-ssn, xmlipcregsvc]
+status: unsolved
+tech_count: 4
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/Jacko]

@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/passwd-write
+  - tech/web/lfi-rfi
+  - tech/svc/smb
+  - tech/exec/ssh-key
+  - tech/enum/searchsploit
+type: machine
+platform: pg
+os: linux
+ip: 192.168.115.240
+ports: [22, 80, 139, 445, 3000, 8021]
+services: [freeswitch-event, http, netbios-ssn, ssh]
+status: solved
+tech_count: 5
+---
 Nmap
 
 ```bash

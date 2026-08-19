@@ -1,3 +1,12 @@
+---
+tags:
+  - type/reference
+  - platform/oscp-etc
+  - tech/ad/bloodhound
+type: reference
+platform: oscp-etc
+tech_count: 1
+---
 
 아시다시피, AD는 상당히 복잡합니다. 하지만 AD가 실제로 어떻게 작동하는지에 대한 모델을 갖추면 공격 방식을 훨씬 직관적이고 명확하게 이해할 수 있습니다. 그래서 제가 최대한 간략하게 정리해 보았습니다.
 

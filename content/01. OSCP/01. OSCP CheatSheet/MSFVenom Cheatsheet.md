@@ -1,3 +1,15 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/web/file-upload
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+  - tech/payload/metasploit
+type: reference
+platform: cheatsheet
+tech_count: 4
+---
 | MSFVenom Payload Generation One-Liner                                                                                                                                                                                   | Description                                     |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | msfvenom -l payloads                                                                                                                                                                                                    | List available payloads                         |

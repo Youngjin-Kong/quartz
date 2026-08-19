@@ -1,3 +1,16 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - status/solved
+  - tech/web/default-creds
+  - tech/exec/ssh-key
+type: machine
+platform: htb
+domain: app.htb
+status: solved
+tech_count: 2
+---
 
 | Task                                                                      | Answer                           |
 | ------------------------------------------------------------------------- | -------------------------------- |

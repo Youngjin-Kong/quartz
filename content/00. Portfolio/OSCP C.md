@@ -1,3 +1,26 @@
+---
+tags:
+  - type/report
+  - platform/report
+  - tech/ad/pth
+  - tech/lin/sudo-abuse
+  - tech/lin/cron
+  - tech/lin/wildcard
+  - tech/svc/smb
+  - tech/svc/ftp
+  - tech/svc/snmp
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/pivot/chisel
+  - tech/enum/dirbust
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: report
+platform: report
+tech_count: 15
+---
 
 About this lab
 

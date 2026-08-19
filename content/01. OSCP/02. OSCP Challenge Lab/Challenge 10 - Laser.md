@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/kerberoast
+  - tech/ad/acl-abuse
+  - tech/ad/ntlm-relay
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+type: machine
+platform: pwk-challenge
+ip: 192.168.121.172
+status: solved
+tech_count: 7
+---
 # Information
 
 ## About this lab

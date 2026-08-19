@@ -1,3 +1,28 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/adcs
+  - tech/ad/ntlm-relay
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/ad/ticket-forge
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/exec/wmi
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+type: reference
+platform: cheatsheet
+tech_count: 17
+---
 
 ```
 ## tags: [oscp, ad, 인증, phase-cross-cutting] group: 1 related: ["02 AD 구조", "05 공격 기법"]

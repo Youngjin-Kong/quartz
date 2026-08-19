@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/unsolved
+  - tech/lin/sudo-abuse
+  - tech/web/file-upload
+  - tech/svc/smb
+  - tech/cred/spray
+type: machine
+platform: htb
+os: linux
+ip: 10.129.231.223
+domain: dog.htb
+ports: [22, 80]
+services: [http, ssh]
+status: unsolved
+tech_count: 4
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Dog]

@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/unsolved
+  - tech/ad/kerberoast
+  - tech/svc/smb
+  - tech/exec/wmi
+  - tech/cred/crack
+type: machine
+platform: htb
+os: windows
+ip: 10.129.45.168
+domain: app.htb
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269]
+services: [domain, kerberos-sec, ldap, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
+status: unsolved
+tech_count: 4
+---
 
 | Task                                                                  | Answer                           |
 | --------------------------------------------------------------------- | -------------------------------- |

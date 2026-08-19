@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/suid
+  - tech/lin/kernel-exploit
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: linux
+ip: 192.168.132.28
+ports: [22, 80]
+services: [http, ssh]
+status: solved
+tech_count: 3
+---
 ## Nmap
 
 ```bash

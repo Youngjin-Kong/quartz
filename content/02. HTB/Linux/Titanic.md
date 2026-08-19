@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/cred/crack
+  - tech/enum/peas
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.7.50
+domain: titanic.htb
+ports: [22, 80]
+services: [http, ssh]
+cves: [CVE-2024-41817]
+status: solved
+tech_count: 3
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Titanic]

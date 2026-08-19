@@ -1,3 +1,50 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/ntlm-relay
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/ad/ticket-forge
+  - tech/win/potato
+  - tech/win/sebackup
+  - tech/win/service-abuse
+  - tech/win/alwaysinstall
+  - tech/lin/suid
+  - tech/lin/cron
+  - tech/lin/wildcard
+  - tech/lin/passwd-write
+  - tech/web/lfi-rfi
+  - tech/web/file-upload
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/svc/snmp
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/exec/wmi
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+  - tech/cred/keepass
+  - tech/pivot/chisel
+  - tech/pivot/ssh-tunnel
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/metasploit
+type: reference
+platform: cheatsheet
+domain: sequel.htb
+cves: [CVE-2017-16995, CVE-2024-21413]
+tech_count: 37
+---
 ### Nmap(AD는 1번만 해도 되는 ping 막아서 -Pn까지만 추가)
 
 ### 1,2번 먼저 그 다음 3번

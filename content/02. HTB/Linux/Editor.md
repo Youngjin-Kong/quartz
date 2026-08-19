@@ -1,3 +1,24 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/web/webdav
+  - tech/svc/smb
+  - tech/pivot/ssh-tunnel
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.16.255
+domain: editor.htb
+ports: [22, 80, 8080]
+services: [http, ssh]
+cves: [CVE-2024-32019, CVE-2025-24893]
+status: solved
+tech_count: 4
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Editor]

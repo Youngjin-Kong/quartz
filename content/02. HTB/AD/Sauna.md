@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/unsolved
+  - tech/ad/asreproast
+  - tech/cred/crack
+type: machine
+platform: htb
+os: windows
+ip: 10.129.95.180
+domain: egotistical-bank.local
+ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
+status: unsolved
+tech_count: 2
+---
 
 ## Nmap
 

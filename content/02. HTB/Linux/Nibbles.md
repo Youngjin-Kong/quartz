@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/unsolved
+  - tech/lin/sudo-abuse
+  - tech/cred/crack
+  - tech/enum/dirbust
+type: machine
+platform: htb
+os: linux
+ip: 10.129.99.181
+ports: [22, 80]
+services: [http, ssh]
+cves: [CVE-2015-6967]
+status: unsolved
+tech_count: 3
+---
 
 
 ## Nmap

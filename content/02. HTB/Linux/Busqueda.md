@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/path-hijack
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.228.217
+domain: searcher.htb
+ports: [22, 80]
+services: [http, ssh]
+status: solved
+tech_count: 2
+---
 ## Nmap
 
 ```bash

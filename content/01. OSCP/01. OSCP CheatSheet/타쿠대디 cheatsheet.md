@@ -1,3 +1,57 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - os/linux
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/ntlm-relay
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/ad/dnsadmins
+  - tech/ad/ticket-forge
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/win/service-abuse
+  - tech/lin/sudo-abuse
+  - tech/lin/cron
+  - tech/lin/nfs
+  - tech/lin/container-escape
+  - tech/lin/kernel-exploit
+  - tech/lin/passwd-write
+  - tech/web/sqli
+  - tech/web/lfi-rfi
+  - tech/web/file-upload
+  - tech/web/deserialization
+  - tech/web/default-creds
+  - tech/db/mssql
+  - tech/db/mysql
+  - tech/svc/smb
+  - tech/svc/ftp
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/exec/wmi
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+  - tech/pivot/ssh-tunnel
+  - tech/pivot/socat
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+  - tech/payload/metasploit
+type: reference
+platform: cheatsheet
+os: linux
+domain: active.htb
+cves: [CVE-2008-0166, CVE-2014-6271, CVE-2017-0199, CVE-2019-10197, CVE-2021-22204, CVE-2021-4034]
+tech_count: 42
+---
 **[목차]**
 
 1. [Information Gathering](https://takudaddy.tistory.com/439#T1)

@@ -1,3 +1,12 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+type: reference
+platform: cheatsheet
+cves: [CVE-2021-3560]
+tech_count: 0
+---
 
 ## CVE-2021-3560
 ```bash

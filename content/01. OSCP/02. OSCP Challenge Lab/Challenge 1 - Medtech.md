@@ -1,3 +1,31 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/dcsync
+  - tech/win/potato
+  - tech/win/sebackup
+  - tech/win/scheduled-task
+  - tech/lin/sudo-abuse
+  - tech/web/sqli
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/mimikatz
+  - tech/pivot/ligolo
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pwk-challenge
+status: solved
+tech_count: 18
+---
 About this lab
 
 Navigate through a complex multi-machine lab, beginning with a SQL injection vulnerability leading to remote code execution and privilege escalation. Utilize lateral movement techniques, exploit Windows services, and harvest credentials to gain access to critical systems, culminating in full domain compromise. Hone your skills in privilege escalation, token impersonation, and exploiting misconfigurations.

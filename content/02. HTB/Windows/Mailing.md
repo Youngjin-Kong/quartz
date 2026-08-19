@@ -1,3 +1,26 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/ntlm-relay
+  - tech/web/lfi-rfi
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: windows
+ip: 10.129.232.39
+domain: mailing.htb
+ports: [25, 80, 110, 135, 139, 143, 445, 465, 587, 993]
+services: [http, imap, microsoft-ds, msrpc, netbios-ssn, pop3, smtp, ssl/imap, ssl/smtp]
+cves: [CVE-2023-2255, CVE-2024-21413]
+status: solved
+tech_count: 6
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Mailing]

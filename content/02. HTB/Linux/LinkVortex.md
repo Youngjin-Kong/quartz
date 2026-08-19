@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/enum/dirbust
+type: machine
+platform: htb
+os: linux
+ip: 10.129.231.194
+domain: linkvortex.htb
+ports: [22, 80]
+services: [http, ssh]
+cves: [CVE-2023-40028]
+status: solved
+tech_count: 2
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/LinkVortex]

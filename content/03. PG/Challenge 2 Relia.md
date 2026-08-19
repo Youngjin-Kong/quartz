@@ -1,3 +1,20 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/svc/smb
+  - tech/enum/dirbust
+type: machine
+platform: pg
+os: windows
+ip: 192.168.157.250
+ports: [80, 135, 139, 445, 3389, 5985, 5986, 8000, 47001]
+services: [http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn, ssl/wsmans]
+status: unsolved
+tech_count: 2
+---
 ## 192.168.157.250
 ## Nmap
 ```bash

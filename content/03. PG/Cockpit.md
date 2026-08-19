@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/unsolved
+  - tech/lin/sudo-abuse
+  - tech/lin/container-escape
+  - tech/lin/wildcard
+  - tech/enum/dirbust
+type: machine
+platform: pg
+os: linux
+ip: 192.168.150.10
+ports: [22, 80, 9090]
+services: [http, ssh]
+status: unsolved
+tech_count: 4
+---
 Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/Cockpit]

@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.230.87
+domain: broker.htb
+ports: [22, 80, 1883, 5672, 8161, 43009]
+services: [amqp, http, mqtt, ssh]
+cves: [CVE-2023-46604]
+status: solved
+tech_count: 2
+---
 ## Nmap
 
 ```bash

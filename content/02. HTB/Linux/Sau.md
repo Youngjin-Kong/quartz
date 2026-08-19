@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/unsolved
+  - tech/lin/sudo-abuse
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.229.26
+ports: [22]
+services: [ssh]
+cves: [CVE-2023-27163]
+status: unsolved
+tech_count: 2
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Sau]

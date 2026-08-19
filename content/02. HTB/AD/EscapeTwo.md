@@ -1,3 +1,26 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/bloodhound
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: windows
+ip: 10.129.11.237
+domain: sequel.htb
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 1433, 3268, 3269, 5985, 9389, 47001]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-sql-s, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
+status: solved
+tech_count: 7
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/EscapeTwo]

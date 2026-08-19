@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/suid
+  - tech/lin/sudo-abuse
+  - tech/exec/ssh-key
+  - tech/enum/dirbust
+  - tech/enum/peas
+type: machine
+platform: pg
+os: linux
+ip: 192.168.120.100
+ports: [22, 80, 111, 2049, 7742, 8080, 33065, 35835, 42329, 43307]
+services: [http, mountd, nfs, nlockmgr, rpcbind, ssh]
+status: solved
+tech_count: 5
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/Sorcerer]

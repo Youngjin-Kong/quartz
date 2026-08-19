@@ -1,3 +1,35 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/kerberoast
+  - tech/ad/dcsync
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/lin/kernel-exploit
+  - tech/web/cmd-injection
+  - tech/web/default-creds
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/svc/snmp
+  - tech/exec/winrm
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+  - tech/pivot/ligolo
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pwk-challenge
+cves: [CVE-2022-0847, CVE-2022-42889]
+status: solved
+tech_count: 21
+---
 About this lab
 
 This lab challenges learners to exploit exposed services and misconfigurations in an Active Directory environment. Starting with a Kerberoasting attack to crack service account credentials, learners perform lateral movement, configure SQL Server for command execution, and escalate privileges to NT AUTHORITY\SYSTEM using the SeImpersonatePrivilege. The exercise culminates in a domain compromise through hash extraction and reuse.

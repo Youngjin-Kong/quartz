@@ -1,3 +1,33 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/ad/dcsync
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/web/lfi-rfi
+  - tech/svc/smb
+  - tech/svc/ftp
+  - tech/exec/winrm
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+  - tech/pivot/ligolo
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: linux
+ip: 192.168.107.110
+status: solved
+tech_count: 17
+---
 
 
 4.1 Target #1 – 192.168.107.110

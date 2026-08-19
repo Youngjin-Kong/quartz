@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/web/lfi-rfi
+  - tech/web/file-upload
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: linux
+ip: 192.168.164.229
+ports: [22, 80]
+services: [http, ssh]
+status: solved
+tech_count: 5
+---
 ## 초기 열거
 ### Nmap
 ```bash

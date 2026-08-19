@@ -1,3 +1,24 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/adcs
+  - tech/ad/dnsadmins
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/exec/winrm
+type: machine
+platform: htb
+os: windows
+ip: 10.129.9.243
+domain: manager.htb
+ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 1433, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-sql-s, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
+status: solved
+tech_count: 5
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Manager]

@@ -1,3 +1,26 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/bloodhound
+  - tech/ad/gpo-abuse
+  - tech/svc/smb
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: windows
+ip: 10.129.232.168
+domain: frizz.htb
+ports: [22, 53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn, ssh]
+cves: [CVE-2023-45878]
+status: solved
+tech_count: 6
+---
 ## Nmap
 
 ```bash

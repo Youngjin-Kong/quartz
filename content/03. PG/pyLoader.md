@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/enum/searchsploit
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: linux
+ip: 192.168.132.26
+ports: [22, 9666]
+services: [http, ssh]
+cves: [CVE-2023-0297]
+status: solved
+tech_count: 2
+---
 
 ## Nmap
 ```bash

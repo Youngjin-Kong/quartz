@@ -1,3 +1,27 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/adcs
+  - tech/ad/shadow-cred
+  - tech/ad/ntlm-relay
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+type: machine
+platform: htb
+os: windows
+ip: 10.129.232.88
+domain: fluffy.htb
+ports: [53, 88, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ncacn_http, netbios-ssn, ssl/ldap]
+cves: [CVE-2025-24071]
+status: solved
+tech_count: 7
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Fluffy]

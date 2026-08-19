@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/web/default-creds
+  - tech/svc/ftp
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: windows
+ip: 10.129.230.176
+ports: [21, 80, 135, 139, 445, 5985, 47001]
+services: [ftp, http, microsoft-ds, msrpc, netbios-ssn]
+cves: [CVE-2018-9276]
+status: solved
+tech_count: 4
+---
 ```bash
 ┌──(kali㉿kali)-[~]
 └─$ nmap -sCV -p- -Pn -A --min-rate 5000 10.129.230.176 -oN 10.129.230.176.log       

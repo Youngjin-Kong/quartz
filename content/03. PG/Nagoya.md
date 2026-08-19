@@ -1,3 +1,33 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/bloodhound
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/web/lfi-rfi
+  - tech/db/mssql
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/pivot/ligolo
+  - tech/pivot/ssh-tunnel
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: windows
+ip: 192.168.120.21
+domain: nagoya-industries.com
+ports: [53, 80, 135, 139, 389, 445, 593, 636, 3268, 3269, 3389, 5985, 9389]
+services: [domain, globalcatldapssl, http, ldap, ldapssl, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn]
+status: unsolved
+tech_count: 14
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/Nagoya]

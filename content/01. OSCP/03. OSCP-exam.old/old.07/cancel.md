@@ -1,3 +1,14 @@
+---
+tags:
+  - type/machine
+  - platform/exam
+  - status/unsolved
+type: machine
+platform: exam
+domain: paste.offsec
+status: unsolved
+tech_count: 0
+---
 I am ready to take the exam.
 
 Proctor.Bjorn

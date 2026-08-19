@@ -1,3 +1,24 @@
+---
+tags:
+  - type/reference
+  - platform/oscp-etc
+  - tech/win/potato
+  - tech/lin/suid
+  - tech/lin/nfs
+  - tech/web/lfi-rfi
+  - tech/web/default-creds
+  - tech/svc/smb
+  - tech/svc/snmp
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/pivot/ligolo
+  - tech/enum/dirbust
+  - tech/payload/revshell
+type: reference
+platform: oscp-etc
+tech_count: 13
+---
 
 
 ](https://medium.com/plans?dimension=post_audio_button&postId=87768ccf770f&source=upgrade_membership---post_audio_button-----------------------------------------)

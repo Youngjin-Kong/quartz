@@ -1,3 +1,17 @@
+---
+tags:
+  - type/machine
+  - platform/ctf
+  - status/solved
+  - tech/web/lfi-rfi
+  - tech/web/ssti
+  - tech/web/ssrf
+  - tech/cred/crack
+type: machine
+platform: ctf
+status: solved
+tech_count: 4
+---
 
 
 ![[Pasted image 20260625135833.png]]

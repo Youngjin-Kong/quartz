@@ -1,3 +1,27 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/kerberoast
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+type: machine
+platform: htb
+os: windows
+ip: 10.129.5.22
+domain: tombwatcher.htb
+ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
+cves: [CVE-2024-49019]
+status: solved
+tech_count: 7
+---
 ## Nmap
 ```bash
 nmap -sCV -p- -Pn -A --min-rate 5000 10.129.5.22 -oN nmap.log

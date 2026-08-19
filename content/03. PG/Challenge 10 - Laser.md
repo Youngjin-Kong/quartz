@@ -1,3 +1,20 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/svc/smb
+type: machine
+platform: pg
+os: windows
+ip: 192.168.144.172
+domain: laser.com
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 3389, 5985, 5986, 9389, 47001]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, ssl/wsmans]
+status: unsolved
+tech_count: 1
+---
 ### Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/laser]

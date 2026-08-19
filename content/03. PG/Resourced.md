@@ -1,3 +1,27 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/solved
+  - tech/ad/dcsync
+  - tech/ad/rbcd
+  - tech/ad/acl-abuse
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/exec/psexec
+type: machine
+platform: pg
+os: windows
+ip: 192.168.125.175
+domain: resourced.local
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 3389, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn]
+status: solved
+tech_count: 8
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/PG/Resourced]

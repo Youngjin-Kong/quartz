@@ -1,3 +1,25 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/shadow-cred
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+type: machine
+platform: htb
+os: windows
+ip: 10.129.231.186
+domain: certified.htb
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
+status: solved
+tech_count: 6
+---
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Certified]
 └─$ nmap -sCV -p- -Pn -A --min-rate 5000 10.129.231.186 -oN nmap.log

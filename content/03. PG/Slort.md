@@ -1,3 +1,26 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/solved
+  - tech/web/sqli
+  - tech/web/lfi-rfi
+  - tech/web/xss
+  - tech/db/mysql
+  - tech/svc/ftp
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: windows
+ip: 192.168.62.53
+ports: [21, 135, 139, 445, 3306, 4443, 8080]
+services: [ftp, http, microsoft-ds, msrpc, mysql, netbios-ssn]
+cves: [CVE-2007-6750, CVE-2012-1182]
+status: solved
+tech_count: 7
+---
 ```bash
 ???(kali?kali)-[~/Slort]
 ??$ sudo nmap -sV -sC -p- -O 192.168.62.53 

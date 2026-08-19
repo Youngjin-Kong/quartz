@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/db/mysql
+  - tech/svc/smb
+type: machine
+platform: pg
+os: windows
+ip: 192.168.157.169
+domain: feast.com
+ports: [22, 53, 80, 88, 135, 139, 389, 443, 445, 464, 593, 636, 3268, 3269, 3306, 3389, 5985, 5986, 9389, 47001]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, mysql, ncacn_http, netbios-ssn, ssh, ssl/http, ssl/wsmans]
+status: unsolved
+tech_count: 2
+---
 ## 192.168.157.169
 ### Nmap
 ```bash

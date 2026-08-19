@@ -1,3 +1,25 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/unsolved
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/acl-abuse
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/cred/crack
+type: machine
+platform: htb
+os: windows
+ip: 10.129.6.69
+domain: htb.local
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389, 47001]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
+status: unsolved
+tech_count: 6
+---
 
 
 

@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/unsolved
+  - tech/web/deserialization
+  - tech/web/default-creds
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/exec/wmi
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pwk-challenge
+cves: [CVE-2020-10189]
+status: unsolved
+tech_count: 7
+---
 About this lab
 
 Explore a multi-stage network attack involving an enterprise environment vulnerable to CVE-2020-10189, an exploit for ManageEngine. Progress through system compromise via default credentials, leverage RCE to extract plaintext passwords, pivot using port forwarding, and escalate privileges by exploiting insecure GPO permissions. Your mission concludes with complete domain compromise.

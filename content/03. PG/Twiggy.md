@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/kernel-exploit
+  - tech/lin/passwd-write
+  - tech/web/lfi-rfi
+type: machine
+platform: pg
+os: linux
+ip: 192.168.189.62
+ports: [22, 53, 80, 4505, 4506, 8000]
+services: [domain, http, ssh, zmtp]
+cves: [CVE-2020-11651, CVE-2020-11652]
+status: solved
+tech_count: 3
+---
 ```bash
 ┌──(kali㉿kali)-[~/PG/Twiggy]
 └─$ cat nmap.log

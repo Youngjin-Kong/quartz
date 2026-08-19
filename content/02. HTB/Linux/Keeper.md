@@ -1,3 +1,22 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/web/default-creds
+  - tech/cred/keepass
+  - tech/cred/dpapi
+type: machine
+platform: htb
+os: linux
+ip: 10.129.10.166
+domain: keeper.htb
+ports: [22, 80, 8080]
+services: [http, ssh]
+status: solved
+tech_count: 3
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Keeper]

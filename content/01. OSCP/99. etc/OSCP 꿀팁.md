@@ -1,3 +1,12 @@
+---
+tags:
+  - type/reference
+  - platform/oscp-etc
+  - tech/enum/peas
+type: reference
+platform: oscp-etc
+tech_count: 1
+---
 ## 시험 자체에 대한 작은 팁 (커뮤니티에 공유했었던)
 
 1. tree /F 명령어는 시스템 관리자가 남긴 숨겨진 파일들을 찾아내는 데 아주 유용했습니다.

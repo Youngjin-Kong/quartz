@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/container-escape
+  - tech/lin/passwd-write
+  - tech/enum/searchsploit
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: linux
+ip: 192.168.103.41
+ports: [22, 8090, 8091]
+services: [http, jamlink, ssh]
+cves: [CVE-2022-26134]
+status: solved
+tech_count: 4
+---
 ### Nmap
 
 ```bash

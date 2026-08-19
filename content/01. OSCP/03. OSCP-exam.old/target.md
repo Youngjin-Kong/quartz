@@ -1,3 +1,13 @@
+---
+tags:
+  - type/machine
+  - platform/exam
+  - status/solved
+type: machine
+platform: exam
+status: solved
+tech_count: 0
+---
 
 
 

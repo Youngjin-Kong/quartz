@@ -1,3 +1,17 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - status/unsolved
+  - tech/payload/msfvenom
+type: machine
+platform: htb
+ip: 10.129.136.9
+ports: [8080]
+services: [http]
+status: unsolved
+tech_count: 1
+---
 
 | [[#Which TCP port is open on the remote host?]] |     |
 | ----------------------------------------------- | --- |

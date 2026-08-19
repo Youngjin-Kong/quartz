@@ -1,3 +1,24 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/web/cmd-injection
+  - tech/cred/crack
+  - tech/enum/dirbust
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.10.145
+domain: cozyhosting.htb
+ports: [22, 80]
+services: [http, ssh]
+status: solved
+tech_count: 5
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/CozyHosting]

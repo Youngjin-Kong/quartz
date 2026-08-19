@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/web/xss
+  - tech/payload/metasploit
+type: machine
+platform: pg
+os: windows
+ip: 192.168.62.40
+ports: [53, 135, 139, 445, 3389, 5357]
+services: [domain, http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn]
+cves: [CVE-2009-3103, CVE-2012-1182]
+status: unsolved
+tech_count: 2
+---
 ```bash
 ???(kali?kali)-[~]
 ??$ sudo nmap -sV -sC -p- -O 192.168.62.40   

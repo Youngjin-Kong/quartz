@@ -1,3 +1,24 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/bloodhound
+  - tech/ad/ticket-forge
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/win/autologon
+  - tech/web/lfi-rfi
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/exec/psexec
+type: machine
+platform: pwk-challenge
+status: solved
+tech_count: 11
+---
 About this lab
 
 The Poseidon lab showcases Active Directory attacks leveraging ASREPRoasting and SeImpersonate privilege escalation. Learners will extract an AS_REP hash, crack it for credentials, and gain initial access to the target. Privilege escalation through abuse of SeImpersonate permissions demonstrates how attackers can exploit system-level access. Post-exploitation involves dumping credentials from memory, preparing for lateral movement.

@@ -1,3 +1,29 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/kerberoast
+  - tech/ad/dcsync
+  - tech/ad/acl-abuse
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/dpapi
+type: machine
+platform: htb
+os: windows
+ip: 10.129.231.205
+domain: vintage.htb
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
+status: solved
+tech_count: 10
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/vintage]

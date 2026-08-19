@@ -1,3 +1,23 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/suid
+  - tech/enum/dirbust
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.231.37
+domain: board.htb
+ports: [22, 80]
+services: [http, ssh]
+cves: [CVE-2022-37706, CVE-2023-30253]
+status: solved
+tech_count: 3
+---
 ```bash
 Nmap scan report for 10.129.231.37
 Host is up (0.22s latency).

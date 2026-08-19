@@ -1,3 +1,19 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/unsolved
+  - tech/svc/smb
+type: machine
+platform: pg
+os: windows
+ip: 192.168.218.95
+ports: [135, 139, 445, 3389, 5001, 5985, 5986, 8443, 12000, 44444, 47001]
+services: [cce4x, cognex-dataman, commplex-link, http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn, ssl/https-alt, ssl/wsmans]
+status: unsolved
+tech_count: 1
+---
 ## 192.168.218.95
 
 ### credentials

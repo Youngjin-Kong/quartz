@@ -1,3 +1,51 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/acl-abuse
+  - tech/ad/ntlm-relay
+  - tech/ad/pth
+  - tech/ad/bloodhound
+  - tech/ad/ticket-forge
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/win/service-abuse
+  - tech/win/scheduled-task
+  - tech/lin/suid
+  - tech/lin/sudo-abuse
+  - tech/lin/cron
+  - tech/lin/nfs
+  - tech/lin/passwd-write
+  - tech/web/sqli
+  - tech/web/file-upload
+  - tech/db/mssql
+  - tech/db/mysql
+  - tech/svc/smb
+  - tech/svc/snmp
+  - tech/exec/winrm
+  - tech/exec/psexec
+  - tech/exec/wmi
+  - tech/exec/ssh-key
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/cred/mimikatz
+  - tech/cred/keepass
+  - tech/pivot/chisel
+  - tech/pivot/ligolo
+  - tech/pivot/ssh-tunnel
+  - tech/pivot/socat
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/payload/msfvenom
+  - tech/payload/metasploit
+type: reference
+platform: cheatsheet
+domain: inlanefreight.htb
+tech_count: 39
+---
 # Information Gathering
 
 ## 수동적 정보 수집

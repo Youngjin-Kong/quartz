@@ -1,3 +1,11 @@
+---
+tags:
+  - type/theory
+  - platform/cppg
+type: theory
+platform: cppg
+tech_count: 0
+---
 **기준일자**
 **개인정보보호법 2025. 10. 2 시행**
 **개인정보 보호법 시행령 2025. 10. 2 시행**

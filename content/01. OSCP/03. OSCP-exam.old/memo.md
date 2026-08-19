@@ -1,3 +1,20 @@
+---
+tags:
+  - type/machine
+  - platform/exam
+  - status/unsolved
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/adcs
+  - tech/ad/bloodhound
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/payload/msfvenom
+type: machine
+platform: exam
+status: unsolved
+tech_count: 7
+---
 
 ![[oscp_cheatsheet_3.html]]
 evil-winrm -i 172.16.91.200 -u 'b.martin' -p 'MartiniAllNight222'

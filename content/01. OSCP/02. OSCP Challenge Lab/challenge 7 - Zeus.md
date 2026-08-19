@@ -1,3 +1,20 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/dcsync
+  - tech/svc/smb
+  - tech/exec/wmi
+type: machine
+platform: pwk-challenge
+ip: 192.168.137.158
+domain: zeus.corp
+ports: [53, 88, 123, 135, 139, 389, 445, 464, 593, 636, 1433, 3268, 3269, 5985]
+services: [domain, globalcatldap, globalcatldapssl, http-rpc-epmap, kerberos-sec, kpasswd5, ldap, ldapssl, microsoft-ds, ms-sql-s, msrpc, netbios-ssn, ntp, wsman]
+status: solved
+tech_count: 3
+---
 
 About this lab
 

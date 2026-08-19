@@ -1,3 +1,18 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/unsolved
+  - tech/win/dll-hijack
+  - tech/win/scheduled-task
+  - tech/web/lfi-rfi
+  - tech/pivot/chisel
+type: machine
+platform: pwk-challenge
+cves: [CVE-2021-41773]
+status: unsolved
+tech_count: 4
+---
 About this lab
 
 Embark on a dynamic multi-network challenge focused on identifying and exploiting vulnerabilities in a diverse range of systems. From leveraging directory traversal (CVE-2021-41773) and privilege escalation to service hijacking, this lab provides a hands-on approach to pivoting through internal networks, cracking credentials, and achieving complete domain compromise while showcasing advanced lateral movement techniques.

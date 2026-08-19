@@ -1,3 +1,24 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/db/mysql
+  - tech/svc/snmp
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: linux
+ip: 10.129.230.96
+domain: monitored.htb
+ports: [22, 80, 389, 443, 5667]
+services: [http, ldap, ssh, ssl/http]
+cves: [CVE-2023-40931]
+status: solved
+tech_count: 4
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Monitored]

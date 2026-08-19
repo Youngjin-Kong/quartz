@@ -1,3 +1,19 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/solved
+  - tech/payload/msfvenom
+type: machine
+platform: pg
+os: windows
+ip: 192.168.60.45
+ports: [80, 135, 139, 445, 3389, 3573]
+services: [http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn, tag-ups-1]
+status: solved
+tech_count: 1
+---
 ```bash
 ??(kali?kali)-[~/Kevin]
 ??$ sudo nmap -sV -sC -p- -O 192.168.60.45      

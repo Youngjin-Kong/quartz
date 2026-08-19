@@ -1,3 +1,21 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/solved
+  - tech/lin/sudo-abuse
+  - tech/lin/kernel-exploit
+type: machine
+platform: pg
+os: linux
+ip: 192.168.115.98
+domain: jmxremote.local
+ports: [22, 139, 445, 631, 2181, 2222, 8080, 8081, 39605]
+services: [http, ipp, java-rmi, netbios-ssn, ssh, zookeeper]
+status: solved
+tech_count: 2
+---
 ```bash
 ┌──(kali㉿kali)-[~/PG/Pelican]
 └─$ nnmap 192.168.115.98

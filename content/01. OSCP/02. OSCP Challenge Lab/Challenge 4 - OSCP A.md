@@ -1,3 +1,28 @@
+---
+tags:
+  - type/machine
+  - platform/pwk-challenge
+  - status/solved
+  - tech/ad/dcsync
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/lin/sudo-abuse
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/crack
+  - tech/pivot/ligolo
+  - tech/enum/dirbust
+  - tech/enum/peas
+  - tech/enum/searchsploit
+  - tech/payload/msfvenom
+  - tech/payload/revshell
+type: machine
+platform: pwk-challenge
+domain: challenge.lab
+cves: [CVE-2020-13151]
+status: solved
+tech_count: 13
+---
 About this lab
 
 This lab involves a sophisticated attack chain against an Active Directory environment. Learners begin by exploiting a vulnerable webapp to achieve remote code execution, followed by privilege escalation Privilege abuse. Through lateral movement, pivoting across network segments, and cracking Kerberos tickets, learners must enumerate and compromise domain assets to achieve full domain control.

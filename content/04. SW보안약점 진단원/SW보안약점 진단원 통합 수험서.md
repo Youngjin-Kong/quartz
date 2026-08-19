@@ -1,3 +1,18 @@
+---
+tags:
+  - type/theory
+  - platform/swsec
+  - tech/lin/passwd-write
+  - tech/web/lfi-rfi
+  - tech/web/file-upload
+  - tech/web/deserialization
+  - tech/web/xss
+  - tech/web/ssrf
+  - tech/web/cmd-injection
+type: theory
+platform: swsec
+tech_count: 7
+---
 # SW보안약점 진단원 통합 수험서 (2026.8.8 대비)
 
 > 이 파일 하나로 학습이 완결되도록 구성한 통합본입니다. 원문 근거: 「2026년 SW보안약점 진단원 이수시험 안내서」(행정안전부·KISA 공식), 「소프트웨어 개발보안 가이드」(2021.12.29) — 모든 항목 정의·대책·코드예제는 이 두 문서에서 추출·요약했습니다.

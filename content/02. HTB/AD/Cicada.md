@@ -1,3 +1,25 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/ad/dnsadmins
+  - tech/win/sebackup
+  - tech/web/lfi-rfi
+  - tech/svc/smb
+  - tech/exec/winrm
+  - tech/cred/spray
+type: machine
+platform: htb
+os: windows
+ip: 10.129.8.121
+domain: cicada.htb
+ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985]
+services: [domain, http, kerberos-sec, kpasswd5, ldap, microsoft-ds, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
+status: solved
+tech_count: 6
+---
 ## Nmap
 ```bash
 ┌──(kali㉿kali)-[~/HTB/Cicada]

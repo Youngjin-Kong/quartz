@@ -1,3 +1,37 @@
+---
+tags:
+  - type/reference
+  - platform/cheatsheet
+  - tech/ad/kerberoast
+  - tech/ad/asreproast
+  - tech/ad/dcsync
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/shadow-cred
+  - tech/ad/bloodhound
+  - tech/win/potato
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/win/autologon
+  - tech/lin/suid
+  - tech/lin/sudo-abuse
+  - tech/lin/path-hijack
+  - tech/lin/passwd-write
+  - tech/web/sqli
+  - tech/web/lfi-rfi
+  - tech/web/file-upload
+  - tech/web/deserialization
+  - tech/web/ssrf
+  - tech/svc/smb
+  - tech/cred/crack
+  - tech/cred/spray
+  - tech/enum/dirbust
+type: reference
+platform: cheatsheet
+domain: fluffy.htb
+cves: [CVE-2017-16995, CVE-2022-37706, CVE-2023-28252, CVE-2023-30253, CVE-2023-38146, CVE-2023-40028, CVE-2023-46604, CVE-2024-21413, CVE-2024-41817, CVE-2025-24071]
+tech_count: 24
+---
 # HTB 침투 시나리오 정밀 분석 및 OSCP 실전 전술 보고서
 
 본 보고서는 오펜시브 시큐리티 인증 전문가(OSCP) 자격시험을 준비하는 보안 전문가를 위한 종합 기술 분석서이다. HackTheBox(HTB) 플랫폼에서 제공되는 46개의 고난도 머신을 대상으로, 보안 연구가 0xdf의 분석 방법론을 심층 검토하여 각 타겟별 핵심 공격 벡터, 도구 활용법 및 실제 명령어 체계를 상세히 정리하였다. 본 보고서의 목적은 단순한 해법 나열이 아니라, 각 취약점의 근본 원인과 침투 테스터가 마주하게 될 다양한 시나리오에 대한 전략적 이해를 제공하는 데 있다.

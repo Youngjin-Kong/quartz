@@ -1,3 +1,20 @@
+---
+tags:
+  - type/machine
+  - platform/htb
+  - os/windows
+  - status/solved
+  - tech/payload/revshell
+type: machine
+platform: htb
+os: windows
+ip: 10.129.229.128
+ports: [80]
+services: [http]
+cves: [CVE-2023-28252, CVE-2023-38146]
+status: solved
+tech_count: 1
+---
 
 Nmap
 ```bash
