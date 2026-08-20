@@ -5,7 +5,6 @@ tags:
   - status/unsolved
 type: machine
 platform: exam
-domain: paste.offsec
 status: unsolved
 tech_count: 0
 ---

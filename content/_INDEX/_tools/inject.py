@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 """meta.json 기준으로 프론트매터를 주입한다. 본문은 한 바이트도 건드리지 않는다.
 --dry 로 먼저 검증, --apply 로 실제 기록."""
+# Windows 콘솔은 기본 코드페이지가 cp949 라 em-dash 같은 문자에서 UnicodeEncodeError 로 죽는다.
+# 파일은 이미 다 쓴 뒤 출력 단계에서 죽어서 '갱신이 실패했다'로 보인다 — stdout 을 UTF-8 로 고정한다.
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):
+    pass
+
 import os, io, json, sys, re
 from collections import defaultdict, Counter
 
@@ -51,6 +60,9 @@ def build_fm(m):
     if m.get("manual_tags"):
         # 태그는 사람이 관리한다 — extract.py 가 이 선언을 보고 자동 판정을 건너뛴다.
         lines.append("manual_tags: true")
+    if m.get("manual_cves"):
+        # CVE 도 사람이 관리한다. 반증·비교로 언급한 번호가 색인되는 것을 막는다.
+        lines.append("manual_cves: true")
     lines.append("tech_count: %d" % len(m["techniques"]))
     lines.append("---")
     return "\n".join(lines) + "\n"
@@ -82,7 +94,8 @@ def main():
             # tech_count 또는 manual_tags 가 있으면 이 도구가 관리하는 블록이다.
             # manual_tags 노트도 갱신 대상에 포함해야 ip/ports/services/cves 가 최신으로 유지된다.
             # (태그 자체는 extract.py 가 선언값을 그대로 넘겨주므로 덮이지 않는다)
-            ours = (b"tech_count:" in fm_blob) or (b"manual_tags:" in fm_blob)
+            ours = ((b"tech_count:" in fm_blob) or (b"manual_tags:" in fm_blob)
+                    or (b"manual_cves:" in fm_blob))
             if refresh and ours:
                 nl = raw.find(b"\n", end + 1)
                 raw = raw[nl + 1:]                 # 기존 블록 제거

@@ -673,7 +673,7 @@ ln -s /root/.ssh/id_rsa keykey
 https://github.com/inspiringz/CVE-2021-22205
 
 > [!danger] ⚠️ 시험 규칙 — PoC 스크립트는 허용, "자동 익스플로잇 프레임워크"는 금지
-> OSCP가 금지하는 것은 `sqlmap` · **Metasploit(전체 시험에서 1대 한정)** · `meterpreter` · AutoRecon 류의 **자동화 프레임워크**다.
+> OSCP가 금지하는 것은 **스스로 취약점을 발견해 자동으로 익스플로잇하는** 도구(`sqlmap`·`sqlninja`·`db_autopwn`·`browser_autopwn`)와 대량 취약점 스캐너(Nessus 등)다. **Metasploit·`meterpreter`는 금지가 아니라 1대 한정**이고, **AutoRecon은 열거 전용이라 허용**된다.
 > **특정 CVE의 단일 PoC 스크립트는 허용된다.** 다만 두 가지를 지켜야 한다:
 > 1. **실행 전에 반드시 코드를 읽어라.** 남의 스크립트가 무엇을 어디로 보내는지 모르고 돌리면, 시험장에서 타겟을 망가뜨리거나(파괴적 페이로드) 리포트를 못 쓴다.
 > 2. **PoC가 하는 일을 `curl` 로 재현할 수 있어야 한다.** 스크립트가 깨졌을 때(파이썬 버전·라이브러리·타임아웃) 손으로 복구할 수 있는 사람만 시험을 통과한다.

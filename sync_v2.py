@@ -64,7 +64,7 @@ def sync_and_deploy():
             '.git', '.gitignore', '.gitattributes',
             '.obsidian', '.trash', 'private', '*.canvas',
             '*.exe', '*.msi', '*.dll', '*.zip', '*.7z', '*.rar', '*.tar', '*.gz', '*.iso',
-            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm'
+            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm','*_WRITEUP-STANDARD*'
         )
         shutil.copytree(SOURCE_VAULT, DEST_QUARTZ_CONTENT, ignore=ignore_func)
         

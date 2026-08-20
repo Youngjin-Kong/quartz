@@ -839,7 +839,8 @@ ls $IMAGES | grep "jpg" | while read filename;
 | 도구 | 시험 | 이 박스에서의 대안 |
 |---|---|---|
 | **Metasploit / Meterpreter** | **전 시험 통틀어 1대만** | 이 정도 난이도에 소진하지 마라. `curl` 3요청으로 충분하다 |
-| **sqlmap · 자동 익스플로잇 도구 · AutoRecon** | **금지** | 이 박스는 애초에 SQLi가 없다 |
+| **sqlmap · 자동 익스플로잇 도구** | **금지** | 이 박스는 애초에 SQLi가 없다 |
+| **AutoRecon** | **허용** — 열거 전용이라 제한 대상이 아니다 | 쓰지 않았지만 썼어도 규정 문제는 없다 |
 | **EDB 단독 익스플로잇 스크립트** | **허용** (수정도 허용) | 단, 그대로 돌리면 실패한다 — 읽고 고쳐 쓴다 |
 | **gobuster·ffuf·nmap·nikto·curl·msfvenom·nc** | **허용** | 전 과정을 이것들로 수행 |
 

@@ -48,7 +48,7 @@ tags:
 type: reference
 platform: cheatsheet
 os: linux
-domain: active.htb
+domain: htb.local
 cves: [CVE-2008-0166, CVE-2014-6271, CVE-2017-0199, CVE-2019-10197, CVE-2021-22204, CVE-2021-4034]
 tech_count: 42
 ---

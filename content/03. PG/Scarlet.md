@@ -6,7 +6,8 @@ tags:
   - status/solved
   - tech/svc/nfs
   - tech/web/sqli
-  - tech/cred/crack
+  - tech/web/jwt
+  - tech/crypto/known-plaintext
   - tech/exec/ssh-key
 type: machine
 platform: pg
@@ -18,12 +19,24 @@ services: [http, nfs_acl, nlockmgr, rpcbind, ssh, status]
 cves: [CVE-2021-4034]
 status: solved
 manual_tags: true
-tech_count: 4
+tech_count: 5
 ---
 
 > [!info] PG Practice — Scarlet
 > **타겟** 192.168.248.222 (`scarlet.local`) · **OS** Ubuntu 22.04 LTS (5.15.0-41-generic) · **플래그 2개** (`local.txt` + `proof.txt`)
 > **경로 요약** NFS(2049) 익명 export `/mnt/share` 마운트 → **RSA 공개키 확보** → Express 앱의 **JWT RS256→HS256 키 혼동(key confusion)** 으로 토큰 위조 → 위조 토큰의 `username` 클레임에 **SQLite 인젝션** → `brian:Standingbytheseaside12` 덤프 → SSH로 `local.txt` → `/opt/backup.zip`(ZipCrypto)을 **동일 공개키를 known-plaintext로 쓴 bkcrack**으로 복호화 → 내부의 `root@scarlet` 개인키 → `ssh -i` 로 root
+
+> [!danger] 색인 정정 — frontmatter를 세 곳 고쳤다
+> - **`cves: [CVE-2021-4034]` 삭제.** 원문 frontmatter에는 `cves` 필드 자체가 없었고, 개작 과정에서 잘못 들어간 항목이다. 본문 4-1절이 명시하듯 **Ubuntu 22.04는 PwnKit이 이미 패치돼 있어 여기서는 통하지 않으며, 시도한 기록도 없고 경로에 쓰이지도 않았다.** 남겨두면 "PwnKit으로 푼 박스"로 검색되는 오탐이 된다.
+> - **`tech/web/jwt` 추가.** 요약·0장·2-2절·3-4절·7장 5번이 전부 **RS256→HS256 키 혼동**을 중심 기법으로 서술하는데 색인에서만 빠져 있었다.
+> - **`tech/cred/crack` → `tech/crypto/known-plaintext` 교체.** 본문 2-5절이 스스로 "**복구되는 것은 비밀번호가 아니라 내부 키다**"라고 못박는다. 실제로 `zip2john` + `john` 사전공격은 **실패했고**(6장 ⑪) bkcrack의 known-plaintext로 우회했다. 비밀번호 크랙 태그는 사실과 반대다.
+>
+> `manual_tags: true`라 자동 보정이 걸리지 않는다 — 손으로 고쳤고, 앞으로도 손으로 유지해야 한다.
+
+> [!warning] 이 노트를 읽는 규약 — **관측 출력과 예시 출력을 구분하라**
+> 코드펜스가 두 종류 섞여 있는 것이 이 노트의 구조적 위험이다. 실제로 4-5절에는 **실행한 적 없는 SSH 경고 출력이 코드펜스로 실려 있었고**, 그 문자열마저 틀려 있었다(OpenSSH는 `This private key will be ignored.`라고 찍는다). 걷어냈다.
+> 앞으로의 규약: **관측된 터미널 출력은 프롬프트(`┌──(kali㉿kali)` / `brian@scarlet:~$` / `root@scarlet:~#`)를 포함해 원문 그대로 싣는다.** 재현용 예시 블록에는 **`# 예시 — 이 박스에서 발생한 출력이 아니다`** 주석을 첫 줄에 단다.
+> **근거 없는 출력을 지어내지 않는 것이 이 노트가 적대적 검증에서 버티는 유일한 조건이다.**
 
 ---
 
@@ -104,7 +117,11 @@ Nmap done: 1 IP address (1 host up) scanned in 27.54 seconds
 ```
 
 > [!danger] **111 + 2049가 같이 보이면 그 순간 NFS가 최우선 타겟이다**
-> `rpcbind`(111)는 목록판일 뿐이고 실제 파일 공유는 **2049/nfs**가 한다. 여기에 `mountd`가 **고번호 포트 3개(53291·53845·59493)** 로 흩어져 있다 — 이것이 `-p-` 전수 스캔이 필요한 이유다. 기본 1000포트만 훑으면 mountd가 안 보여서 `showmount`가 실패할 수 있다.
+> `rpcbind`(111)는 목록판일 뿐이고 실제 파일 공유는 **2049/nfs**가 한다. 여기에 `mountd`가 **고번호 포트 3개(53291·53845·59493)** 로 흩어져 있다.
+>
+> **다만 이것이 `-p-`가 필요한 이유는 아니다 — 이 노트의 옛 서술은 틀렸다.** `showmount`는 스캔 결과를 쓰지 않는다. **111번 portmapper에 물어 mountd의 현재 포트를 런타임에 받아** 그리로 붙는다. 내가 그 고번호 포트를 스캔했는지와 무관하다. **111과 2049는 nmap top-1000에 들어 있으므로 기본 스캔만으로도 NFS 열거는 온전하다.** (아래 141행에서 이 노트 자신이 "`showmount`는 mountd 프로토콜에 답한다"고 설명해 놓고, 여기서 스캔 커버리지와 혼동했다.)
+> 그럼에도 `-p-`를 도는 값어치는 다른 데 있다 — **고번호 포트에 무엇이 붙어 있는지 문서화**하는 것, 그리고 **RPC 밖의 비표준 포트 서비스**를 놓치지 않는 것이다.
+>
 > **셸을 잡기 전에 파일을 읽을 수 있는 서비스**는 NFS·SMB·FTP·TFTP·rsync 정도다. 이런 게 열려 있으면 **웹보다 먼저** 밟는다. 비용이 30초다.
 
 nmap의 `rpcinfo` 스크립트 결과와 **독립 근거를 하나 더** 확보한다 — `rpcinfo -p`를 직접 친다. 두 출처가 일치해야 포트 매핑을 믿는다.
@@ -266,7 +283,7 @@ ff02::2         ip6-allrouter
 | `/views/`, `/routes/`, `/helpers/`, `/middleware/` | **Express(Node.js) 앱의 표준 디렉터리 구조**다. PHP가 아니다 — `.php` 확장자를 계속 붙이는 건 낭비 |
 | `/portal` → 302 → `/login` | **인증 게이트가 걸린 목표 페이지.** 여기를 인증 없이 열면 이긴다 |
 | `/views/portal.html` 이 **200으로 직접 열린다** | 라우터를 거치지 않는 정적 템플릿이 노출됐다. 포털이 어떤 필드를 렌더하는지 미리 볼 수 있다 |
-| `/Login`, `/Portal`, `/PORTAL` 이 전부 응답 | Express 라우팅이 **대소문자를 구분하지 않게 설정**돼 있다. 결과 45건 중 상당수가 중복이라는 뜻 |
+| `/Login`, `/Portal`, `/PORTAL` 이 전부 응답 | Express의 `case sensitive routing`은 **기본이 비활성**이다. 즉 누가 설정한 것이 아니라 **아무것도 안 한 결과**다(구분하게 하려면 `app.set('case sensitive routing', true)`를 명시해야 한다). 실질적 의미는 하나 — **결과 45건 중 상당수가 중복**이다 |
 | `errors:380474` | 재귀 깊이 4 + 100 스레드로 앱을 두들겨 타임아웃이 대량 발생했다. **결과 신뢰도가 떨어진다** |
 
 > [!warning] 스캐너 함정 — `errors:380474`를 무시하지 마라
@@ -435,7 +452,7 @@ zzz' UNION SELECT group_concat(username||':'||password,'  '),2,3 FROM users-- -
 | `zzz'` | **원 쿼리를 빈 결과로 만들고** 문자열을 닫는다. `zzz`라는 사용자는 없다 | 실제 사용자명을 쓰면 원 결과가 1행 반환돼 **UNION 결과가 화면에 안 보인다**(첫 행만 렌더하므로) |
 | `UNION SELECT` | 다른 테이블의 결과를 같은 결과집합에 이어붙인다 | — |
 | `group_concat(...)` | 여러 **행**을 한 문자열로 압축. 화면에 한 줄만 반사되므로 필수 | 첫 행 하나만 얻는다. 사용자가 2명이면 반쪽만 |
-| `username\|\|':'\|\|password` | SQLite의 문자열 연결 연산자는 **`\|\|`** 다 | MySQL식 `CONCAT()`을 쓰면 SQLite에서는 인자 2개까지만 되고, `+`는 숫자 덧셈이 돼 **`0`이 나온다** |
+| `username\|\|':'\|\|password` | SQLite의 문자열 연결 연산자는 **`\|\|`** 다 | MySQL식 `CONCAT()`은 **SQLite 3.44.0(2023-11-01) 미만에 함수 자체가 없어** `no such function: concat`이 난다 — 이 박스(Ubuntu 22.04, sqlite 3.37)가 정확히 그 경우다. 3.44 이후는 **가변 인자**를 받는다. **"인자 정확히 2개" 제한은 Oracle의 `CONCAT` 규칙이지 SQLite가 아니다.** `+`를 쓰면 숫자 덧셈이 돼 **`0`이 나온다** |
 | `,'  '` | `group_concat`의 구분자를 공백 2칸으로 지정 (기본은 `,`) | 값에 콤마가 있으면 파싱이 헷갈린다 |
 | `,2,3` | **컬럼 수를 원 쿼리와 맞춘다** | 개수가 다르면 `SELECTs to the left and right of UNION do not have the same number of result columns` 에러 |
 | `FROM users` | 대상 테이블 | — |
@@ -447,6 +464,7 @@ zzz' UNION SELECT group_concat(username||':'||password,'  '),2,3 FROM users-- -
 **컬럼 수 3은 어떻게 알았나.** `[가정]` 원문에 컬럼 수 탐색 과정이 남아 있지 않다. 표준 절차는 다음 둘 중 하나다:
 
 ```sql
+-- 예시 — 이 박스에서 발생한 출력이 아니다 (표준 절차의 재현 예시)
 -- ① ORDER BY 이진 탐색: 에러가 나기 직전 숫자가 컬럼 수
 zzz' ORDER BY 1-- -     → 정상
 zzz' ORDER BY 3-- -     → 정상
@@ -462,7 +480,13 @@ zzz' UNION SELECT 1,2,3-- -    → 통과.  화면에 어느 숫자가 반사되
 
 ### 2-5. ZipCrypto known-plaintext — 비밀번호를 몰라도 푼다
 
-**배경 지식.** zip 포맷의 전통 암호(**ZipCrypto**, PKWARE 1990)는 96비트 내부 상태(`key0/key1/key2`)를 쓰는 스트림 암호다. **1994년 Biham–Kocher가 known-plaintext 공격을 발표**했다 — **평문 12바이트 이상**을 알면 비밀번호를 거치지 않고 내부 키 3개를 직접 복구할 수 있다.
+**배경 지식.** zip 포맷의 전통 암호(**ZipCrypto**, PKWARE 1990)는 96비트 내부 상태(`key0/key1/key2`)를 쓰는 스트림 암호다. **1994년 Biham–Kocher가 known-plaintext 공격을 발표**했다(FSE 1994, LNCS 1008) — 평문 일부를 알면 비밀번호를 거치지 않고 내부 키 3개를 직접 복구할 수 있다.
+
+> [!note] 요구 평문 길이 — **논문 수치와 도구 수치를 섞지 마라**
+> - **논문(Biham–Kocher)**: **13바이트** (그중 **8바이트가 연속**이어야 한다)
+> - **bkcrack 구현**: **12바이트**
+>
+> 흔히 "12바이트면 된다"로 뭉뚱그리는데, 그것은 **도구의 요구치**다. 이론 수치를 인용해야 하는 자리(보고서·시험 서술)에서 12를 쓰면 근거와 어긋난다.
 
 핵심은 이것이다:
 
@@ -523,7 +547,18 @@ drwxr-xr-x  2 root   root    4096 Jul 18  2022 essentials
 | `-o vers=3` | 강제로 NFSv3 사용 (필요 시) | v4 협상이 실패하면 붙지 않는다. `showmount`가 되는데 mount가 안 되면 이걸 붙여본다 |
 | `-o ro` | 읽기 전용 마운트 | 실수로 원본을 건드릴 위험. **증거 보존이 중요하면 붙여라** |
 
-`drwxrwxrwx nobody nogroup` — **`root_squash`가 작동 중인 증거**다. 서버상 `root` 소유인 디렉터리가 클라이언트에서 `nobody`로 보인다. 이것만으로도 `no_root_squash` 권한상승이 불가능함을 즉시 판정할 수 있다.
+> [!danger] 반증됨 — `drwxrwxrwx nobody nogroup`은 **`root_squash`의 증거가 아니다**
+> 이 노트는 원래 "`drwxrwxrwx nobody nogroup` — `root_squash`가 작동 중인 증거다. 서버상 `root` 소유인 디렉터리가 클라이언트에서 `nobody`로 보인다"라고 적었다. **인과가 틀렸다.**
+> `root_squash`는 **클라이언트가 보내는 UID 0 요청을 `anonuid`(기본 65534)로 강등**하는 서버측 접근 통제다. **서버에 있는 파일의 표시 소유자를 바꾸는 기능이 아니다.**
+> 결정적 반증이 **같은 `ls` 출력 안에** 있다 — 바로 아랫줄의 `essentials`는 `root root`로 보인다. 같은 마운트인데 부모 디렉터리만 `nobody`로 뒤집힐 이유가 없다. 즉 이 표시는 **서버측 실제 소유권**이고, `/mnt/share`가 진짜로 `nobody:nogroup` 777로 만들어져 있는 것이다.
+> **`root_squash` 여부를 판정하는 확실한 근거는 `/etc/exports`뿐이다.** 이 박스에서는 셸을 잡은 뒤 4-1절에서 `/mnt/share *(rw,sync,no_subtree_check)`를 확인했고, `no_root_squash`가 **없으므로** 기본값 `root_squash`가 적용된다. **결론(`no_root_squash`가 아니다)은 옳았다 — 근거만 틀렸다.**
+> 셸을 잡기 전에 실증하려면 **직접 써 보면 된다**:
+> ```bash
+> sudo touch /tmp/nfs/probe && ls -lan /tmp/nfs/probe
+> #  UID 0 으로 기록되면      → no_root_squash
+> #  UID 65534(nobody) 이면   → root_squash
+> ```
+> (쓰기 권한이 없으면 이 시험 자체가 안 되므로, 그때는 셸을 잡을 때까지 판정을 보류한다.)
 
 ### 3-2. 얻은 것은 공개키 한 장
 
@@ -689,6 +724,12 @@ jwttool_6cbb3756e7e57b0c3afe455ed7fabbad - EXPLOIT: Key-Confusion attack (signin
 (This will only be valid on unpatched implementations of JWT.)
 [+] eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjRsZWFmIiwiaWF0IjoxNzg3MTE5ODY2fQ.1t8YpvMp8bRijEzMb_ihIr-pKy2zciVb4jJzUDmUckA
 ```
+
+> [!warning] jwt_tool이 붙인 `(UTC)` 라벨은 **실제로는 로컬 시각(KST)이다**
+> 출력의 `iat = 1787119866 ==> TIMESTAMP = 2026-08-19 15:11:06 (UTC)` — **1787119866의 UTC는 `06:11:06`**이고 `15:11:06`은 KST(UTC+9)다.
+> 이 노트 안에 대조 근거가 있다 — 그 토큰을 발급한 응답 헤더가 `Date: Wed, 19 Aug 2026 06:11:06 GMT`(3-3절)다. **두 값이 같은 순간을 가리키므로 `06:11:06`이 맞고, jwt_tool의 라벨이 틀렸다.**
+> 원인은 파이썬 `datetime.fromtimestamp()`(로컬 시간대 변환)를 쓰고 라벨만 `UTC`로 찍는 것으로 보인다 `[가정]`. **위 원문 출력은 그대로 보존했다** — 도구가 실제로 그렇게 찍은 것이 사실이기 때문이다.
+> **실전 의미: 토큰 시각을 서버 로그·응답 헤더와 대조할 때 9시간이 어긋난다.** 직접 환산해서 확인하라 — `date -u -d @1787119866`.
 
 **플래그 해설:**
 
@@ -1240,7 +1281,7 @@ c45cce0e 772c014e 98bbd8be
 | `-D <출력>` | 암호를 제거한 새 zip을 쓴다 | `-U <출력> <새암호>`는 새 암호로 재암호화 |
 
 > [!note] 출력 읽는 법
-> - `Z reduction using 623 bytes` — 평문 623바이트를 다 썼다. **12바이트가 최소, 많을수록 빠르다**
+> - `Z reduction using 623 bytes` — **623은 파일 크기가 아니다.** 넘긴 평문 `pub.deflate`는 **630바이트**이고, 623은 **Z reduction에 실제로 쓴 값의 개수**다(= 630 − contiguousSize(8) + 1). (독립 재현: NFS `public.key` PEM 800바이트를 raw deflate하면 레벨 1~9 전부 630바이트가 나온다.) **bkcrack 기준 최소 요구는 12바이트**이고, 많을수록 빠르다 — 요구 길이의 이론 수치는 2-5절 참조
 > - `Attack on 14181 Z values` — 후보 공간. 32.3%(4575번째)에서 해를 찾았다
 > - `--continue-attack 4575` — **해가 여럿일 수 있으므로** 이어서 탐색할 수 있다는 안내. 첫 해로 복호화가 실패하면 이걸 쓴다
 
@@ -1380,15 +1421,9 @@ root@scarlet:~# cat proof.txt
 07e450d973658eaa9fe028265ba6b784
 ```
 
-> [!danger] **`chmod 600`을 빼먹으면 여기서 막힌다**
-> ```
-> @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-> @    WARNING: UNPROTECTED PRIVATE KEY FILE!             @
-> @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-> Permissions 0644 for 'keykey' are too open.
-> It is required that your private key files are NOT accessible by others.
-> This private key will be bad and will be ignored.
-> ```
+> [!danger] **`chmod 600`을 빼먹으면 여기서 막힌다** — 단, 이 박스에서는 겪지 않았다
+> **위 원문 순서가 `vi keykey` → `chmod 600 keykey` → `ssh -i keykey`이므로 경고가 발생할 여지가 없었다.** 아래는 순서를 어겼을 때 벌어지는 일에 대한 **설명이지 관측된 출력이 아니다.**
+> 권한이 `0644`인 키로 `ssh -i`를 치면 OpenSSH는 `WARNING: UNPROTECTED PRIVATE KEY FILE!` 배너와 함께 `Permissions 0644 for 'keykey' are too open.`, `It is required that your private key files are NOT accessible by others.`, 그리고 **`This private key will be ignored.`** 를 찍고 그 키를 **쓰지 않는다.**
 > **왜 이 검사가 있는가:** SSH 클라이언트는 개인키를 **비밀번호와 동급**으로 취급한다. 다중 사용자 시스템에서 `0644`(그룹·기타 사용자 읽기 가능)면 같은 호스트의 다른 사용자가 키를 훔칠 수 있다. 그래서 openssh는 **군말 없이 키를 무시**한다 — "권한 문제"라고 명시해 주지만, 급하면 "키가 틀렸나" 하고 엉뚱한 데를 판다.
 > **`0600` = 소유자만 읽기·쓰기.** `0400`(읽기 전용)도 된다.
 > **반사 규칙: 개인키 파일을 만든 직후 `chmod 600`을 친다. 예외 없이.**
@@ -1532,6 +1567,7 @@ users sqlite_sequence     ← 이건 됐다
 **원인 `[가정]`:** 추출 정규식이 `grep -oP '(?<=<strong>Hey ).*?(?=, <br>)'` 이다. `grep`은 **줄 단위**로 동작하고 `.`은 개행에 매치되지 않는다. `CREATE TABLE` 문은 여러 줄에 걸쳐 있으므로:
 
 ```sql
+-- 예시 — 이 박스에서 발생한 출력이 아니다 (전형적인 형태)
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     username TEXT,
@@ -1593,6 +1629,7 @@ cat: lo: No such file or directory
 | JWT 키 혼동 확인 | 수 분 | 적절 |
 | 사용자 열거 | 수 분 | 적절 |
 | SQLi 스키마 추출 실패 | 불명 | 폴백이 있어 손실 최소 |
+| **`zip2john` + `john` 사전공격** | 불명(히스토리에만 남음) | **손절 지점.** `unzip -l`로 목록을 먼저 봤다면 **시도할 이유 자체가 없었다**(⑪) |
 | bkcrack | **5초** | 재료가 갖춰지면 즉시 |
 
 > [!tip] **이 박스의 최적 순서**
@@ -1610,11 +1647,28 @@ cat: lo: No such file or directory
 - **`out/web/helpers/JWTHelper.js` · `out/web/routes/index.js`** — 취약점의 원인 코드인데 내용 기록이 없다. **OSCP 보고서라면 이걸 인용해야 근본 원인 서술이 선다**
 - **`/home/brian/web/database.db`** — SQLi로 덤프했지만 셸을 잡은 뒤 직접 열어보지 않았다. `sqlite3 database.db '.dump'` 한 줄이면 전체가 나온다
 
+### ⑪ `zip2john` + `john` 사전공격을 먼저 태웠다가 실패하고 bkcrack로 전환했다
+
+원문 터미널에는 안 나오지만 Kali에 흔적이 남아 있다 — 작업 디렉터리에 **`zip.hash`가 그대로 있고**, `~/.zsh_history` 2386~2455행이 **`zip2john backup.zip > zip.hash` → `john --wordlist=rockyou.txt` → 실패 → Jumbo 룰까지 적용 → 실패 → 포기** 순서를 기록한다.
+
+즉 4-3절의 "**5초**"라는 결과 앞에는 **사전공격에 태운 시간이 먼저 있었다.** 노트의 시간 배분표(⑨)에 그 구간을 추가했다.
+
+> [!tip] 판단 분기를 앞으로 당겨라 — **목록을 먼저 본다**
+> `unzip -l`로 아카이브 안에 **내가 이미 가진 파일**(`web/public.key`)이 있다는 것을 확인한 시점에, 사전공격은 **시도할 이유가 사라진다.** 순서는 이렇다:
+> ```bash
+> unzip -l backup.zip            # ① 목록 — 암호 없이 읽힌다. 내가 아는 파일이 있는가?
+> 7z l -slt backup.zip           # ② Method 가 ZipCrypto 인가 AES 인가
+> #   ZipCrypto + 아는 파일 있음  →  bkcrack (수 초)
+> #   그 외                      →  그때 비로소 zip2john + john/hashcat
+> ```
+> **`rockyou`로 안 풀렸다는 사실 자체는 정보가 아니다.** 이 박스의 zip 암호는 **끝내 알아내지 못했고, 알 필요도 없었다** — bkcrack가 복구하는 것은 비밀번호가 아니라 **내부 키 3개**이기 때문이다(2-5절).
+> 이것이 frontmatter 태그를 `tech/cred/crack`에서 **`tech/crypto/known-plaintext`로 바꾼 이유**다. 이 박스는 비밀번호를 크랙한 박스가 아니다 — **비밀번호를 우회한 박스**다.
+
 ---
 
 ## 7. OSCP 시험 관점
 
-1. **`-p-` 전수 스캔은 타협하지 마라.** 이 박스의 `mountd`는 53291·53845·59493에 흩어져 있다. 기본 1000포트 스캔이면 mountd가 안 보이고, NFS 열거가 반쪽이 된다. 급하면 2단계로 나눠라 — `nmap -p- --min-rate 10000 -T4`로 포트만 뽑고, 열린 포트에만 `-sCV`를 다시 건다.
+1. **`-p-` 전수 스캔은 타협하지 마라 — 단 이 박스의 NFS는 그 근거가 아니다.** `mountd`가 53291·53845·59493에 흩어져 있지만, **`showmount`는 111번 portmapper에 물어 mountd 포트를 런타임에 받는다.** 111·2049가 top-1000에 있으므로 **기본 스캔만으로도 NFS 열거는 온전했다.** `-p-`의 값어치는 "고번호 포트에 무엇이 붙어 있는지 문서화"와 **비표준 포트에 숨은 서비스**를 놓치지 않는 데 있다. 급하면 2단계로 나눠라 — `nmap -p- --min-rate 10000 -T4`로 포트만 뽑고, 열린 포트에만 `-sCV`를 다시 건다.
 
 2. **111/2049가 보이면 웹보다 NFS를 먼저 밟아라.** 셸 없이 파일을 읽을 수 있는 서비스는 우선순위가 다르다. `showmount -e` → `mount` → `ls -lan`까지 **1분**이면 끝난다. 이 박스는 그 1분이 체인 전체를 열었다.
    ```bash
@@ -1729,7 +1783,7 @@ cat: lo: No such file or directory
 - **NFS `exports(5)` 매뉴얼** — `root_squash` / `no_root_squash` / `all_squash` / `anonuid` / `anongid`: `man 5 exports`
 - **HackTricks — 2049 NFS**: https://book.hacktricks.xyz/network-services-pentesting/nfs-service-pentesting
 - **SQLite 스키마 카탈로그**: `sqlite_master` — https://www.sqlite.org/schematab.html
-- **hashcat 모드**: `-m 16500` JWT(HS256) · `-m 13600` WinZip AES · `-m 17225` PKZIP(compressed multi-file)
+- **hashcat 모드**: `-m 16500` JWT(HS256) · `-m 13600` WinZip AES · **`-m 17225` PKZIP(mixed multi-file)** — `17220`이 compressed multi-file이다. 이름을 뒤바꿔 적었던 것을 정정한다. 이 박스에서 실제로 만든 `zip.hash`는 `$pkzip$8*1*1*0*8*24*…` 형태의 **mixed multi-file**이므로 **번호 17225 자체는 맞다**
 
 ---
 
@@ -1739,6 +1793,7 @@ cat: lo: No such file or directory
 |---|---|
 | `/etc/hosts`에 `192.168.248.222 scarlet.local` (칼리 측) | 로컬 변경 — 정리 대상 |
 | `/tmp/nfs` 마운트 (칼리 측) | `sudo umount /tmp/nfs` 로 해제 필요 |
+| `zip.hash`(zip2john 산출물, 미해독) · `pub.deflate` · `decrypted.zip` · `out/`(칼리 측) | 남아 있음 — **`zip.hash`는 사전공격이 실패한 흔적**이다(6장 ⑪) |
 | `/tmp/bk/` (타겟 측, backup.zip 작업 디렉터리) | **남아 있음** — 랩 Stop/Revert로 소멸 |
 | 위조 JWT 세션 (Max-Age 900초) | 자동 만료 |
 | root SSH 로그인 기록 (`wtmp`/`auth.log`) | 남아 있음 |

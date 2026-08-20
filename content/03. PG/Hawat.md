@@ -16,7 +16,7 @@ ports: [22, 17445, 30455]
 services: [http, ssh]
 status: solved
 manual_tags: true
-tech_count: 6
+tech_count: 5
 ---
 > [!info] PG Practice — Pentester Foundations #11
 > **타겟** 192.168.248.147 · **OS** Arch Linux (`hawat`, 5.10.14-arch1-1) · **난이도** Fundamental · **플래그 1개**

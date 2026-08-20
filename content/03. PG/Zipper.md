@@ -14,6 +14,7 @@ os: linux
 ip: 192.168.164.229
 ports: [22, 80]
 services: [http, ssh]
+cves: [CVE-2021-3560]
 status: solved
 manual_tags: true
 tech_count: 4
@@ -201,10 +202,10 @@ PHP의 파일 함수(`include`·`file_get_contents`·`fopen`·`copy`…)는 **�
 |---|---|---|---|
 | **`php://filter/...`** | 스트림을 읽으면서 **필터를 통과**시킨다(인코딩·변환) | **소스 코드 유출** ← 이 박스 1단계 | **받지 않음** (로컬 래퍼) |
 | **`zip://<아카이브>#<내부경로>`** | zip **내부의 한 파일**을 스트림으로 연다 | **아카이브 안에 숨긴 웹셸 실행** ← 이 박스 2단계 | **받지 않음** |
-| **`phar://<파일>/<내부경로>`** | phar 아카이브 내부 접근 + **메타데이터 자동 역직렬화** | 업로드 가능하면 **역직렬화 → RCE**. 확장자 무관(`.jpg`도 됨) | **받지 않음** |
+| **`phar://<파일>/<내부경로>`** (**`PHP < 8.0`**) | phar 아카이브 내부 접근 + **메타데이터 자동 역직렬화** | 업로드 가능하면 **역직렬화 → RCE**. 확장자 무관(`.jpg`도 됨). ⚠️ **PHP 8.0부터 스트림 래퍼를 통한 자동 역직렬화가 제거**됐다 — 8.0 이상에서 남은 경로는 `Phar::getMetadata()` **명시 호출**뿐이다 | **받지 않음** |
 | **`data://text/plain;base64,...`** | URL 안에 **데이터 자체**를 담는다 | 페이로드를 파일 없이 바로 include → RCE | **받음** (`Off`면 실패) |
 | **`php://input`** | 요청 **본문(body)** 을 스트림으로 | POST 본문에 `<?php ...?>` 넣어 RCE | **받음** |
-| **`expect://`** | 명령을 직접 실행 | 즉시 RCE — 단 **기본 미설치** | — |
+| **`expect://`** | 명령을 직접 실행 | 즉시 RCE — 단 **기본 미설치**(PECL expect 확장 필요) | **미확인** — 이 박스에서 검증하지 못했다 `[가정]` |
 | `compress.zlib://` · `compress.bzip2://` | 압축 파일 투명 해제 | gz/bz2 안의 파일 읽기 | **받지 않음** |
 
 > [!danger] 이 표에서 시험장에 가져갈 한 줄
@@ -230,7 +231,14 @@ php://filter / convert.base64-encode / resource=upload
 > [!note] 왜 실행되지 않는가 — 이 한 문장이 전부다
 > base64로 인코딩된 결과에는 **`<?php` 라는 바이트 시퀀스가 존재하지 않는다.**
 > PHP 파서는 `<?php`를 만나야 코드 모드로 들어간다. 인코딩된 텍스트에는 그 여는 태그가 없으니 **파서는 전부를 HTML 텍스트로 간주해 그대로 출력**한다.
-> 즉 "PHP가 인코딩해서 뱉는다" = **실행 트리거를 인코딩으로 파괴한 것**이다. `rot13`(`string.rot13`)이나 `convert.iconv.utf-8.utf-16`도 같은 이유로 동작한다.
+> 즉 "PHP가 인코딩해서 뱉는다" = **실행 트리거를 인코딩으로 파괴한 것**이다. `convert.iconv.utf-8.utf-16`도 같은 이유로 동작한다 — UTF-16이 되면 `<?php`라는 **연속된 바이트열 자체가 남지 않는다.**
+
+> [!warning] `string.rot13`은 **같은 이유로 동작하지 않는다** — 전제 조건이 붙는다
+> `rot13("<?php")` = **`<?cuc`** 다. `p`→`c`, `h`→`u`, `p`→`c`로 뒷글자만 바뀌고 **여는 `<?`가 그대로 남는다.**
+> - `short_open_tag=Off`(PHP 기본값)면 파서가 `<?`를 코드 시작으로 보지 않으므로 결과적으로 소스가 그대로 출력된다 — **이때만 base64와 같은 효과가 난다**
+> - **`short_open_tag=On`이면 파서가 거기서 코드 모드로 진입**해 뒤엉킨 결과가 나오거나 파스 에러가 난다
+>
+> 즉 rot13은 "여는 태그를 파괴해서" 안전한 것이 아니라 **`short_open_tag=Off`라서** 안전한 것이다. **대체 필터로 쓸 때는 이 전제를 의식하라.**
 
 원문에서 실제로 던진 URL:
 
@@ -461,9 +469,13 @@ Connection: keep-alive
 > `#`→`%23` · 공백→`%20` · `'`→`%27` · `>`→`%3E` · `&`→`%26` · `/`→`%2F`
 > **`&`를 인코딩하지 않으면 `c=` 파라미터가 거기서 끊긴다.** 리버스셸 문자열의 `>&`와 `0>&1`이 정확히 이 함정에 걸린다.
 
-### 3-4. TTY 업그레이드
+### 3-4. TTY 업그레이드 — **원문에 기록 없음, 일반 절차** `[가정]`
 
-`no job control in this shell` 상태에서는 `su`가 동작하지 않는다. **권한상승 마지막 단계에서 `su -`를 써야 하므로** 여기서 반드시 정리한다.
+> [!note] 이 절은 이 박스에서 실제로 수행한 기록이 아니다 `[가정]`
+> git 원본에는 **TTY 업그레이드 흔적이 전혀 없다.** 원문은 nc 셸 그대로 `su -` → `Password: WildCardsGoingWild` → `root`로 이어지고, **비밀번호가 화면에 그대로 에코된 흔적**까지 남아 있다(5장 터미널 출력 참조). 즉 **이 박스에서는 TTY 없이도 `su -`가 통했다.**
+> 아래는 **일반 절차**로 남긴다 — `su`가 TTY를 요구해 거부하는 환경이 실제로 흔하기 때문이다. "이 박스에서 필요했던 단계"로 읽으면 안 된다.
+
+`no job control in this shell` 상태에서는 **환경에 따라** `su`가 거부될 수 있다. 마지막 단계가 `su -`인 박스라면 여기서 미리 정리해 두는 편이 안전하다.
 
 ```bash
 python3 -c 'import pty; pty.spawn("/bin/bash")'
@@ -474,9 +486,10 @@ stty raw -echo; fg
 export TERM=xterm
 ```
 
-> [!danger] `su`는 **진짜 TTY가 없으면 거부한다**
-> `su: must be run from a terminal`. 이 박스의 마지막 단계가 `su -`이므로, TTY 업그레이드를 건너뛰면 **비밀번호를 손에 쥐고도 root가 안 된다.**
-> 대안: `echo 'WildCardsGoingWild' | su -` 는 **동작하지 않는다**(su는 stdin이 아니라 TTY에서 읽는다). `sshpass`로 22번에 로그인하거나 TTY를 확보하는 것이 정답이다.
+> [!danger] `su`는 **환경에 따라** 진짜 TTY가 없으면 거부한다
+> `su: must be run from a terminal`. **다만 이 박스에서는 발생하지 않았다** — nc 셸에서 `su -`가 그대로 통했고, 비밀번호가 화면에 에코된 것이 그 증거다(5장).
+> 그러나 배포판과 `su` 구현에 따라 거부되는 환경이 흔하므로 **습관으로 붙여 둔다.**
+> 대안: `echo 'WildCardsGoingWild' | su -` 는 **거부하는 환경에서는 통하지 않는다**(su는 stdin이 아니라 TTY에서 읽는다). `sshpass`로 22번에 로그인하거나 TTY를 확보하는 것이 정답이다.
 
 ---
 
@@ -559,9 +572,29 @@ rm *.tmp
 | **`tar`** (GNU) | `--checkpoint=1` <br> `--checkpoint-action=exec=sh x.sh` | 아카이빙 중 **임의 명령 실행 → 즉시 RCE** |
 | | `--to-command=sh x.sh` | 추출 시 명령 실행 |
 | **`rsync`** | `-e sh x.sh` | 원격 셸을 지정하는 옵션으로 **명령 실행** |
-| **`chown` / `chmod`** | `--reference=파일` | 소유자/권한을 **참조 파일에서 복사**. `/etc/shadow` 같은 걸 참조시켜 소유권 탈취 |
-| **`zip`** | `-T -TT 'sh x.sh'` | 무결성 테스트 명령으로 실행 |
+| **`chown` / `chmod`** | `--reference=<**내가 소유한** 파일>` | 소유자/권한을 **참조 파일 → 대상 파일**로 복사. root의 `chown -R`이 **대상 파일들을 내 소유로 바꿔 준다** (아래 주의) |
+| **`zip`** | `-T` · `-TT` · `sh x.sh #` (**각각 별도 argv**) | 무결성 테스트 명령으로 실행. **끝의 `#`가 필수** (아래 주의) |
 | **`cp` / `mv`** | `-t 디렉터리` 등 | 대상 디렉터리 변경 |
+
+> [!danger] `--reference`의 **방향을 거꾸로 알면 아무것도 못 얻는다**
+> `chown --reference=A B` 는 **A의 소유권을 읽어 B에 쓴다.** 따라서 참조로 지정할 것은 **내가 소유한 파일**이다:
+> ```bash
+> touch attacker_owned                 # www-data 소유
+> touch -- '--reference=attacker_owned'
+> # root가 chown -R root:root * 를 돌리는 순간,
+> # 대상 파일들이 전부 www-data 소유로 바뀐다
+> ```
+> **`--reference=/etc/shadow` 는 반대다** — 대상들이 `root:shadow` 소유가 될 뿐, 공격자는 **아무것도 얻지 못한다.** 오히려 접근을 잃는다.
+> 즉 이 기법의 본질은 "특권 파일의 소유권을 훔치는 것"이 아니라 **"root에게 내 소유권을 대상에 복사시키는 것"** 이다. (근거: HackTricks — *Wildcards Spare Tricks*, `touch "--reference=<attacker-owned file>"`)
+
+> [!warning] `zip -TT` 는 **파일명 하나로 성립하지 않는다** — 표기 주의
+> GTFOBins 원형은 이 형태다:
+> ```bash
+> zip /path/to/temp-file /etc/hosts -T -TT '/bin/sh #'
+> ```
+> - **끝의 `#`가 필수다.** `zip`이 `-TT` 뒤에 자기 인자들을 더 이어 붙이는데, `#`가 **그 뒤를 전부 주석으로 삼켜** 준다. 빼면 명령이 깨진다.
+> - 위 표의 "만들 파일명" 열에 **한 칸으로 적을 수 없다.** `-T` · `-TT` · `/bin/sh #` 는 **공백으로 갈리는 별개의 argv**인데, 와일드카드 인젝션은 **파일 하나 = argv 하나**다. 셸은 글로브 확장 결과를 재분할하지 않으므로 **파일명 안의 공백은 argv를 쪼개 주지 않는다** — `-TT`와 명령을 **한 파일명에 담으면 하나의 인자**가 되어 원형과 다른 모양이 된다 `[가정]`.
+> - **결론: `zip`의 `-TT`는 `sudo zip ...` 처럼 인자를 직접 쓸 수 있을 때의 기법으로 보는 편이 안전하다.** 와일드카드 경로에서는 `tar`·`rsync`·`7z`가 훨씬 확실하다.
 
 > [!tip] `tar` 버전 — 시험에서 가장 자주 나오는 형태
 > ```bash
@@ -759,14 +792,40 @@ f759ae397349838d362d2fc874892c17
 >
 > **한 번에 한 변수만 바꿔라.** 인코딩과 셸 종류를 동시에 고치면 무엇이 원인이었는지 모른 채 넘어간다.
 
-### ③ 이 유형에서 흔히 막히는 지점
+### ③ polkit(CVE-2021-3560)을 먼저 시도했다가 접었다 — 실제로 겪은 우회로
+
+노트 본문에는 없지만 **Kali 산출물에 흔적이 남아 있다.**
+
+```
+~/PG/Zipper/CVE-2021-3560/          Jul 14 11:28
+  ├─ CVE-2021-3560.py
+  └─ README.md      (origin: https://github.com/curtishoughton/CVE-2021-3560.git)
+```
+
+시각을 원문 스크린샷과 나란히 놓으면 순서가 드러난다:
+
+| 시각 | 사건 | 근거 |
+|---|---|---|
+| **11:15:29** | www-data 셸 확보 → 로컬 플래그 확인 | `Pasted image 20260714111529.png` |
+| **11:28** | **polkit 익스플로잇 클론** | `CVE-2021-3560/` 디렉터리 시각 |
+| **11:47:48** | `/etc/crontab` · linpeas에서 `backup.sh` 발견 | `Pasted image 20260714114748.png` |
+| 12:17:08 | root 획득 | `Pasted image 20260714121708.png` |
+
+즉 **정답 경로(크론 → 와일드카드)를 찾기 전에 "흔한 로컬 권한상승 CVE"를 먼저 던져 봤고, 실패했거나 접었다.** 실행 로그가 없어 실패 사유는 미상이다 `[가정]` — Ubuntu 패치 적용본이었거나, `accountsservice`/`gnome-control-center`가 없는 서버 구성이라 애초에 조건이 안 맞았을 가능성이 크다.
+
+> [!danger] "커널/서비스 CVE부터 던지기"는 열거를 **대체하지 못한다**
+> polkit·DirtyPipe·PwnKit 같은 범용 로컬 권한상승은 **한 방이 크지만 적중률이 낮고, 실패해도 조용하다.** 그 조용함이 시간을 태운다.
+> **순서를 고정하라: 5개 반사 명령(`id`·`sudo -l`·SUID·`getcap`·`crontab`) → 그래도 없으면 CVE.** 이 박스에서는 다섯 번째 명령 하나가 정답이었고, `/etc/crontab`을 `cat` 하는 데는 **3초**가 걸린다.
+> 반대 교훈도 있다 — **CVE를 던지기 전에 최소한 버전을 확인하라.** `dpkg -l policykit-1` 한 줄이면 시도 가치가 판별된다. 클론부터 하는 것은 순서가 뒤집힌 것이다.
+
+### ④ 이 유형에서 흔히 막히는 지점
 
 > [!note] 아래는 원문에 실패 기록이 없어, **일반적으로 이 유형에서 시간을 태우는 지점**으로 정리한 것이다 `[가정]`
 
 **(1) `php://filter`로 소스가 안 나온다**
 - `resource=upload.php` 처럼 확장자를 붙였다 → 확장자 append형 LFI면 `upload.php.php`를 찾다 실패. **확장자를 빼고** 다시.
 - 응답이 base64처럼 안 보인다 → 눈으로 판단하지 말고 `| base64 -d`로 파이프. HTML에 섞여 나오면 `view-source`나 `curl`로 raw를 봐라.
-- 그래도 안 되면 **필터를 바꾼다**: `convert.base64-encode` → `string.rot13` → `convert.iconv.utf-8.utf-16`.
+- 그래도 안 되면 **필터를 바꾼다**: `convert.base64-encode` → `convert.iconv.utf-8.utf-16` → `string.rot13`(**`short_open_tag=Off` 전제** — 2-3장 참조).
 
 **(2) `zip://`가 아무 반응이 없다**
 - **`#`를 `%23`으로 안 썼다** — 압도적 1위 원인. 서버 로그/Burp에서 실제로 도착한 쿼리스트링을 확인하면 즉시 보인다.
@@ -785,13 +844,14 @@ f759ae397349838d362d2fc874892c17
 - **크론 1주기를 안 기다렸다.**
 - `sudo`로 직접 실행하는 경우라면 **현재 디렉터리가 `sudo` 실행 시점의 cwd**임을 잊지 말 것.
 
-### ④ 시간 배분 — 어디서 손절했어야 하는가
+### ⑤ 시간 배분 — 어디서 손절했어야 하는가
 
 | 구간 | 실제/권장 | 판단 |
 |---|---|---|
 | feroxbuster 전수 스캔 | **19분** | **길다.** 작은 사전 2분 → 손을 움직이며 큰 사전은 백그라운드. 확장자에 `php`를 반드시 포함 |
 | LFI 발견 → 소스 유출 | 짧음 | `?file=` 을 보면 `php://filter`가 **첫 수**여야 한다. 여기서 10분 넘게 헤매면 파라미터 자체를 의심 |
 | 업로드 → `zip://` 실행 | 짧음 | 소스를 읽었으면 자명하다. **소스 확보가 시간의 대부분을 절약**했다 |
+| **polkit(CVE-2021-3560) 선행 시도** | **~19분** (11:28 → 11:47) `[가정]` | **순손실 구간.** 열거를 끝내기 전에 범용 CVE부터 던졌다. `dpkg -l policykit-1` 한 줄이면 시도 가치를 먼저 판별할 수 있었다 (6장 ③) |
 | privesc 열거 | linpeas | `/etc/crontab` 직접 `cat`이 더 빠르다. **5개 반사 명령이면 3분** |
 | 크론 대기 | 1분 | 대기 중 **`ps` 경로를 병행**했으면 무엇이 터지든 이겼다 |
 
@@ -810,13 +870,13 @@ f759ae397349838d362d2fc874892c17
 5. **업로드 + LFI = RCE.** 업로드 디렉터리에서 PHP가 안 돌아도 상관없다. **`include`가 실행 엔진**이다. zip/tar를 만드는 업로드는 `zip://`, 아무 파일이나 받으면 zip을 만들어 `.jpg`로 위장해 올린다.
 6. **예측 가능한 파일명(`time()`·`date()`)은 그 자체로 취약점이다.** ±5초 브루트가 11번이면 끝난다. 응답이 이름을 알려주면 그것부터 읽어라.
 7. **⚠️ 자동 도구 대신 손으로**: 이 박스는 sqlmap·metasploit이 필요 없다. LFI 확인·소스 유출·웹셸 실행 전부 `curl` 한 줄이다. **linPEAS/pspy는 금지 아님**(열거 도구)이지만, 결정적 판단은 `/etc/crontab` 직접 `cat`으로 확인하라.
-8. **셸을 잡자마자 5개**: `id` · `sudo -l` · `find / -perm -4000 -type f 2>/dev/null` · `getcap -r / 2>/dev/null` · `cat /etc/crontab; ls -la /etc/cron.*`. 이 박스의 정답은 다섯 번째다.
+8. **셸을 잡자마자 5개**: `id` · `sudo -l` · `find / -perm -4000 -type f 2>/dev/null` · `getcap -r / 2>/dev/null` · `cat /etc/crontab; ls -la /etc/cron.*`. 이 박스의 정답은 다섯 번째다. **범용 로컬 권한상승 CVE(polkit·PwnKit·DirtyPipe)는 이 5개를 다 친 뒤에 던진다** — 이 박스에서는 순서를 뒤집어 polkit에 시간을 태웠다(6장 ③).
 9. **`sudo -l`이나 크론에서 `*`를 보면 즉시 와일드카드 인젝션을 검토하라.** 조건 3가지: 고권한 실행 · 글로브 · 쓰기 가능한 대상 디렉터리. `7z`→`@리스트파일`, `tar`→`--checkpoint-action`, `rsync`→`-e`, `chown/chmod`→`--reference`.
 10. **파일명은 argv다.** 셸이 글로브를 확장하면 그 결과가 **인용 없이 인자 위치**에 들어간다. `touch -- '-옵션'`으로 만든다 — `--`를 빼면 `touch` 자신이 먹는다.
 11. **"내가 못 읽는 파일은 root에게 읽히게 한다."** 고권한 프로세스의 **에러 메시지·로그·백업 산출물**이 저권한에게 읽히면 그것이 유출 채널이다. 이 발상은 7z 말고도 계속 재사용된다.
 12. **비밀번호를 명령행 인자로 넘기는 스크립트는 `ps`로 샌다.** `/proc/*/cmdline` 루프나 `pspy`로 잡는다. 크론 대기 중에 병행하면 공짜다.
 13. **크론 기반은 최소 1주기 대기.** 5초 보고 실패로 결론내지 마라. 반대로 **셸이 늦게 붙거나 뒤늦게 뭔가 바뀌면 크론을 의심**한다. ([[Astronaut]] · [[Exfiltrated]] · [[Muddy]])
-14. **`su`는 진짜 TTY를 요구한다.** 비밀번호를 얻고도 못 쓰는 사고가 실제로 흔하다. `python3 -c 'import pty; pty.spawn("/bin/bash")'` → 없으면 `script -qc /bin/bash /dev/null` → `stty raw -echo; fg`.
+14. **`su`는 환경에 따라 진짜 TTY를 요구한다.** 비밀번호를 얻고도 못 쓰는 사고가 실제로 흔하다(**이 박스에서는 nc 셸에서 `su -`가 그대로 통했다** — 3-4 참조). `python3 -c 'import pty; pty.spawn("/bin/bash")'` → 없으면 `script -qc /bin/bash /dev/null` → `stty raw -echo; fg`.
 15. **`ls`가 아니라 `ls -al`.** 이 박스의 결정적 단서(`enox.zip -> /root/secret`)는 `-l` 없이는 보이지 않는다. 심볼릭 링크·숨김 파일·날짜가 전부 여기 있다.
 16. **리버트를 전제로 노트를 써라.** 타임스탬프가 박힌 URL은 재사용 불가다. **절차로 적어라.**
 
@@ -827,7 +887,7 @@ f759ae397349838d362d2fc874892c17
 | 결함 | 조치 |
 |---|---|
 | `include`에 사용자 입력이 직접 들어감 | **화이트리스트 매핑**으로 바꾼다: `$pages = ['home'=>'home.php','upload'=>'upload.php']; include($pages[$_GET['file']] ?? 'home.php');` 경로 문자열을 사용자에게 맡기지 않는다 |
-| 스트림 래퍼가 include에 허용됨 | `php.ini`의 `allow_url_include=Off`(기본)에 더해, **`open_basedir`로 접근 가능 경로를 웹루트로 제한**한다. `phar` 역직렬화 대비로 PHP 8.0+ 사용 |
+| 스트림 래퍼가 include에 허용됨 | `php.ini`의 `allow_url_include=Off`(기본)에 더해, **`open_basedir`로 접근 가능 경로를 웹루트로 제한**한다. `phar` 역직렬화 대비로 **PHP 8.0+ 사용** — 8.0부터 스트림 래퍼 경유 자동 역직렬화가 제거됐다(2-2 표의 `PHP < 8.0` 조건과 짝을 이룬다) |
 | 업로드 파일 검증 부재 | 확장자 화이트리스트 + MIME + **매직바이트** 검증. 다만 **검증만으로는 래퍼 공격을 못 막는다** — 아래 두 줄이 더 중요하다 |
 | **zip 내부 엔트리 이름 = 사용자 입력** | `addFromString($_FILES['img']['name'][$i], ...)` → **서버가 생성한 안전한 이름**을 쓴다. 디스크 사본만 개명하고 아카이브 내부를 방치한 것이 이 박스의 직접 원인 |
 | 업로드 파일명이 예측 가능(`time()`) | `bin2hex(random_bytes(16))` 같은 **암호학적 난수**로. 시각 기반은 항상 브루트 가능하다 |
@@ -850,11 +910,12 @@ f759ae397349838d362d2fc874892c17
 - 필터 목록(`convert.*`·`string.*`): https://www.php.net/manual/en/filters.php
 - PayloadsAllTheThings — File Inclusion: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/File%20Inclusion
 - **HackTricks — Wildcards Spare Tricks (7-Zip / tar / rsync / chown)**: https://hacktricks.wiki/en/linux-hardening/privilege-escalation/wildcards-spare-tricks.html#7-zip--7z--7za
-- **GTFOBins — `7z`**: https://gtfobins.github.io/gtfobins/7z/
+- **GTFOBins — `7z`**: https://gtfobins.github.io/gtfobins/7z/ — ⚠️ **`@리스트파일` 기법의 근거가 아니다.** 이 항목에 있는 것은 `7z a -ttar -an -so <파일>` 류의 **파일 읽기 기법**뿐이다. `@리스트파일`의 근거는 **위 HackTricks와 `man 7z`뿐**이다(맨 아래 항목)
 - **GTFOBins — `tar`**: https://gtfobins.github.io/gtfobins/tar/
 - **GTFOBins — `rsync`**: https://gtfobins.github.io/gtfobins/rsync/
 - `php://filter` 체인 RCE (Charles Fol): https://www.synacktiv.com/publications/php-filters-chain-what-is-it-and-how-to-use-it
-- p7zip 리스트파일(`@`) 문법: `man 7z` 의 *"Command Line Syntax"* — `@listfile`
+- p7zip 리스트파일(`@`) 문법: `man 7z` 의 *"Command Line Syntax"* — `@listfile` ← **`@리스트파일` 기법의 1차 근거**
+- (시도했다가 접은 경로) **CVE-2021-3560 polkit 로컬 권한상승**: https://github.com/curtishoughton/CVE-2021-3560 — 6장 ③
 
 ## 남긴 흔적
 

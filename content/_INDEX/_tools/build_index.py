@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 """색인 노트 생성 — 기존 노트는 읽기만 한다."""
+# Windows 콘솔은 기본 코드페이지가 cp949 라 em-dash 같은 문자에서 UnicodeEncodeError 로 죽는다.
+# 파일은 이미 다 쓴 뒤 출력 단계에서 죽어서 '갱신이 실패했다'로 보인다 — stdout 을 UTF-8 로 고정한다.
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):
+    pass
+
 import os, io, json
 from collections import defaultdict, Counter
 
@@ -26,6 +35,7 @@ TECH_INFO = {
     "tech/win/potato":          ("Potato 계열", "SeImpersonate 보유 시 SYSTEM 승격"),
     "tech/win/seimpersonate":   ("SeImpersonate 권한", "토큰 가장 권한 — Potato의 전제조건"),
     "tech/win/sebackup":        ("SeBackup / Backup Operators", "SAM·SYSTEM 하이브 복사로 해시 추출"),
+    "tech/win/serestore":       ("SeRestore 권한", "utilman 치환·서비스 레지스트리 하이재킹으로 SYSTEM"),
     "tech/win/service-abuse":   ("서비스 오설정", "비인용 경로·바이너리 쓰기권한 악용"),
     "tech/win/alwaysinstall":   ("AlwaysInstallElevated", "MSI를 SYSTEM으로 설치"),
     "tech/win/autologon":       ("자동 로그온 자격증명", "레지스트리 평문 비밀번호"),

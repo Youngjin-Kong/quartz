@@ -9,6 +9,7 @@ tags:
   - tech/ad/ticket-forge
   - tech/win/seimpersonate
   - tech/win/sebackup
+  - tech/win/serestore
   - tech/win/autologon
   - tech/web/lfi-rfi
   - tech/svc/smb
@@ -17,7 +18,7 @@ tags:
 type: machine
 platform: pwk-challenge
 status: solved
-tech_count: 11
+tech_count: 12
 ---
 About this lab
 
