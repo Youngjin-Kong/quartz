@@ -19,6 +19,7 @@ tags:
   - tech/payload/revshell
 type: report
 platform: report
+ip: 192.168.126.153
 tech_count: 15
 ---
 

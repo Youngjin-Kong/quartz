@@ -1,0 +1,141 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/linux
+  - status/unsolved
+  - tech/enum/dirbust
+  - tech/web/auth
+type: machine
+platform: pg
+os: linux
+status: unsolved
+manual_tags: true
+manual_cves: true
+---
+> [!info] 상단 요약
+> 타겟 192.168.248.202 · Linux(Ubuntu) · Fundamental · 플래그 2개
+> **미해결(0/2).** 커스텀 PHP 인증앱(register/login/employee-portal). 진입점은 employee 세션 획득이지만,
+> 로그인이 시드된 직원의 **비밀번호를 요구**하고 그 값이 온라인 브루트 사거리 밖(bcrypt 추정)이라 막혔다.
+> 문서 가치는 6장(무엇을 어떻게 배제했나)과 4장의 first-row 로그인 버그에 있다.
+
+## 0. 이 박스에서 배우는 것
+
+- register/login/portal 3단 커스텀 앱을 만났을 때의 **점검 순서**와 각 벡터를 **어떻게 배제**하는가.
+- **사용자명 중복 허용 + 이메일 유니크**라는 설계에서 나오는 `first-row 로그인` 버그와 그걸 이용한 **사용자 열거**.
+- 응답이 느리면(≈0.4s/try) bcrypt 를 의심하고 **온라인 브루트를 포기**하는 판단.
+- 시험 반사: "employee/admin 전용 페이지 + 무SQLi + 무LFI" 면 진입점은 대개 **약한 크레덴셜 or 로직버그**. 둘 다 아니면 손절 신호.
+
+## 1. 정찰
+
+### Nmap
+
+```
+Nmap scan report for 192.168.248.202
+22/tcp open  ssh   OpenSSH 8.2p1 Ubuntu 4ubuntu0.4
+80/tcp open  http  Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: Wheels - Car Repair Services
+```
+
+포트가 22·80 둘뿐. Apache 2.4.41 은 CVE-2021-41773(2.4.49/50) 대상이 아니다 — 버전으로 거를 것.
+
+### 열거
+
+무료 "CarServ" Bootstrap 템플릿 + 커스텀 인증 페이지. gobuster(common→medium→raft-large, 인증 세션 포함):
+
+```
+index.html  login.php  register.php  portal.php (302 -> login.php)  config.php (200, 0 bytes)
+assets/check.php (302 -> login.php)  assets/header.php  assets/footer.php
+```
+
+이게 전부다. `config.php` 는 0바이트(설정 include, 출력 없음). vhost 퍼징(`Host: FUZZ.wheels.serv`, top5000) 무소득 —
+whatweb 가 흘린 `info@wheels.serv` 는 별도 vhost 가 아니라 같은 docroot 별칭이었다.
+
+## 2. 앱 동작 (관측)
+
+| 페이지 | 동작 |
+|---|---|
+| register.php | username(클라 `[a-zA-Z0-9]+`, **서버 미강제**), email(**UNIQUE**), password. **사용자명 중복 허용** |
+| login.php | username+password. 성공/미존재/오답 메시지 **동일** → 로그인 응답만으로는 사용자 열거 불가 |
+| portal.php | "Employee Portal". 일반 로그인 사용자 → `<h1>Access Denied</h1>`(23B). 파라미터 이전에 admin 검사 |
+| assets/check.php | 로그인 상태만 검증(인증 시 200 빈응답). portal 이 include 하는 게이트 |
+
+서버가 username 패턴을 강제하지 않는 점(`a'b` 등록됨)은 2차 주입 여지를 뜻해 별도로 팠다(→ 6장, 아님).
+
+## 3. Foothold — 미확보
+
+employee 세션을 못 얻어 진입 실패. 아래 4장의 버그를 찾았지만 무기화까지 못 갔다.
+
+## 4. 찾은 취약점 — first-row 로그인 + 사용자 열거
+
+로그인은 **username 으로 첫 행을 조회한 뒤 그 한 행에만 password 를 검증**한다(중복 사용자명이 있을 때).
+
+```
+register admin/P1 (초기)  ;  register admin/MyPass123
+  login admin/P1        -> Congratulations
+  login admin/MyPass123 -> wrong          ← 방금 등록한 조합인데 실패
+register dupx/AAApass1 ; register dupx/BBBpass1
+  login dupx/AAApass1 -> Congratulations
+  login dupx/BBBpass1 -> wrong
+```
+
+`WHERE username=? AND password=?`(양쪽 바인딩)이라면 BBB 도 성공해야 한다. 실패한다는 건
+`WHERE username=? LIMIT 1` 로 **첫 행만 뽑고** PHP 에서 password 검증한다는 뜻(중복 사용자명 존재 시 첫 행=최저 id=시드 계정).
+
+이걸로 **사용자 열거 오라클**이 선다 — 새 비밀번호로 U 등록 후 U 로그인이 **실패**하면 U 는 이미 존재(내 행이 두 번째).
+
+> [!warning] 이 오라클은 스스로를 오염시킨다
+> register+login 방식은 검사할 때마다 **내 계정이 한 행 추가**되어, 이후 같은 이름을 다시 검사하면 거짓 양성이 난다.
+> `xargs -P 20` 병렬은 레이스로 거짓 양성을 **대량** 뱉었다(dung·eba 가 병렬에선 EXISTS, 직렬 재검엔 미존재).
+> **직렬·최초검사만 신뢰하라.** 이렇게 확정한 시드 계정은 `bob` 하나. 오염을 피하려면 **로그인 전용 스프레이**(등록 안 함)를 써라.
+
+portal 게이트는 로그인 시 매칭된 행의 role/is_admin 을 세션에 담아 판정한다(쿠키·파라미터·2차주입으로 우회 불가, 6장).
+따라서 portal 을 열려면 **시드된 직원 계정의 실제 비밀번호로 로그인**해야 한다.
+
+## 5. 플래그 — 없음
+
+셸 미확보로 `proof_user.txt`·`proof_root.txt` 확보 불가. **0/2.**
+
+## 6. 막혔던 지점 / 시행착오 — 이 노트의 핵심
+
+배제한 벡터(전부 실측으로 아님을 확인):
+
+- **SQLi 전무**. login user/pass 에 time-based(`' AND SLEEP(3)-- -`), boolean, ffifdyop 매직해시;
+  register user/email/pass 에 time-based + **boolean(이메일 중복확인 SELECT 를 `' OR '1'='1` 로)**;
+  저장된 username 경유 2차 주입(`a' OR '1'='1` 등을 사용자명으로 등록 후 portal). **전부 prepared** — 깨끗한 `wrong`, 지연 0, 500 없음.
+- **인증우회 전무**. `password[]`/`username[]` 배열(strcmp NULL 우회), ffifdyop, **사용자명 충돌**(trailing space·대소문자 — MySQL 이 `'admin '='admin'` 을 참으로 보는 점 노림), 쿠키(role/admin/is_admin/level/auth/user/privilege), `X-Forwarded-For: 127.0.0.1`. 전부 Access Denied.
+- **mass-assignment 전무**. register 에 role/admin/is_admin/usertype/type/access_level/user_level/level/privilege/is_employee/employee/staff/active/verified/approved/user_type/account_type/access/group/position/rank/... ~35개 주입. 전부 무효.
+- **LFI 전무**. burp-parameter-names 를 config/login/register/index 에 (`php://`, `/etc/passwd`, size-diff). `config.php` 를 파라미터로 출력시키려는 시도도 무출력.
+- **소스유출 전무**. `*.php.bak`/`~`/`.swp`/`.git`. `.phps` 는 **부재 파일도 403**(`FilesMatch \.phps$` 전면차단, 유출 아님). DB 덤프/CSV 없음.
+- **크레덴셜 브루트 실패**. admin·bob 에 fasttrack + rockyou top-1500(hydra) + 수동 테마(mechanic/garage/wheels...). 히트 없음.
+
+> [!danger] 왜 여기서 손절했어야 하나 — bcrypt 신호
+> 로그인 응답이 요청당 **≈0.4s**(20연속 7.9s). 프리페어드로 SQLi 가 다 막힌 앱에서 이 지연은 **bcrypt `password_verify`** 의 냄새다.
+> bcrypt 는 설계상 느려서 **온라인 브루트가 실질 불가**(hydra ~215/min → rockyou 완주 1000시간+). rockyou 상위 1500 에 없으면
+> 그 비밀번호는 온라인으로 못 얻는다. **오프라인 크랙용 해시 확보 경로(SQLi·덤프)가 없으면 이 방향은 죽은 길** — 조기에 접고 다른 벡터로 갔어야.
+
+시험장 교훈: "employee/admin 전용 + 무SQLi + 무LFI + bcrypt" 조합이면, 남은 정답은 대개 **놓친 엔드포인트**나
+**로직 버그의 다른 활용**이다. 나는 first-row 버그를 찾고도 그것을 portal 접근으로 잇지 못했다(시드 직원의 비밀번호 벽).
+
+## 7. OSCP 시험 관점
+
+- 셸 잡으면 칠 것(도달 못 함): `id · sudo -l · find / -perm -4000 · getcap -r / · crontab -l`.
+- register/login/portal 앱: **① 중복 사용자명 허용 여부 ② 유니크 필드가 username 인가 email 인가 ③ 로그인이 첫 행 조회형인가** 를 먼저 본다. 이 셋이 로직 버그의 씨앗이다.
+- 자동도구 없이: SQLi 는 time/boolean 수동, 사용자 열거는 first-row 오라클(단 오염 주의, 로그인 전용 스프레이 선호).
+- **시간 배분**: bcrypt 지연을 확인한 시점(대략 초반)에서 온라인 브루트는 접었어야 했다. 나는 여기서 시간을 많이 태웠다.
+
+## 8. 방어 관점
+
+- 로그인은 `WHERE username=? AND password=?` 가 아니라 **username 을 유니크 제약**으로 두고 첫 행 의존을 없앤다.
+- 사용자 열거 방지: 로그인/등록 응답을 상수 시간·상수 메시지로. 등록 성공/이메일중복 메시지 차이도 열거 표면이다.
+- portal 권한 검사는 세션 캡처값이 아니라 매 요청 DB 재확인 + 최소권한.
+
+## 9. 참고 자료
+
+- ffifdyop 매직해시 우회 개념 · PHP `password_verify`/bcrypt 지연 특성.
+
+## 남긴 흔적 / 관련 노트
+
+- 상세 실행기록: `03. PG/_AUDIT/Wheels-run.md`. Kali 산출물: `~/PG/Wheels/`(nmap·gobuster·hydra·enum 로그·`writeup_notes.txt`).
+- **정리**: tmux 세션 0, 내 리스너 0(`ss -lntp` 확인), `hydra.restore`(154MB) 삭제. **박스에 등록한 더미 계정 다수는 되돌리지 못함**(DB 접근 없음, 리버트로만 제거) — 다음 인스턴스에선 초기화됨.
+- 패턴 링크(버전 판정 독립근거 2개): [[Hub]] · [[Levram]].

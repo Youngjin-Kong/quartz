@@ -18,6 +18,7 @@ tags:
   - tech/payload/revshell
 type: machine
 platform: pwk-challenge
+ip: 10.10.203.0
 domain: challenge.lab
 cves: [CVE-2020-13151]
 status: solved

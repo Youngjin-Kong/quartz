@@ -18,6 +18,7 @@ tags:
   - tech/lin/cron
   - tech/lin/nfs
   - tech/web/deserialization
+  - tech/exec/rdp
   - tech/svc/smb
   - tech/svc/snmp
   - tech/exec/psexec
@@ -33,7 +34,7 @@ tags:
   - tech/payload/revshell
 type: reference
 platform: cheatsheet
-tech_count: 29
+tech_count: 30
 ---
 ### **Chall01 공략을 위한 정밀 행동 계획**
 

@@ -51,6 +51,10 @@ def build_fm(m):
         lines.append("domain: %s" % m["domain"])
     if m.get("ports"):
         lines.append("ports: [%s]" % ", ".join(str(p) for p in m["ports"]))
+    if m.get("ports_filtered"):
+        # 외부에서 막혔지만 내부에서는 살아 있던 포트. 침투 경로였던 전례가 있다
+        # (Outdated 의 10000/tcp Webmin = root 경로). open 과 섞지 않는다.
+        lines.append("ports_filtered: [%s]" % ", ".join(str(p) for p in m["ports_filtered"]))
     if m.get("services"):
         lines.append("services: [%s]" % ", ".join(m["services"]))
     if m.get("cves"):

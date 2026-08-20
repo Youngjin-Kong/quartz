@@ -4,6 +4,7 @@ tags:
   - platform/pg
   - os/windows
   - status/unsolved
+  - tech/exec/rdp
   - tech/svc/smb
   - tech/enum/dirbust
 type: machine
@@ -13,7 +14,7 @@ ip: 192.168.157.250
 ports: [80, 135, 139, 445, 3389, 5985, 5986, 8000, 47001]
 services: [http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn, ssl/wsmans]
 status: unsolved
-tech_count: 2
+tech_count: 3
 ---
 ## 192.168.157.250
 ## Nmap

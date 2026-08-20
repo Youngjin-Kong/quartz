@@ -14,14 +14,14 @@ tags:
 
 | 상태 | 개수 | 비율 |
 |---|---:|---:|
-| ✅ 완료 (플래그 전부) | 34 | 12.0% |
-| 🟡 부분 완료 | 3 | 1.1% |
-| ⬜ 미착수 | 246 | 86.9% |
+| ✅ 완료 (플래그 전부) | 45 | 15.9% |
+| 🟡 부분 완료 | 5 | 1.8% |
+| ⬜ 미착수 | 233 | 82.3% |
 | **합계** | **283** | |
 
 난이도 분포: **Fundamental** 43개 · **Intermediate** 209개 · **Advanced** 31개
 
-## ✅ 완료 (34)
+## ✅ 완료 (45)
 
 | 박스 | 난이도 | 플래그 | writeup |
 |---|---|---|---|
@@ -30,6 +30,7 @@ tags:
 | Bratarina | Fundamental | 1/1 | [[Bratarina]] |
 | Breakout | Intermediate | 2/2 | [[Breakout]] |
 | Butch | Intermediate | 2/2 | [[Butch]] |
+| ClamAV | Fundamental | 1/1 | [[ClamAV]] |
 | Clue | Advanced | 2/2 | [[Clue]] |
 | Cockpit | Intermediate | 2/2 | [[Cockpit]] |
 | Codo | Fundamental | 1/1 | [[Codo]] |
@@ -37,18 +38,27 @@ tags:
 | Exfiltrated | Fundamental | 2/2 | [[Exfiltrated]] |
 | Exghost | Fundamental | 2/2 | [[Exghost]] |
 | Fanatastic | Fundamental | 2/2 | [[Fanatastic]] |
+| Fikklish | Fundamental | 2/2 | [[Fikklish]] |
+| Flimsy | Fundamental | 2/2 | [[Flimsy]] |
 | Flu | Intermediate | 2/2 | [[Flu]] |
+| Fowsniff | Fundamental | 2/2 | [[Fowsniff]] |
 | Hawat | Fundamental | 1/1 | [[Hawat]] |
 | Heist | Advanced | 2/2 | [[Heist]] |
 | Hub | Fundamental | 1/1 | [[Hub]] |
+| Internal | Fundamental | 1/1 | [[Internal]] |
 | Kevin | Fundamental | 1/1 | [[Kevin]] |
+| LazySysAdmin | Fundamental | 2/2 | [[LazySysAdmin]] |
 | Levram | Fundamental | 2/2 | [[Levram]] |
+| Mice | Fundamental | 2/2 | [[Mice]] |
 | MiddlewareBypass | Intermediate | 1/1 | [[MiddlewareBypass]] |
 | Muddy | Fundamental | 2/2 | [[Muddy]] |
 | Osaka | Advanced | 2/2 | [[Osaka]] |
+| Outdated | Fundamental | 2/2 | [[Outdated]] |
 | Pebbles | Fundamental | 1/1 | [[Pebbles]] |
 | Pelican | Intermediate | 2/2 | [[Pelican]] |
+| PlanetExpress | Fundamental | 2/2 | [[PlanetExpress]] |
 | plum | Intermediate | 2/2 | [[plum]] |
+| PwnLab | Fundamental | 2/2 | [[PwnLab]] |
 | pyLoader | Intermediate | 1/1 | [[pyLoader]] |
 | Resourced | Intermediate | 2/2 | [[Resourced]] |
 | RubyDome | Fundamental | 2/2 | [[RubyDome]] |
@@ -57,49 +67,39 @@ tags:
 | Squid | Fundamental | 2/2 | [[Squid]] |
 | Twiggy | Fundamental | 1/1 | [[Twiggy]] |
 | Vault | Advanced | 2/2 | [[Vault]] |
+| Wheels | Fundamental | 2/2 | [[Wheels]] |
 | Wombo | Fundamental | 1/1 | [[Wombo]] |
 | Zipper | Advanced | 2/2 | [[Zipper]] |
 
-## 🟡 부분 완료 (3) — 우선 처리 대상
+## 🟡 부분 완료 (5) — 우선 처리 대상
 
 | 박스 | 난이도 | 플래그 | writeup |
 |---|---|---|---|
 | Hutch | Intermediate | 1/2 | [[Hutch]] |
+| Cobbles | Fundamental | 1/2 | [[Cobbles]] |
 | Jacko | Intermediate | 1/2 | [[Jacko]] |
+| Monster | Fundamental | 1/2 | [[Monster]] |
 | Nagoya | Advanced | 1/2 | [[Nagoya]] |
 
-## ⬜ 미착수 (246)
+## ⬜ 미착수 (233)
 
 체크박스를 채우며 진행한다. `노트O` = 볼트에 기존 노트가 이미 있음(참고 자료로 활용 가능).
 
-### Fundamental (26)
+### Fundamental (13)
 
 - [ ] Assignment `0/2`
 - [ ] BossPlayersCTF `0/2`
-- [ ] ClamAV `0/1`
-- [ ] Cobbles `0/2`
 - [ ] Compromised `0/2`
 - [ ] Covfefe `0/2`
 - [ ] CVE-2023-46818 `0/1`
 - [ ] Detection `0/1`
-- [ ] Fikklish `0/2`
-- [ ] Flimsy `0/2`
-- [ ] Fowsniff `0/2`
 - [ ] Fractal `0/2`
 - [ ] GLPI `0/2`
 - [ ] Graph `0/2`
 - [ ] Interface `0/1`
-- [ ] Internal `0/1`  ← 노트O
 - [ ] JISCTF `0/2`
-- [ ] LazySysAdmin `0/2`
-- [ ] Mice `0/2`
-- [ ] Monster `0/2`
-- [ ] Outdated `0/2`
-- [ ] PlanetExpress `0/2`
-- [ ] PwnLab `0/2`
 - [ ] Robust `0/2`
 - [ ] SunsetTwilight `0/2`
-- [ ] Wheels `0/2`
 
 ### Intermediate (195)
 

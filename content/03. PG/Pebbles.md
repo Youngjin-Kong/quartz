@@ -9,6 +9,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.52
 ports: [21, 22, 80, 3305, 8080]
 services: [ftp, http, http-proxy, odette-ftp, ssh]
 cves: [CVE-2016-6210]
@@ -615,3 +616,4 @@ limit=1 UNION SELECT 1,2,3,4,5,6,7   # 컬럼 수 브루트포스 — 응답 변
 - [[Squid]] — `INTO DUMPFILE` + hex 리터럴로 바이너리(웹셸) 쓰기. UDF `.so` 주입과 같은 패턴
 - [[Crane]] · [[Astronaut]] · [[Exghost]] — "응답이 성공을 뜻하지 않는다"(여기선 "배너가 정체를 뜻하지 않는다"로 확장)
 - [[Hub]] — 서비스가 root로 구동되는 권한상승 패턴
+- [[Cobbles]] — **자매 ZoneMinder 박스(1.34.23).** 같은 `OPT_USE_AUTH` off 무인증 진입, RCE는 SQLi가 아니라 Filter `AutoExecuteCmd` 명령 실행(PHP7 느슨비교 타입저글링 우회)

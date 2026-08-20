@@ -21,6 +21,7 @@ tags:
   - tech/lin/passwd-write
   - tech/web/sqli
   - tech/web/file-upload
+  - tech/exec/rdp
   - tech/db/mssql
   - tech/db/mysql
   - tech/svc/smb
@@ -43,8 +44,9 @@ tags:
   - tech/payload/metasploit
 type: reference
 platform: cheatsheet
+ip: 10.4.50.215
 domain: inlanefreight.htb
-tech_count: 39
+tech_count: 40
 ---
 # Information Gathering
 

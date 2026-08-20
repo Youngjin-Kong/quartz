@@ -97,6 +97,12 @@ TECH_RAW = [
     ("tech/web/ssrf",            [r"\bSSRF\b", r"169\.254\.169\.254"]),
     ("tech/web/cmd-injection",   [r"command inject", r"명령어?\s*삽입", r"명령어?\s*주입"]),
     ("tech/web/default-creds",   [r"default cred", r"admin:admin", r"기본 자격증명", r"admin:password"]),
+    ("tech/web/info-disclosure", [r"DEBUG\s*=\s*True", r"Werkzeug Debugger", r"phpinfo\(\)", r"\.git/HEAD"]),
+    ("tech/web/xpathi",          [r"XPath injection", r"XPath 인젝션", r"' or '1'='1'\]", r"xmlquery|xpath\("]),
+    ("tech/cred/config-file",    [r"sitemanager\.xml", r"recentservers\.xml", r"unattend\.xml",
+                                  r"wp-config\.php", r"\.pgpass", r"\.my\.cnf"]),
+    ("tech/exec/rdp",            [r"xfreerdp", r"rdesktop", r"\bmstsc\b"]),
+    ("tech/win/gui-lpe",         [r"CVE-2021-35448", r"파일 대화상자", r"file dialog.{0,30}(cmd|powershell)"]),
     # ---- DB / 서비스 ----
     ("tech/db/mssql",            [r"xp_cmdshell", r"mssqlclient", r"OPENQUERY"]),
     ("tech/db/mysql",            [r"mysql\s+-u", r"MariaDB", r"into outfile"]),
@@ -135,6 +141,14 @@ TECH = [(t, [re.compile(p, re.I) for p in pats]) for t, pats in TECH_RAW]
 
 PORT_RE = re.compile(r"^\s*(\d{1,5})/(tcp|udp)\s+open\s+(\S+)", re.M)
 IP_RE = re.compile(r"Nmap scan report for (?:\S+ \()?(\d{1,3}(?:\.\d{1,3}){3})")
+# 폴백 — nmap 블록에서 `Nmap scan report for` 줄을 빼먹고 옮긴 노트가 8개 있었고
+# 그 노트들은 `ip` 필드가 통째로 비어 있었다(2026-08-20). 본문의 사설 IP 최빈값으로 메운다.
+# ⚠️ 192.168.45.0/24 는 **Kali tun0(공격자)** 다. 타겟이 아니므로 반드시 제외한다.
+PRIV_IP_RE = re.compile(r"\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
+# filtered 는 open 과 의미가 다르다 — 외부에서 막혀 있지만 **내부에서는 살아 있는 서비스**일 수 있고,
+# 실제로 그게 침투 경로였다(Outdated 의 10000/tcp Webmin = root 경로). 같은 필드에 넣으면
+# 색인이 «열려 있었다»고 거짓말을 하므로 별도 필드로 둔다.
+PORT_FILT_RE = re.compile(r"^\s*(\d{1,5})/(tcp|udp)\s+filtered\s+(\S+)", re.M)
 DOM_RE = re.compile(r"Domain:\s*([A-Za-z0-9][A-Za-z0-9.\-]*\.[A-Za-z]{2,})")
 # (?!\.[a-z0-9]) — 뒤에 레이블이 더 있으면 FQDN 의 끝이 아니므로 도메인이 아니다.
 # 없으면 `com.sun.management.jmxremote.local.only=false` 의 `jmxremote.local` 을 도메인으로 오인한다.
@@ -283,10 +297,16 @@ def extract(path, rel):
     if win or lin:
         meta["os"] = "windows" if win >= lin else "linux"
 
+    # 49152↑ 와 5040·7680 은 **Windows** 노이즈다 — 동적 RPC 는 부팅마다 바뀌어 색인을 오염시킨다.
+    # 그러나 리눅스 박스에서는 그 대역이 **정적으로 열린 진짜 서비스**일 수 있다.
+    # 실측: ClamAV 의 60000/tcp 는 두 번째 sshd 이고, 노트가 `-p-` 를 왜 쓰는지의 근거로 삼는
+    # 포트다. 일괄 제외가 그걸 지워 색인에서 사라졌다(2026-08-20).
+    # OS 가 **리눅스로 확인된** 경우에만 규칙을 푼다 — 판정 실패 시에는 종전대로 제외한다.
+    keep_high = meta.get("os") == "linux"
     ports, svcs = set(), set()
     for p, _proto, svc in PORT_RE.findall(body):
         n = int(p)
-        if n >= 49152 or n in (5040, 7680):
+        if not keep_high and (n >= 49152 or n in (5040, 7680)):
             continue
         ports.add(n)
         s = svc.rstrip("?").lower()
@@ -297,9 +317,27 @@ def extract(path, rel):
     if svcs:
         meta["services"] = sorted(svcs)
 
+    # filtered 포트 — 「외부에서 막혔지만 내부에서는 살아 있다」는 신호이고, OSCP 에서
+    # 반복되는 패턴이다(포워딩·피벗으로 로컬 바인딩 서비스에 접근). open 과 섞지 않는다.
+    filt = set()
+    for p, _proto, _svc in PORT_FILT_RE.findall(body):
+        n = int(p)
+        if not keep_high and (n >= 49152 or n in (5040, 7680)):
+            continue
+        if n not in ports:
+            filt.add(n)
+    if filt:
+        meta["ports_filtered"] = sorted(filt)
+
     ips = IP_RE.findall(body)
     if ips:
         meta["ip"] = ips[0]
+    else:
+        # `Nmap scan report for` 줄이 없는 노트를 위한 폴백. Kali tun0(192.168.45.x)는
+        # 공격자 주소라 타겟이 아니다 — 제외하고 최빈값을 고른다.
+        cands = [a for a in PRIV_IP_RE.findall(body) if not a.startswith("192.168.45.")]
+        if cands:
+            meta["ip"] = max(set(cands), key=cands.count)
 
     # 도메인처럼 생겼지만 아닌 것 — 자바 시스템 프로퍼티·설정 키 조각이 대표적이다.
     # 예: `-Dcom.sun.management.jmxremote.local.only=false` 의 `jmxremote.local`

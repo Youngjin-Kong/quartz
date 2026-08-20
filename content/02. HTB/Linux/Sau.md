@@ -10,8 +10,9 @@ type: machine
 platform: htb
 os: linux
 ip: 10.129.229.26
-ports: [22]
-services: [ssh]
+ports: [22, 55555]
+ports_filtered: [80, 8338]
+services: [http, ssh]
 cves: [CVE-2023-27163]
 status: unsolved
 tech_count: 2

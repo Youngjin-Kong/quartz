@@ -9,6 +9,7 @@ tags:
   - tech/win/scheduled-task
   - tech/lin/sudo-abuse
   - tech/web/sqli
+  - tech/exec/rdp
   - tech/db/mssql
   - tech/svc/smb
   - tech/exec/winrm
@@ -23,8 +24,9 @@ tags:
   - tech/payload/revshell
 type: machine
 platform: pwk-challenge
+ip: 192.168.243.121
 status: solved
-tech_count: 18
+tech_count: 19
 ---
 About this lab
 

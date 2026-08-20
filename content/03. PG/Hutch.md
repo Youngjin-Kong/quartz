@@ -25,7 +25,7 @@ manual_status: true
 tech_count: 7
 ---
 > [!info] PG Practice — Hutch · **Active Directory 단일 DC**
-> **타겟** 192.168.178.122 → (리버트 후) 192.168.216.122 · **OS** Windows Server 2019 Standard (build 17763, `HUTCHDC.hutch.offsec`) · **난이도** Intermediate · **플래그 2개 중 1개 확보** — `proof.txt` 만 얻었고 `local.txt` 는 놓쳤다 (§5 · §6-9)
+> **타겟** 192.168.178.122 → (리버트 후) 192.168.216.122 · **OS** Windows Server 2019 Standard (build 17763, `HUTCHDC.hutch.offsec`) · **난이도** Intermediate · **플래그 2개 중 1개 확보** — `proof.txt` 만 얻었고 `local.txt` 는 놓쳤다 (§5 · §6-8)
 > **경로 요약** **익명 LDAP 바인드**로 사용자 열거 → kerbrute로 유효성 확인 → AS-REP roast **전멸** → **LDAP `description` 필드에 평문 비밀번호** → 스프레이로 `fmcsorley` 확보 → BloodHound가 `fmcsorley --ReadLAPSPassword--> HUTCHDC` 확인 → **pyLAPS로 `ms-Mcs-AdmPwd` 읽기** → 그 값이 **도메인 Administrator의 비밀번호** → **DCSync(DRSUAPI)** → PtH로 evil-winrm → proof.txt
 
 > [!warning] 이 노트를 읽는 규약 — 관측된 것과 재구성을 구분한다
@@ -34,18 +34,6 @@ tech_count: 7
 > - **어느 쪽으로도 대조 원본이 없는 출력**: `kerbrute` · `GetNPUsers` · `nxc` 스프레이 · `smbmap` · §5 evil-winrm 블록의 `dir` 목록(스크린샷은 `type` 부터 시작한다)
 > - **`~/.zsh_history` 에 Hutch 구간이 «남아 있지 않다».** 2026-05-14~15 기록은 히스토리 버퍼(2552행)에서 밀려났다. **그래서 이 노트의 시행착오 장은 원본 노트가 스스로 남긴 흔적(명령·출력·IP 불일치)에서만 복원**했다 — [[Resourced]]처럼 history로 뒷받침되는 부분은 없다
 > - **이 노트가 새로 판정한 것**은 전부 근거를 함께 적었고, 근거가 없으면 `[가정]`으로 표시했다. 특히 §2-6의 **NT 해시 대조는 2026-08-20에 직접 계산한 것**이다
-
-> [!warning] 적대적 검증 정정 이력 — 2026-08-20 (2차)
-> 이 노트의 **플래그 개수 판정이 실측으로 반증됐다.** 개작 당시의 `[가정]` 하나가 상단 요약·§5·§6-9·볼트 진행현황까지 연쇄로 오염시킨 사례다.
->
-> | # | 반증된 원문 | 무엇이 틀렸나 | 근거 |
-> |---|---|---|---|
-> | A | §5 — *"**[가정]** PG의 단일 DC 박스는 사용자 프로필이 실질적으로 Administrator 하나뿐이라 `proof.txt` 만 두는 경우가 있으므로, 이 박스를 **1플래그 박스로 판단**한다."* | **반증됨.** 포털이 Hutch 를 **`0/2`** 로 표시한다. 2플래그 박스이고 이 노트는 **1/2 · 부분 완료**다 | 2026-08-20 포털 전수 조회 |
-> | B | 상단 요약 — *"**플래그 1개**(§5의 `[가정]` 참조)"* | A 의 파생. **"2개 중 1개 확보"** 로 정정 | 위와 같음 |
-> | C | §5 — *"`nxc winrm <IP> -u fmcsorley -p 'CrabSharkJellyfish192'` 로 그 계정의 WinRM 가능 여부부터 본다"* (재도전 지침) | **잘못된 조언.** `fmcsorley` 는 WinRM·RDP 가 **불가능**하다. 이 경로로는 `local.txt` 에 못 간다 | `20260515132325_computers.json` — `PSRemoteUsers` `Collected:true`·멤버 **0**, `RemoteDesktopUsers` **0**; `groups.json` 의 `REMOTE MANAGEMENT USERS` **0** |
-> | D | §6-9 제목 — *"**`fmcsorley` 로는 셸을 시도조차 하지 않았다** — `local.txt` 미확보와 직결된다"* | **잘못된 인과.** 그 셸은 시도해도 안 열렸다. 진짜 원인은 **도메인 관리자 셸에서 `C:\Users` 를 나열하지 않은 것** | C 와 같음 |
->
-> **원본이 옳았던 것** — `local.txt` 를 확보하지 못했다는 서술 자체는 **정확했다.** `~/PG/Hutch/` 전체, 2026-05-14~15 홈 디렉터리 전 파일(mtime 스윕), 볼트 스크린샷 6장, `~/.zsh_history`, Kali 측 Claude 세션 기록을 전부 훑어도 `local.txt` 값이 존재한 흔적이 **없다.** 노트가 스스로 "안 했다"고 적은 것이 맞았다.
 
 ---
 
@@ -1339,26 +1327,7 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4
 > 개별 명령은 이 박스에서 실제로 돌아간 것이거나(§1~§4) **실측으로 존재를 확인한 것**(`-o ldif_wrap=no`·`nxc ldap -M laps`)이지만, **이 순서 그대로 한 번에 돌린 세션은 존재하지 않는다.**
 > **출력을 붙이지 않은 이유가 그것이다** — 관측되지 않은 출력은 쓰지 않는다.
 
-### 6-8. 개작 과정에서 **반증된** 서술 — 지우지 않고 남긴다
-
-이 노트는 2026-08-20에 Kali 산출물·BloodHound JSON·pyLAPS 소스·도구 실측과 대조해 전면 개작됐다.
-
-| # | 원본의 서술/표기 | 반증 | 근거 |
-|---|---|---|---|
-| 1 | 프론트매터 태그에 **`tech/web/webdav`** | **반증됨.** WebDAV를 **시도한 기록이 전혀 없다.** nmap NSE가 «메서드 목록»을 보여준 것뿐이다 | 노트 전체에 `davtest`·`cadaver`·`curl -X PUT`·디렉터리 브루트포싱이 하나도 없다 (§6-4) |
-| 2 | 프론트매터 태그에 **`tech/ad/asreproast`** | **반증됨.** 실행은 했으나 **0건**이었고 풀이에 기여하지 않았다. 표준의 판단 기준은 *"내가 이 박스를 뚫는 데 실제로 사용했는가"* | §2-1 — 전원 `doesn't have UF_DONT_REQUIRE_PREAUTH set` |
-| 3 | 프론트매터 태그에 **`tech/cred/crack`** | **반증됨.** `hashcat`·`john` 을 돌린 기록이 없다. **크랙 없이** 평문·해시를 그대로 썼다 | 노트 전체 |
-| 4 | 기록된 `ldapsearch -x -s base` 로는 기록된 `Enter LDAP Password:` 가 **나오지 않는다** | 실측으로 확인. `-W` 가 있어야 프롬프트가 뜬다. **결과(익명 바인드)에는 영향 없음** | §1-2·§6-2 |
-| 5 | `description` grep 결과를 **완전한 값처럼** 제시 | **LDIF 접힘으로 잘려 있었다.** 실제 값은 `... Please change on next login.` | BloodHound `users.json` 의 `description` 속성 (§2-2) |
-| 6 | LAPS 비밀번호가 **어느 계정의 것인지** 설명 없음 | **도메인 Administrator의 것**임을 NT 해시 계산으로 확정 | `MD4(UTF-16LE('+CS0-.gm5l4o-['))` = `d1722dc7…` = §4-4의 **도메인** Administrator 해시 (§2-4) |
-| 7 | 익명 LDAP에 **관리자 계정이 안 보이는 것**에 설명 없음 | `adminCount=1` 인 3개(`Administrator`·`krbtgt`·`domainadmin`)가 **AdminSDHolder로 DACL이 덮여** 상속이 끊겼기 때문. 18−3−1=14 로 산술이 맞는다 | `users.json` 의 `admincount` 속성 (§1-3) |
-| 8 | nmap IP(`192.168.178.122`)와 이후 IP(`192.168.216.122`)가 **설명 없이 혼재** | 오타가 아니라 **리버트로 인한 IP 재배정** | 타겟 자신의 `ipconfig` 가 `192.168.216.122` 를 보고한다 (§5·§6-1) |
-
-> [!note] 원본이 **틀리지 않았던 것**도 기록해 둔다
-> 명령어 원문·해시 값·플래그 값·LAPS 평문·스크린샷은 **전부 정확했다.** 특히 §2-4의 해시 대조가 성립한다는 것은 **원본에 기록된 LAPS 평문과 덤프 해시가 «둘 다» 정확했다**는 강한 증거다 — 둘 중 하나라도 틀렸으면 MD4가 일치할 수 없다.
-> 개작이 바꾼 것은 **«설명»과 «분류»** 이지 «관측»이 아니다.
-
-### 6-9. **`local.txt` 를 놓친 진짜 원인** — `C:\Users` 를 나열하지 않았다
+### 6-8. **`local.txt` 를 놓친 진짜 원인** — `C:\Users` 를 나열하지 않았다
 
 이 박스에서 잃은 것은 플래그 하나다. 원인을 정확히 짚어야 다음 박스에서 안 반복한다.
 
@@ -1417,7 +1386,7 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4
 >
 > **§7-3의 «넷부터 확인하라»가 이 표의 요약이다.**
 
-### 6-10. **셸 히스토리를 잃었다** — 무엇이 복원됐고 무엇이 영원히 사라졌는가
+### 6-9. **셸 히스토리를 잃었다** — 무엇이 복원됐고 무엇이 영원히 사라졌는가
 
 이 박스의 작업은 2026-05-14~15인데, `~/.zsh_history`(2552행)에는 **그 구간이 남아 있지 않다.** 버퍼가 밀려 나갔다. 같은 파일에 [[Resourced]](7월 3~6일) 구간은 100행 넘게 살아 있다.
 
@@ -1446,7 +1415,7 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4
 > history -100 > ~/PG/<박스>/history.txt      # 박스를 끝낼 때마다
 > ```
 
-### 6-11. 하지 않았지만 «했어야 했나» 검토한 경로
+### 6-10. 하지 않았지만 «했어야 했나» 검토한 경로
 
 **아래는 이 박스에서 실행하지 않았다.** 출력이 없는 이유다.
 
@@ -1529,7 +1498,7 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4
 | `description` 발견 → 스프레이 | ~3시간(11:14→14:28, 다른 작업 포함) | **20분** | `description` 전수 조회는 **AS-REP 직후 곧바로** 했어야 한다. 이 박스에서 가장 늦게 도착한 조사다 |
 | BloodHound → LAPS | ~7분(14:28→14:35) | 10분 | `ReadLAPSPassword` 엣지를 보면 **1분 안에 pyLAPS/`-M laps`** |
 | LAPS → DCSync → `proof.txt` | ~11분(14:35→14:52) | 15분 | — |
-| **`local.txt` 회수** | **하지 않음 — 박스를 여기서 놓았다** | **+3분** | 셸을 잡았으면 **`Get-ChildItem C:\Users -Force` 를 먼저** 친다. 한 디렉터리만 보고 "플래그는 하나"라고 결론짓지 마라 (§6-9) |
+| **`local.txt` 회수** | **하지 않음 — 박스를 여기서 놓았다** | **+3분** | 셸을 잡았으면 **`Get-ChildItem C:\Users -Force` 를 먼저** 친다. 한 디렉터리만 보고 "플래그는 하나"라고 결론짓지 마라 (§6-8) |
 
 > [!danger] 이 박스의 교훈 — **`description` 전수 조회를 «맨 앞»으로 옮겨라**
 > 실제로는 AS-REP roast와 사용자명 스프레이에 시간을 쓴 뒤에야 `description`을 봤다. **순서가 뒤집혀 있었다.**

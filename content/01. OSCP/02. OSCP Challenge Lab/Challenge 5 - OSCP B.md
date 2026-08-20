@@ -26,6 +26,7 @@ tags:
   - tech/payload/revshell
 type: machine
 platform: pwk-challenge
+ip: 192.168.121.149
 cves: [CVE-2022-0847, CVE-2022-42889]
 status: solved
 tech_count: 21

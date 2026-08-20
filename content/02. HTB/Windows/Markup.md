@@ -7,6 +7,7 @@ tags:
   - tech/exec/ssh-key
 type: machine
 platform: htb
+ip: 10.10.16.241
 domain: app.htb
 status: solved
 tech_count: 2

@@ -11,8 +11,8 @@ platform: htb
 os: linux
 ip: 10.129.230.87
 domain: broker.htb
-ports: [22, 80, 1883, 5672, 8161, 43009]
-services: [amqp, http, mqtt, ssh]
+ports: [22, 80, 1883, 5672, 8161, 43009, 61613, 61614, 61616]
+services: [amqp, apachemq, http, mqtt, ssh, stomp]
 cves: [CVE-2023-46604]
 status: solved
 tech_count: 2

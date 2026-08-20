@@ -11,6 +11,7 @@ tags:
   - tech/web/cmd-injection
 type: theory
 platform: swsec
+ip: 192.168.0.3
 tech_count: 7
 ---
 # SW보안약점 진단원 통합 수험서 (2026.8.8 대비)

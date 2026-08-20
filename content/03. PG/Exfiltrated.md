@@ -11,6 +11,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.163
 domain: exfiltrated.offsec
 ports: [22, 80]
 services: [http, ssh]

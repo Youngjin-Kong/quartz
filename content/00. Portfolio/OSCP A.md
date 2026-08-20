@@ -17,6 +17,7 @@ tags:
   - tech/payload/revshell
 type: report
 platform: report
+ip: 10.10.203.0
 domain: challenge.lab
 cves: [CVE-2020-13151]
 tech_count: 13

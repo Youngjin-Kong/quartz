@@ -9,6 +9,7 @@ tags:
   - tech/pivot/chisel
 type: machine
 platform: pwk-challenge
+ip: 192.168.243.250
 cves: [CVE-2021-41773]
 status: unsolved
 tech_count: 4

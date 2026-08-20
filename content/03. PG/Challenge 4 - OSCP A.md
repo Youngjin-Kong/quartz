@@ -19,7 +19,7 @@ type: machine
 platform: pg
 os: windows
 ip: 192.168.144.141
-domain: oscp.exam
+domain: challenge.lab
 ports: [21, 22, 53, 80, 81, 88, 135, 139, 443, 445, 464, 636, 1433, 1978, 3000, 3001, 3003, 3268, 3269, 3306, 3307, 3389, 5432, 5985, 5986, 9389, 47001]
 services: [cgms, domain, ftp, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-sql-s, ms-wbt-server, msrpc, mysql, nessus, netbios-ssn, postgresql, ppp, ssh, ssl/http, ssl/wsmans, unisql]
 cves: [CVE-2020-13151]

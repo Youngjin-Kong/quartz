@@ -12,6 +12,7 @@ tags:
   - tech/win/sebackup
   - tech/win/serestore
   - tech/web/lfi-rfi
+  - tech/exec/rdp
   - tech/svc/smb
   - tech/svc/ftp
   - tech/exec/winrm
@@ -28,7 +29,7 @@ platform: pg
 os: linux
 ip: 192.168.107.110
 status: solved
-tech_count: 19
+tech_count: 20
 ---
 
 

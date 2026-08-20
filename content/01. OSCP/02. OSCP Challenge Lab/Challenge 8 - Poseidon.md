@@ -17,6 +17,7 @@ tags:
   - tech/exec/psexec
 type: machine
 platform: pwk-challenge
+ip: 192.168.170.163
 status: solved
 tech_count: 12
 ---

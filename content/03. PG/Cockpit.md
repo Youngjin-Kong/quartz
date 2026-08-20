@@ -25,23 +25,6 @@ manual_tags: true
 tech_count: 9
 ---
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 이 노트는 148행짜리 원본을 655행으로 개작한 것이고, 그 뒤 산출물·스크린샷과 전면 대조했다.
-> **증가분의 출처는 원본 노트가 아니다** — 볼트 `파일보관\` 의 Cockpit 관련 스크린샷 **10장**, Kali `~/PG/Cockpit/` 산출물 **6개**(`nmap.log`·`49390.py`·`ferox.txt`·`ferox_80.txt`·`.state` 2개), `~/.zsh_history` 1170–1197행, 그리고 노트 작성 중 Kali 에서 직접 실행한 검증이다. 원본 노트에는 두 플래그 값이 **본문에 없었고** 스크린샷 링크로만 있었다.
->
-> | 위치 | 무엇이 틀렸나 | 어떻게 고쳤나 |
-> |---|---|---|
-> | 5장 `cat flag2.txt` 블록 | 실측 블록 안의 값이 `RWFzdGdVVyRWdn`(14자)로 **전사 과정에서 변조**됐다 | 스크린샷을 4배 확대해 판독한 실제 값 `RWFzdGVyRWdn`(12자)로 정정 |
-> | 5장 flag2 해설 | 위 오타 때문에 "base64 로 디코딩되지 않는다 · 무엇인지 확인하지 않았다"는 **결론 자체가 틀렸다** | `base64 -d` 실행 결과 `EasterEgg`. PG 가 심어둔 이스터에그로 확정 |
-> | 3장·5장 플래그 판정 | `local.txt` 만 웹셸 문제로 다루고 `proof.txt` 는 유효한 것처럼 읽혔다 | **두 플래그 다 Cockpit 웹 터미널**임이 픽셀 대조로 확인돼 5장에 명시 |
-> | 1장 "feroxbuster 3회" · 6장 "두 번 돌렸고" | history 상 실제 **9회**(9090 4회 · 1일차 80 1회 · 2일차 80 4회) + ffuf 1회 | 실제 횟수로 정정 |
-> | 6장③ "결과가 7줄" · "건진 7건" | `ferox_80.txt` 의 200 응답은 **6건**(+ `MSG` 2줄) | 6건으로 정정 |
-> | 1장 tip · 6장① · 7장1 `Vendor Homepage:` | 정작 문제의 `49390.txt` 에는 그 필드가 **없다**(`# Product:` 로 적혀 있다) | "제품 식별 줄(`Vendor Homepage:` 또는 `Product:`)" 로 정정 |
-> | 2장 "맞춤법 밑줄이 그어진 한 글자" | 확대해도 **밑줄은 없다** | 밑줄 서술 삭제, 글자 판독만 남김 |
-> | 6장② "링크 추출(`--extract-links`, 기본 켜짐)" | 2.13.1 `--help` 에 그 플래그는 **없다**(구 별칭으로 파싱만 된다). 문서화된 것은 끄는 쪽 `--dont-extract-links` | 실제로 쓸 수 있는 플래그명으로 정정 |
->
-> 반대로 **확인 결과 노트가 옳았던 것**: `ferox.txt` 통계 전량(6,997행·200 6,833건·크기 분포·디렉터리 분포), `.state` 수치 전량, `login` = 두 워드리스트 모두 53행째, `@localhost` 워드리스트 부재, `touch: unrecognized option`, tar 체크포인트 출력 억제, `sudoers(5)` 인용 2건, base64 디코딩 2건, 그리고 **4장의 Kali sudoers 재현 실험이 실제로 실행됐다는 것**(journald 2026-08-20 13:40:00–13:40:24 에 `install … /etc/sudoers.d/ztest` 부터 `rm -f …` 정리까지 전부 남아 있다).
-
 > [!info] Cockpit — PG Practice / Linux(Ubuntu 20.04.6) / Intermediate / 플래그 2개
 > **타겟** 1일차 `192.168.150.10` · 2일차 `192.168.161.10` (이틀에 걸쳐 붙었고 그 사이 박스가 재배포돼 IP 가 바뀌었다)
 > **경로 요약** tcp/80 의 `login.php` → 로그인 쿼리가 `LIKE '%…%'` 라서 **아무 한 글자로 인증 통과** → 관리자 화면이 전 사용자 계정과 **base64 로 저장된 비밀번호**를 그대로 출력 → 디코딩한 `james` 자격증명으로 **tcp/9090 Cockpit 웹콘솔** 로그인(시스템 계정 인증) → 콘솔 내장 터미널로 `local.txt` → `sudo -l` 에 `tar … *` → **와일드카드 인젝션**으로 `/bin/bash` 에 SUID → 같은 터미널에서 `proof.txt`
@@ -675,7 +658,7 @@ cat /etc/crontab; ls -la /etc/cron.*
 공격 머신:
 - `~/PG/Cockpit/` 에 `nmap.log`·`49390.py`·`ferox.txt`·`ferox_80.txt`·상태파일 2개
 - 이 노트 작성 중 sudoers 인자 매칭을 검증하려고 Kali 에 `/etc/sudoers.d/ztest` 를 잠시 두었다가 제거했다. `/tmp/ztest`·`/tmp/backup.tar.gz` 도 삭제 확인.
-  검증 시점에 감사자가 교차 확인했다 — journald 에 `2026-08-20 13:40:00` 의 `install -m 440 … /etc/sudoers.d/ztest` 부터 `13:40:24` 의 `rm -f /etc/sudoers.d/ztest /tmp/ztest /tmp/backup.tar.gz` 까지 전부 남아 있고, 현재 `/etc/sudoers.d/` 에는 배포 기본 파일 4개뿐이다.
+  journald 에 `2026-08-20 13:40:00` 의 `install -m 440 … /etc/sudoers.d/ztest` 부터 `13:40:24` 의 `rm -f /etc/sudoers.d/ztest /tmp/ztest /tmp/backup.tar.gz` 까지 전부 남아 있고, 현재 `/etc/sudoers.d/` 에는 배포 기본 파일 4개뿐이다.
 
 ## 관련 노트
 

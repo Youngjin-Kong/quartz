@@ -31,24 +31,6 @@ manual_status: true
 tech_count: 13
 ---
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 개작본을 `Nagoya.md.bak`(원본 손기록)·Kali `~/PG/Nagoya/` 산출물·`~/.zsh_history`·볼트 스크린샷 24장과 대조해 정정한 것들이다. 터미널 출력·명령·해시·플래그 값은 손대지 않았다.
->
-> | 위치 | 무엇이 틀렸나 | 어떻게 고쳤나 |
-> |---|---|---|
-> | 6장 시간표 | 스크린샷 파일명(=붙여넣기 시각)을 사건 시각으로 단정. 3장의 유보를 스스로 어겼다 | 실측 앵커(mtime·로그 타임스탬프)와 상한(붙여넣기 시각)을 열로 분리 |
-> | 6장 "실작업 3시간 40분" | 산수 오류 | 약 4시간 15분 |
-> | 6장 "17시간 40분 공백" / "ligolo→플래그 21분" | 위 시각 오류에서 파생 | 약 17시간 30분 / 약 28분 |
-> | 2-3장 "HELPDESK 가 20명 전원에 GenericAll" | 실제 21명 | 21명(= EMPLOYEES 멤버 전원)으로 정정 |
-> | 4-3장 "MSSQL 이 BUILTIN\Administrators 를 sysadmin 으로 매핑하는 기본 설정" | **틀린 일반 지식.** SQL Server 2008 이후 기본 설치는 BUILTIN\Administrators 를 sysadmin 에 넣지 않는다. 이 인스턴스는 2022(160) | 관측된 사실만 남기고 매핑 경로는 `[가정]` |
-> | 8장 `PacRequestorEnforcement` | **틀린 일반 지식.** 그건 KDC 발급 티켓용이라 실버티켓과 무관 | KB5020805(`KrbtgtFullPacSignature`)로 교체 + 이 박스 빌드가 그 이전임을 명시 |
-> | 4-5·7장 "GetChangesAll = DCSync" | DCSync 는 GetChanges + GetChangesAll 둘 다 필요 | 두 권한의 출처를 나눠 서술 |
-> | 3-2·6장 `net rpc password` "네 번" | 히스토리 실측과 불일치 | 실패 4줄 중 인용부호 미종결 3줄로 정정 |
-> | 6장·1장 feroxbuster "913개까지 완주" | state 파일 실측: 913 = 200 열두 개 + 503 901개, 세 실행 모두 미완주 | 숫자와 완주 여부 정정 |
-> | 5장 `proof.txt` 블록 | 스크린샷에 없는 `cd`/`dir` 명령행이 재구성돼 있고, 이 셸의 에코 특성과도 어긋남 | 스크린샷 원문대로 되돌리고 앞 절차는 산문으로 |
->
-> **반증돼 그대로 둔 것** — `whoami` 가 `nagoya-ind\nagoya$` 로 나온 것(스크린샷 실물 확인, `[가정]` 강등이 타당), `klist` 의 2036년 만료(스크린샷 실물 확인), ligolo v0.8.2, `nxc-sweep` 의 SMB 공유 열거 블록(원본 손기록에 그대로 있다), ticketer 의 기본 그룹 513/512/520/518/519(impacket 소스 확인).
-
 > [!info] 상단 요약
 > **Nagoya** · PG Practice · Advanced · Windows Server 2019 도메인 컨트롤러 (`nagoya.nagoya-industries.com`, 192.168.120.21)
 > 웹의 Team 페이지에서 실명 28개 → username-anarchy 로 계정명 405개 생성 → kerbrute 로 26개 확정 → 사이트 푸터의 `© 2023` 을 근거로 `Spring2023`~`Winter2023` 스프레이 → `craig.carr` 확보 → BloodHound 가 그린 ACL 사슬로 `christopher.lewis` 탈취(WinRM) → Kerberoast 로 `svc_mssql:Service1` 크랙 → **1433 이 외부에서 막혀 있어** ligolo-ng 로 터널을 뚫고 → svc_mssql 의 NT해시로 **MSSQL 실버티켓 위조** → `xp_cmdshell` → `SeImpersonatePrivilege` → PrintSpoofer.

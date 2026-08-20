@@ -10,6 +10,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.181
 ports: [22, 3000, 9090]
 services: [http, ssh]
 cves: [CVE-2021-43798]

@@ -12,6 +12,7 @@ tags:
   - tech/payload/revshell
 type: machine
 platform: pwk-challenge
+ip: 192.168.197.95
 cves: [CVE-2020-10189]
 status: unsolved
 tech_count: 7

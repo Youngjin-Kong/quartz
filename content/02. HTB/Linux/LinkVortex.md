@@ -5,6 +5,7 @@ tags:
   - os/linux
   - status/solved
   - tech/lin/sudo-abuse
+  - tech/web/info-disclosure
   - tech/enum/dirbust
 type: machine
 platform: htb
@@ -15,7 +16,7 @@ ports: [22, 80]
 services: [http, ssh]
 cves: [CVE-2023-40028]
 status: solved
-tech_count: 2
+tech_count: 3
 ---
 ## Nmap
 ```bash

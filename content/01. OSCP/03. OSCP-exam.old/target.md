@@ -5,6 +5,7 @@ tags:
   - status/solved
 type: machine
 platform: exam
+ip: 192.168.91.206
 status: solved
 tech_count: 0
 ---

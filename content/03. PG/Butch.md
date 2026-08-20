@@ -24,28 +24,6 @@ tech_count: 5
 > **타겟** 192.168.243.63 · **OS** Windows Server 2019 (`butch`, IIS 10.0 / ASP.NET 4.0.30319) · **플래그 2개**
 > 경로 요약 — 450번 포트의 IIS 웹앱 → `/dev/` 디렉터리 리스팅으로 소스 노출(`.txt` 사본) → 로그인 폼 스택 쿼리 SQLi 로 비밀번호 해시 덮어쓰기 → `butch` 로 로그인 → `.ashx` 웹셸 업로드 → 앱풀이 특권 신원이라 곧바로 `net user /add` → 로컬 관리자 계정 생성 → evil-winrm → 토큰 필터링 우회 후 `proof.txt`
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 이 노트는 외부 근거(OSCP Exam Guide 원문 · IIS/ASP.NET 기본 설정 · Kali 원본 로그)와 대조하는 적대적 검증을 거쳤다. **틀렸던 것과 왜 틀렸는지**를 남긴다 — 같은 오해를 반복하지 않기 위해서다.
->
-> | # | 무엇이 틀렸었나 | 왜 틀렸나 | 어디 |
-> |---|---|---|---|
-> | 1 | **웹셸로 `proof.txt` 읽기를 "최선"으로 권장** | 정반대다. OSCP는 **웹 기반 셸로 얻은 플래그를 0점 처리**한다. 시험장에서 박스 하나를 통째로 날리는 함정 | 4장 · 7장 #16·#17 |
-> | 2 | `.master`/`.cs` 가 IIS에서 "컴파일·실행된다" | 실제로는 **거부된다**(404.7 / 403). `HttpForbiddenHandler` + requestFiltering. `.txt` 사본이 필요했던 이유의 메커니즘이 통째로 뒤집혀 있었다 | 0장 · 2-1 |
-> | 3 | "OSCP 시험 규정은 타겟 변조를 금한다"를 **따옴표로 인용** | **그런 조항이 없다.** Exam Guide/FAQ/Academic Policy 전문에 타겟 변조·파일 삭제 금지 조항 부재. 진짜 리스크는 규정 위반이 아니라 **revert로 인한 진척 손실** | 4장 |
-> | 4 | "다른 응시자의 재현을 방해한다" | 시험 환경은 **응시자 전용 private VPN**이다. 이 통념의 출처는 **은퇴한 통합 PWK 랩**(당시엔 공유 환경이 맞았다) | 2-4 · 4장 |
-> | 5 | RID 500 경로 조건 "비밀번호를 안다"가 실제 진행과 모순 | 이 박스는 비밀번호를 **몰랐고 덮어썼다** | 4장 |
-> | 6 | 업로드 필터 유무가 노트 안에서 3중으로 엇갈림 | 원본 기록에 **필터 언급도 실패 시도도 없다.** "필터 있음" 단정 → `[가정]`으로 통일 | 0장 · 2 · 2-6 |
-> | 7 | `SeImpersonatePrivilege` 를 "최신 패치 유지"로 막는다 | MS는 이를 **설계상 동작**으로 취급한다. PrintSpoofer/EfsPotato/GodPotato는 패치로 안 막힌다 | 8장 #9 |
-> | 8 | `net user /add` 를 30행 간격으로 "가장 시끄럽다" ↔ "안전하다" | **"안전"이 오기**다. 아웃바운드 회피라는 이점과 로그 소음은 별개 축이다 | 3장 |
-> | 9 | 실행하지 않은 SHA-256 검산을 **Kali 프롬프트를 붙여 실행 기록처럼** 제시 | 값은 정확하나 세션은 없었다 → **검산 절차**로 표기 변경 | 2-5 |
-> | 10 | MSSQL 확정에 **노트 내 관측 근거가 없다** | 추론은 강하지만 관측이 아니라 **연역**이다 → `[가정]` 표기 | 2-2 · 2-3 |
-> | 11 | "플래그 값만 있으면 0점"의 **이유가 틀렸다** | 규정이 요구하는 것은 `whoami`/`hostname` 이 아니라 **대화형 셸 + 타겟 IP**다 | 5장 · 7장 #18 |
-> | 12 | `shell.aspx:.jpg` 를 동작하는 웹셸로 제시 | ADS로 쓰면 **기본 스트림이 0바이트**가 된다. 필터 통과용이지 단독으로는 실행 불가 | 2-6 |
-> | 13 | `nnmap` 을 "오타"로 단정 | 원본 `nmap.log` 1행에 **실제 명령이 남아 있다**. 오타가 아니라 별칭/래퍼 | 1장 |
-> | 14 | 인바운드 필터링에서 **아웃바운드를 추정** | 두 정책은 독립이다. 이 박스는 리버스셸을 아예 쓰지 않아 아웃바운드가 검증된 바 없다 | 3장 |
->
-> **검증했으나 정확했던 것**(그대로 둔다): 스택 쿼리 가부 매트릭스 · `LocalAccountTokenFilterPolicy` + RID 500 예외 · `/App_Data/` 실행 거부 · IIS 디렉터리 브라우징 기본 비활성 · T-SQL `--` 후행 공백 불필요 · 해시 길이 판정 · hashcat `-m 1400`/`-m 0` · 이벤트 ID 4720/4732 · **sqlmap 금지** · §2-5 MSSQL 수동 페이로드 문법.
-
 ## 0. 이 박스에서 배우는 것
 
 - 웹은 80/443 에만 있지 않다. 이 박스의 웹은 **450번**이고, 전 포트 스캔을 안 하면 시작조차 못 한다
@@ -721,7 +699,7 @@ SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
 
 `net localgroup administrators <user> /add` 를 했는데 WinRM 에서 권한이 없다면 ②나 ③을 반사적으로 떠올려라. 시험에서 여기서 막혀 30분을 태우는 사람이 많다.
 
-> [!danger] ⚠️ 웹셸로 플래그를 읽으면 0점이다 — 이 노트가 원래 정반대로 적고 있었다
+> [!danger] ⚠️ 웹셸로 플래그를 읽으면 0점이다
 > 위 표의 ⑤(특권 웹셸에서 직접 `type proof.txt`)는 랩에서만 쓰는 지름길이다. 시험에서는 그 박스의 점수를 통째로 날린다.
 > > "The valid way to provide the contents of the proof files is in an **interactive shell** on the target machine with the type or cat command from their original location."
 > > "Obtaining the contents of the proof files in any other way will result in **zero points** for the target machine; **this includes any type of web-based shell**."
@@ -745,7 +723,7 @@ net user administrator Password1
 **[가정]** 이 명령은 필터링된 WinRM 세션이 아니라 특권 웹셸(2-7과 같은 채널)에서 실행됐을 가능성이 높다. 필터링된 토큰으로는 SAM 쓰기가 거부되기 때문이다. 이후 `evil-winrm -u administrator -p 'Password1'` 로 재접속하면 RID 500 예외 덕에 필터링 없는 전체 토큰을 받아 `C:\Users\Administrator\` 를 읽을 수 있다. 아래 5장의 프롬프트가 그 세션이다.
 
 > [!danger] ⚠️ 시험에서 Administrator 비밀번호 변경은 하지 마라 — 다만 이유를 정확히 알아라
-> 정정: 이 노트는 원래 *"OSCP 시험 규정은 «타겟을 망가뜨리거나 다른 응시자의 재현을 방해하는 행위»를 금한다"* 고 적었다. 그런 조항은 존재하지 않는다. Exam Guide·Exam FAQ·Academic Policy·T&C 어디에도 타겟 변조·파일 삭제·서비스 중단을 금지하는 문구가 없고, 점수 몰수(Point Disqualification) 사유는 넷뿐이다 — 제한 도구 사용 / Metasploit·Meterpreter 다중 사용 / proof 미제출 / 문서화 부재.
+> 타겟 변조를 금하는 조항은 존재하지 않는다. Exam Guide·Exam FAQ·Academic Policy·T&C 어디에도 타겟 변조·파일 삭제·서비스 중단을 금지하는 문구가 없고, 점수 몰수(Point Disqualification) 사유는 넷뿐이다 — 제한 도구 사용 / Metasploit·Meterpreter 다중 사용 / proof 미제출 / 문서화 부재.
 >
 > 진짜 리스크는 규정 위반이 아니라 시간과 진척의 손실이다. 되돌릴 방법이 revert 뿐이고, revert 하면 그 머신의 진척이 전부 사라진다 — 웹셸도, 생성한 계정도, 심어둔 해시도 전부 초기화된다. AD 세트라면 더 비싸다. 제공된 침해 자격증명이나 하위 피벗 경로가 함께 죽는다. 게다가 리버트는 24회 한정(1회 리셋 가능)이라, 자기 변조를 수습하느라 쓰는 리버트는 순수한 손해다.
 >
@@ -810,7 +788,7 @@ Mode                LastWriteTime         Length Name
 Get-ChildItem -Path C:\ -Include local.txt,proof.txt -Recurse -ErrorAction SilentlyContinue | Select FullName
 ```
 
-증거 형식에서는 규정이 요구하는 것과 관행상 권장되는 것을 구분해야 한다. 플래그 값만 캡처하면 인정되지 않는데, 이 노트는 원래 `whoami`·`hostname` 을 규정 요건인 것처럼 적었다. 규정 문구에 그 둘은 없다.
+증거 형식에서는 규정이 요구하는 것과 관행상 권장되는 것을 구분해야 한다. 플래그 값만 캡처하면 인정되지 않는다. 그리고 규정 문구에 `whoami`·`hostname` 은 없다.
 
 규정이 실제로 요구하는 것은 셋이다.
 

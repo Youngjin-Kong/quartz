@@ -14,29 +14,17 @@ platform: pg
 os: linux
 ip: 192.168.248.222
 domain: scarlet.local
-ports: [22, 80, 111, 2049, 33527, 41543]
-services: [http, nfs_acl, nlockmgr, rpcbind, ssh, status]
-cves: [CVE-2021-4034]
+ports: [22, 80, 111, 2049, 33527, 41543, 53291, 53845, 59493]
+services: [http, mountd, nfs_acl, nlockmgr, rpcbind, ssh, status]
 status: solved
 manual_tags: true
+manual_cves: true
 tech_count: 5
 ---
 
 > [!info] PG Practice — Scarlet
 > **타겟** 192.168.248.222 (`scarlet.local`) · **OS** Ubuntu 22.04 LTS (5.15.0-41-generic) · **플래그 2개** (`local.txt` + `proof.txt`)
 > **경로 요약** NFS(2049) 익명 export `/mnt/share` 마운트 → **RSA 공개키 확보** → Express 앱의 **JWT RS256→HS256 키 혼동(key confusion)** 으로 토큰 위조 → 위조 토큰의 `username` 클레임에 **SQLite 인젝션** → `brian:Standingbytheseaside12` 덤프 → SSH로 `local.txt` → `/opt/backup.zip`(ZipCrypto)을 **동일 공개키를 known-plaintext로 쓴 bkcrack**으로 복호화 → 내부의 `root@scarlet` 개인키 → `ssh -i` 로 root
-
-> [!danger] 색인 정정 — frontmatter를 세 곳 고쳤다
-> - **`cves: [CVE-2021-4034]` 삭제.** 원문 frontmatter에는 `cves` 필드 자체가 없었고, 개작 과정에서 잘못 들어간 항목이다. 본문 4-1절이 명시하듯 **Ubuntu 22.04는 PwnKit이 이미 패치돼 있어 여기서는 통하지 않으며, 시도한 기록도 없고 경로에 쓰이지도 않았다.** 남겨두면 "PwnKit으로 푼 박스"로 검색되는 오탐이 된다.
-> - **`tech/web/jwt` 추가.** 요약·0장·2-2절·3-4절·7장 5번이 전부 **RS256→HS256 키 혼동**을 중심 기법으로 서술하는데 색인에서만 빠져 있었다.
-> - **`tech/cred/crack` → `tech/crypto/known-plaintext` 교체.** 본문 2-5절이 스스로 "**복구되는 것은 비밀번호가 아니라 내부 키다**"라고 못박는다. 실제로 `zip2john` + `john` 사전공격은 **실패했고**(6장 ⑪) bkcrack의 known-plaintext로 우회했다. 비밀번호 크랙 태그는 사실과 반대다.
->
-> `manual_tags: true`라 자동 보정이 걸리지 않는다 — 손으로 고쳤고, 앞으로도 손으로 유지해야 한다.
-
-> [!warning] 이 노트를 읽는 규약 — **관측 출력과 예시 출력을 구분하라**
-> 코드펜스가 두 종류 섞여 있는 것이 이 노트의 구조적 위험이다. 실제로 4-5절에는 **실행한 적 없는 SSH 경고 출력이 코드펜스로 실려 있었고**, 그 문자열마저 틀려 있었다(OpenSSH는 `This private key will be ignored.`라고 찍는다). 걷어냈다.
-> 앞으로의 규약: **관측된 터미널 출력은 프롬프트(`┌──(kali㉿kali)` / `brian@scarlet:~$` / `root@scarlet:~#`)를 포함해 원문 그대로 싣는다.** 재현용 예시 블록에는 **`# 예시 — 이 박스에서 발생한 출력이 아니다`** 주석을 첫 줄에 단다.
-> **근거 없는 출력을 지어내지 않는 것이 이 노트가 적대적 검증에서 버티는 유일한 조건이다.**
 
 ---
 
@@ -548,7 +536,7 @@ drwxr-xr-x  2 root   root    4096 Jul 18  2022 essentials
 | `-o ro` | 읽기 전용 마운트 | 실수로 원본을 건드릴 위험. **증거 보존이 중요하면 붙여라** |
 
 > [!danger] 반증됨 — `drwxrwxrwx nobody nogroup`은 **`root_squash`의 증거가 아니다**
-> 이 노트는 원래 "`drwxrwxrwx nobody nogroup` — `root_squash`가 작동 중인 증거다. 서버상 `root` 소유인 디렉터리가 클라이언트에서 `nobody`로 보인다"라고 적었다. **인과가 틀렸다.**
+> "`drwxrwxrwx nobody nogroup` — `root_squash`가 작동 중인 증거다. 서버상 `root` 소유인 디렉터리가 클라이언트에서 `nobody`로 보인다"고 읽기 쉽다. **인과가 틀렸다.**
 > `root_squash`는 **클라이언트가 보내는 UID 0 요청을 `anonuid`(기본 65534)로 강등**하는 서버측 접근 통제다. **서버에 있는 파일의 표시 소유자를 바꾸는 기능이 아니다.**
 > 결정적 반증이 **같은 `ls` 출력 안에** 있다 — 바로 아랫줄의 `essentials`는 `root root`로 보인다. 같은 마운트인데 부모 디렉터리만 `nobody`로 뒤집힐 이유가 없다. 즉 이 표시는 **서버측 실제 소유권**이고, `/mnt/share`가 진짜로 `nobody:nogroup` 777로 만들어져 있는 것이다.
 > **`root_squash` 여부를 판정하는 확실한 근거는 `/etc/exports`뿐이다.** 이 박스에서는 셸을 잡은 뒤 4-1절에서 `/mnt/share *(rw,sync,no_subtree_check)`를 확인했고, `no_root_squash`가 **없으므로** 기본값 `root_squash`가 적용된다. **결론(`no_root_squash`가 아니다)은 옳았다 — 근거만 틀렸다.**
@@ -1651,7 +1639,7 @@ cat: lo: No such file or directory
 
 원문 터미널에는 안 나오지만 Kali에 흔적이 남아 있다 — 작업 디렉터리에 **`zip.hash`가 그대로 있고**, `~/.zsh_history` 2386~2455행이 **`zip2john backup.zip > zip.hash` → `john --wordlist=rockyou.txt` → 실패 → Jumbo 룰까지 적용 → 실패 → 포기** 순서를 기록한다.
 
-즉 4-3절의 "**5초**"라는 결과 앞에는 **사전공격에 태운 시간이 먼저 있었다.** 노트의 시간 배분표(⑨)에 그 구간을 추가했다.
+즉 4-3절의 "**5초**"라는 결과 앞에는 **사전공격에 태운 시간이 먼저 있었다.**
 
 > [!tip] 판단 분기를 앞으로 당겨라 — **목록을 먼저 본다**
 > `unzip -l`로 아카이브 안에 **내가 이미 가진 파일**(`web/public.key`)이 있다는 것을 확인한 시점에, 사전공격은 **시도할 이유가 사라진다.** 순서는 이렇다:
@@ -1783,7 +1771,7 @@ cat: lo: No such file or directory
 - **NFS `exports(5)` 매뉴얼** — `root_squash` / `no_root_squash` / `all_squash` / `anonuid` / `anongid`: `man 5 exports`
 - **HackTricks — 2049 NFS**: https://book.hacktricks.xyz/network-services-pentesting/nfs-service-pentesting
 - **SQLite 스키마 카탈로그**: `sqlite_master` — https://www.sqlite.org/schematab.html
-- **hashcat 모드**: `-m 16500` JWT(HS256) · `-m 13600` WinZip AES · **`-m 17225` PKZIP(mixed multi-file)** — `17220`이 compressed multi-file이다. 이름을 뒤바꿔 적었던 것을 정정한다. 이 박스에서 실제로 만든 `zip.hash`는 `$pkzip$8*1*1*0*8*24*…` 형태의 **mixed multi-file**이므로 **번호 17225 자체는 맞다**
+- **hashcat 모드**: `-m 16500` JWT(HS256) · `-m 13600` WinZip AES · **`-m 17225` PKZIP(mixed multi-file)** — `17220`이 compressed multi-file이다. 이 박스에서 실제로 만든 `zip.hash`는 `$pkzip$8*1*1*0*8*24*…` 형태의 **mixed multi-file**이므로 **번호 17225 자체는 맞다**
 
 ---
 

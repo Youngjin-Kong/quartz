@@ -21,6 +21,7 @@ tags:
   - tech/lin/passwd-write
   - tech/web/lfi-rfi
   - tech/web/file-upload
+  - tech/exec/rdp
   - tech/db/mssql
   - tech/svc/smb
   - tech/svc/snmp
@@ -41,9 +42,10 @@ tags:
   - tech/payload/metasploit
 type: reference
 platform: cheatsheet
+ip: 10.10.14.3
 domain: sequel.htb
 cves: [CVE-2017-16995, CVE-2024-21413]
-tech_count: 37
+tech_count: 38
 ---
 ### Nmap(AD는 1번만 해도 되는 ping 막아서 -Pn까지만 추가)
 

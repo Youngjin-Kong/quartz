@@ -25,6 +25,7 @@ tags:
   - tech/payload/revshell
 type: report
 platform: report
+ip: 192.168.121.149
 cves: [CVE-2022-0847, CVE-2022-42889]
 tech_count: 21
 ---

@@ -10,6 +10,7 @@ tags:
 type: machine
 platform: pg
 os: linux
+ip: 192.168.248.183
 domain: exghost.local
 ports: [21, 80]
 services: [ftp, http]

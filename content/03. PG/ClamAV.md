@@ -20,25 +20,6 @@ manual_tags: true
 manual_cves: true
 tech_count: 3
 ---
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 초고를 `~/PG/ClamAV/` 산출물 전량과 대조해 아래를 고쳤다. 터미널 블록은 전부 원문으로 되돌렸다. 전체 대조는 `_AUDIT/ClamAV-audit.md`.
->
-> | 위치 | 무엇이 틀렸나 | 어떻게 고쳤나 |
-> |---|---|---|
-> | frontmatter | `tech/mail/smtp`·`tech/injection/command` 는 볼트에 없는 태그였다 (이 노트가 처음 만든 것) | 표준 태그 `tech/svc/smtp`·`tech/rce/cmd-injection` 로 교체. [[Bratarina]] 와 같은 태그가 돼야 검색에 걸린다 |
-> | 1장 EICAR 절 | "EICAR 로 먼저 확인하고 그 다음 RCE 를 확정했다"는 2단계 서사 | 같은 메시지 하나였다(`try1.log`, 14:25:19). EICAR 응답과 `GET /probe1` 이 동시에 왔다. 진짜 1단계는 `smtp_probe1.txt`(14:23:33) 다 |
-> | 1장 nmap 블록 | `as: nmap -sCV ...` 로 손봄 | 원문은 `as: /usr/lib/nmap/nmap --privileged -sCV ...` |
-> | 1장 웹·SMB | 정찰 단계에 배치 | mtime 상 14:42~14:44, root 를 잡은 뒤다. 사후 확인임을 명시 |
-> | 2장 clamav 확인 블록 | 실제로는 두 번의 복합 명령인데 `sh-2.05b#` 프롬프트 3개로 재구성 | `shell_session.log` 원문 그대로 복원 |
-> | 2장 페이로드 해설 | "`\|` 는 프로그램 배달 문자" / "인용을 빼면 RCPT 에서 거절된다" | `\|` 는 `popen` 문자열 안의 셸 파이프다. 인용 없는 형태는 시도한 적이 없어 `[가정]` 으로 강등 |
-> | 4·5장 증거 블록 | 실행한 명령에서 `clear;`·`date;` 를 빼고 `ls` 출력을 말없이 줄임 | 원문 복원 |
-> | 6장 (2) | 콜백 소스포트 `32823` | `listener443.log` 원문은 `32803` |
-> | 6장 (2) | "세 번 다 유령 연결이 먼저 붙었다" | 그 시점 리스너 로그가 없다. 유령 wget 의 존재는 증거가 있으나(큐 3건, `grep -c wget`=4) 3회 모두라는 인과는 `[가정]` |
-> | 6장 (3) | "`cd` 가 왜 안 먹는지 설명이 완결되지 않았다" | 파이프라인 서브셸 가설로 관측 넷을 설명. 여전히 `[가정]` 이되 근거를 붙였다. 작업 디렉터리가 milter 임시 디렉터리라는 것은 Metasploit 모듈 주석이 뒷받침 |
-> | 6장 (4) | `"GET /0123...0123"` 을 실측 로그 블록으로 제시 | try15 를 덮는 HTTP 로그가 저장돼 있지 않다(`http_stager.log` 는 14:34:53 에서 끝난다). 코드펜스 밖으로 빼고, 보존된 반증 증거인 `try7.log` 를 앞세웠다 |
->
-> 지적으로 올랐다가 **노트가 옳아서 되살린 것**: 소문자 접힘 · `cd` 무효 · `dpkg` 0.84 vs 실행 0.91 · 아웃바운드 차단 없음 · 93자 절단 — 다섯 항목 모두 산출물이 뒷받침한다.
-
 > [!info] PG Practice — ClamAV
 > **타겟** 192.168.248.42 · **OS** Linux (Debian sarge, 커널 2.6.8-4-386, 호스트명 `0xbabe.local`) · **난이도** Fundamental · **플래그 1개** (`/root/proof.txt`)
 > **경로 요약** tcp/25 Sendmail 8.13.4 뒤에 clamav-milter 0.91 이 `--black-hole-mode` 로 붙어 있다 → SMTP `RCPT TO:` 의 local-part 에 명령을 주입(CVE-2007-4560) → milter 가 root 이므로 처음부터 uid=0. 권한상승 단계가 없다.

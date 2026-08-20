@@ -12,7 +12,8 @@ tags:
 type: machine
 platform: pg
 os: linux
-ports: [22, 17445, 30455]
+ip: 192.168.248.147
+ports: [22, 17445, 30455, 50080]
 services: [http, ssh]
 status: solved
 manual_tags: true

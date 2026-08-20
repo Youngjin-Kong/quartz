@@ -13,6 +13,7 @@ tags:
   - tech/payload/msfvenom
 type: machine
 platform: exam
+ip: 192.168.91.206
 status: unsolved
 tech_count: 8
 ---
