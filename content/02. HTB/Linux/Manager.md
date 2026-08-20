@@ -5,6 +5,7 @@ tags:
   - os/windows
   - status/solved
   - tech/ad/adcs
+  - tech/ad/userenum
   - tech/ad/dnsadmins
   - tech/db/mssql
   - tech/svc/smb
@@ -17,7 +18,7 @@ domain: manager.htb
 ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 1433, 3268, 3269, 5985, 9389]
 services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-sql-s, msrpc, ncacn_http, netbios-ssn, ssl/ldap]
 status: solved
-tech_count: 5
+tech_count: 6
 ---
 ## Nmap
 ```bash

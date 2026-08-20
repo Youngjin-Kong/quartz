@@ -28,6 +28,7 @@ TECH_INFO = {
     "tech/ad/ntlm-relay":       ("NTLM 릴레이 / Responder", "인증 강제 후 릴레이로 세션 획득"),
     "tech/ad/pth":              ("Pass-the-Hash", "평문 없이 NT 해시로 인증"),
     "tech/ad/bloodhound":       ("BloodHound 열거", "그래프로 최단 권한상승 경로 탐색"),
+    "tech/ad/userenum":         ("도메인 계정 열거", "kerbrute·lookupsid로 유효 사용자명 확보"),
     "tech/ad/gpo-abuse":        ("GPO 악용", "쓰기 가능한 GPO로 전역 명령 실행"),
     "tech/ad/dnsadmins":        ("DnsAdmins", "DLL 플러그인 로드로 SYSTEM 실행"),
     "tech/ad/ticket-forge":     ("Golden/Silver Ticket", "krbtgt/서비스 키로 티켓 위조"),
@@ -65,6 +66,7 @@ TECH_INFO = {
     "tech/web/default-creds":   ("기본 자격증명", "admin:admin 계열 — 항상 먼저 시도"),
     "tech/db/mssql":            ("MSSQL 악용", "xp_cmdshell·링크드서버 경유 실행"),
     "tech/db/mysql":            ("MySQL/MariaDB", "into outfile로 웹셸 작성"),
+    "tech/db/h2":               ("H2 Database", "웹 콘솔의 RUNSCRIPT·별칭 정의로 코드 실행"),
     "tech/svc/smb":             ("SMB 열거", "smbclient·smbmap·nxc로 공유·정책 확인"),
     "tech/svc/ftp":             ("FTP", "익명 로그인·업로드 가능 여부"),
     "tech/svc/snmp":            ("SNMP", "커뮤니티 스트링으로 정보 유출"),
@@ -239,7 +241,7 @@ def main():
                    if not t.startswith(("tech/enum/", "tech/payload/", "tech/svc/"))][:3]
             L.append("| %s | %s | %s | %s | %s | %d | %s |" % (
                 link(r), r.get("os", "—"), r.get("ip", "—"), r.get("domain", "—"),
-                "✅" if r.get("status") == "완료" else "⬜",
+                {"완료": "✅", "부분": "🟡"}.get(r.get("status"), "⬜"),
                 len(r["techniques"]), ", ".join(top) if top else "—"))
         L.append("")
     made.append(write("03. 머신 전체 목록.md", "\n".join(L)))
@@ -316,8 +318,9 @@ def main():
          "| 머신을 추가했고 색인을 갱신한다 | [[99. 색인 운영 안내]] |",
          "",
          "## 볼트 현황", "",
-         "- 머신 노트 **%d개** (완료 %d / 미완 %d)" % (
+         "- 머신 노트 **%d개** (완료 %d / 부분 %d / 미완 %d)" % (
              len(machines), sum(1 for r in machines if r.get("status") == "완료"),
+             sum(1 for r in machines if r.get("status") == "부분"),
              sum(1 for r in machines if r.get("status") == "미완")),
          "- 기법 태그 **%d종**, 총 %d개 부착" % (len(tc), sum(tc.values())),
          "- CVE **%d종** 색인" % len(set(c for r in rows for c in r.get("cves", []))),

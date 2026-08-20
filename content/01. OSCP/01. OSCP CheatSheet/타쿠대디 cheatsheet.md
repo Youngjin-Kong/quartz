@@ -9,6 +9,7 @@ tags:
   - tech/ad/ntlm-relay
   - tech/ad/pth
   - tech/ad/bloodhound
+  - tech/ad/userenum
   - tech/ad/dnsadmins
   - tech/ad/ticket-forge
   - tech/win/potato
@@ -50,7 +51,7 @@ platform: cheatsheet
 os: linux
 domain: htb.local
 cves: [CVE-2008-0166, CVE-2014-6271, CVE-2017-0199, CVE-2019-10197, CVE-2021-22204, CVE-2021-4034]
-tech_count: 42
+tech_count: 43
 ---
 **[목차]**
 

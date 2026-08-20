@@ -58,6 +58,7 @@ TECH_RAW = [
     ("tech/ad/ntlm-relay",       [r"ntlmrelayx", r"ntlm[- ]?relay", r"responder"]),
     ("tech/ad/pth",              [r"pass[- ]the[- ]hash", r"-hashes\s+:", r"\bPtH\b"]),
     ("tech/ad/bloodhound",       [r"bloodhound", r"sharphound", r"neo4j"]),
+    ("tech/ad/userenum",         [r"kerbrute", r"userenum", r"lookupsid"]),
     ("tech/ad/gpo-abuse",        [r"SharpGPOAbuse", r"gpo.?abuse"]),
     ("tech/ad/dnsadmins",        [r"DnsAdmin", r"serverlevelplugindll"]),
     ("tech/ad/ticket-forge",     [r"golden ticket", r"silver ticket", r"ticketer\.py"]),
@@ -99,6 +100,7 @@ TECH_RAW = [
     # ---- DB / 서비스 ----
     ("tech/db/mssql",            [r"xp_cmdshell", r"mssqlclient", r"OPENQUERY"]),
     ("tech/db/mysql",            [r"mysql\s+-u", r"MariaDB", r"into outfile"]),
+    ("tech/db/h2",               [r"jdbc:h2", r"h2\.jar", r"H2\s+(?:Database|Console)"]),
     ("tech/svc/smb",             [r"smbclient", r"smbmap", r"enum4linux", r"crackmapexec", r"\bnxc\b", r"netexec"]),
     ("tech/svc/ftp",             [r"anonymous.{0,20}ftp", r"FileZilla", r"ftp>"]),
     ("tech/svc/snmp",            [r"snmpwalk", r"onesixtyone"]),
@@ -146,6 +148,12 @@ MANUAL_RE = re.compile(r"^manual_tags:\s*true\s*(?:#.*)?$", re.M | re.I)
 DECL_TAG_RE = re.compile(r"^  - (tech/\S+)\s*$", re.M)
 MANUAL_CVE_RE = re.compile(r"^manual_cves:\s*true\s*(?:#.*)?$", re.M | re.I)
 DECL_CVE_RE = re.compile(r"^cves:\s*\[([^\]]*)\]\s*$", re.M | re.I)
+MANUAL_DOM_RE = re.compile(r"^manual_domain:\s*true\s*(?:#.*)?$", re.M | re.I)
+DECL_DOM_RE = re.compile(r"^domain:\s*(\S+)\s*$", re.M | re.I)
+MANUAL_STATUS_RE = re.compile(r"^manual_status:\s*true\s*(?:#.*)?$", re.M | re.I)
+DECL_STATUS_RE = re.compile(r"^status:\s*(\S+)\s*$", re.M | re.I)
+STATUS_FROM_TAG = {"solved": "완료", "unsolved": "미완", "partial": "부분",
+                   "empty": "빈-스텁", "완료": "완료", "미완": "미완", "부분": "부분"}
 
 
 def declared_tags(text):
@@ -193,6 +201,48 @@ def declared_cves(text):
     return [c.strip().upper() for c in m.group(1).split(",") if c.strip()]
 
 
+def declared_domain(text):
+    """노트가 `manual_domain: true` 를 선언했으면 프론트매터의 domain 을 그대로 쓴다.
+
+    본문 최빈값 추출은 **반증하려고 적은 이름까지 도메인으로 승격시킨다** — 실측 사례:
+    Bratarina 는 vhost 퍼징으로 `flaskbb.local` 을 시도했다가 전부 404 로 기각했는데,
+    그 실패 기록이 본문에서 가장 자주 등장한다는 이유로 `domain: flaskbb.local` 이 박혔다.
+    손으로 지워도 refresh 때마다 되살아났다.
+
+    이 볼트는 시험장에서 찾아 쓰는 자료다. 존재하지 않는 도메인이 사실처럼 실리면
+    그대로 오답이 된다. 그러니 사람의 선언을 존중한다. manual_tags·manual_cves 와 독립이다.
+
+    선언만 하고 `domain:` 줄이 없으면 **"이 박스에 도메인 없음"** 이다.
+    """
+    fm = frontmatter(text)
+    if fm is None or not MANUAL_DOM_RE.search(fm):
+        return None
+    m = DECL_DOM_RE.search(fm)
+    return m.group(1).strip().lower() if m else ""
+
+
+def declared_status(text):
+    """노트가 `manual_status: true` 를 선언했으면 프론트매터의 status 를 그대로 쓴다.
+
+    자동 판정(`SOLVED_RE`)은 **본문에 `proof.txt` 라는 문자열이 있으면 무조건 «완료»** 로
+    찍는다. 그래서 «플래그 하나만 얻고 나머지는 못 얻었다» 를 정직하게 서술한 노트가
+    오히려 완료로 분류된다 — 실측: Hutch·Nagoya·Jacko 는 전부 1/2 인데 `status: solved`
+    였고, Flu 노트는 자기 프론트매터가 틀렸다는 경고를 본문에 달아야 했다.
+
+    시험장에서 이 색인을 보고 «Hutch 는 끝났다» 고 읽으면 그대로 손해다.
+    그러니 사람이 `status: partial` 을 선언하면 존중한다.
+
+    받는 값: solved / unsolved / partial / empty (한글 완료·미완·부분·빈-스텁도 받는다)
+    """
+    fm = frontmatter(text)
+    if fm is None or not MANUAL_STATUS_RE.search(fm):
+        return None
+    m = DECL_STATUS_RE.search(fm)
+    if not m:
+        return None
+    return STATUS_FROM_TAG.get(m.group(1).strip().lower())
+
+
 def read_text(path):
     raw = open(path, "rb").read()
     for enc in ("utf-8", "cp949"):
@@ -201,6 +251,11 @@ def read_text(path):
         except UnicodeDecodeError:
             continue
     return raw.decode("utf-8", "replace"), "broken"
+
+
+# 노트가 아닌 파일 — 색인 대상에서 뺀다.
+# CLAUDE.md 는 에이전트 지시 파일이라 프론트매터가 주입되면 안 된다(실제로 주입된 적 있다).
+NOT_A_NOTE = {"claude.md", "readme.md"}
 
 
 def extract(path, rel):
@@ -253,7 +308,13 @@ def extract(path, rel):
     doms = [d.lower() for d in DOM_RE.findall(body)] + [d.lower() for d in DOM2_RE.findall(body)]
     doms = [d for d in doms if d not in NOT_DOMAIN]
     doms = [d for d in doms if not d.startswith("www.")]
-    if doms:
+
+    decl_dom = declared_domain(text)
+    if decl_dom is not None:
+        if decl_dom:                       # 선언만 있고 값이 없으면 "도메인 없음" — 필드를 만들지 않는다
+            meta["domain"] = decl_dom
+        meta["manual_domain"] = True
+    elif doms:
         meta["domain"] = max(set(doms), key=doms.count)
 
     decl_cves = declared_cves(text)
@@ -282,16 +343,23 @@ def extract(path, rel):
         meta["techniques"] = techs
 
     if kind == "머신":
-        meta["status"] = "완료" if SOLVED_RE.search(body) else "미완"
+        decl_status = declared_status(text)
+        if decl_status is not None:
+            meta["status"] = decl_status
+            meta["manual_status"] = True
+        else:
+            meta["status"] = "완료" if SOLVED_RE.search(body) else "미완"
     return meta
 
 
 def main():
     rows = []
     for root, dirs, files in os.walk(VAULT):
-        dirs[:] = [d for d in dirs if d not in (".obsidian", ".git", ".trash", "파일보관", "storage", "_INDEX")]
+        # .claude — 에이전트 정의·설정. _AUDIT — 작업 산출물 보관소. 둘 다 노트가 아니다.
+        dirs[:] = [d for d in dirs if d not in (".obsidian", ".git", ".trash", "파일보관",
+                                                "storage", "_INDEX", ".claude", "_AUDIT")]
         for fn in files:
-            if not fn.endswith(".md"):
+            if not fn.endswith(".md") or fn.lower() in NOT_A_NOTE:
                 continue
             path = os.path.join(root, fn)
             rel = os.path.relpath(path, VAULT)

@@ -14,31 +14,33 @@ tags:
 
 | 상태 | 개수 | 비율 |
 |---|---:|---:|
-| ✅ 완료 (플래그 전부) | 32 | 11.3% |
-| 🟡 부분 완료 | 1 | 0.4% |
-| ⬜ 미착수 | 250 | 88.3% |
+| ✅ 완료 (플래그 전부) | 34 | 12.0% |
+| 🟡 부분 완료 | 3 | 1.1% |
+| ⬜ 미착수 | 246 | 86.9% |
 | **합계** | **283** | |
 
 난이도 분포: **Fundamental** 43개 · **Intermediate** 209개 · **Advanced** 31개
 
-## ✅ 완료 (32)
+## ✅ 완료 (34)
 
 | 박스 | 난이도 | 플래그 | writeup |
 |---|---|---|---|
 | Algernon | Fundamental | 1/1 | [[Algernon]] |
 | Astronaut | Fundamental | 1/1 | [[Astronaut]] |
+| Bratarina | Fundamental | 1/1 | [[Bratarina]] |
 | Breakout | Intermediate | 2/2 | [[Breakout]] |
 | Butch | Intermediate | 2/2 | [[Butch]] |
 | Clue | Advanced | 2/2 | [[Clue]] |
+| Cockpit | Intermediate | 2/2 | [[Cockpit]] |
 | Codo | Fundamental | 1/1 | [[Codo]] |
 | Crane | Intermediate | 2/2 | [[Crane]] |
 | Exfiltrated | Fundamental | 2/2 | [[Exfiltrated]] |
 | Exghost | Fundamental | 2/2 | [[Exghost]] |
 | Fanatastic | Fundamental | 2/2 | [[Fanatastic]] |
+| Flu | Intermediate | 2/2 | [[Flu]] |
 | Hawat | Fundamental | 1/1 | [[Hawat]] |
 | Heist | Advanced | 2/2 | [[Heist]] |
 | Hub | Fundamental | 1/1 | [[Hub]] |
-| Hutch | Intermediate | 1/1 | [[Hutch]] |
 | Kevin | Fundamental | 1/1 | [[Kevin]] |
 | Levram | Fundamental | 2/2 | [[Levram]] |
 | MiddlewareBypass | Intermediate | 1/1 | [[MiddlewareBypass]] |
@@ -58,21 +60,22 @@ tags:
 | Wombo | Fundamental | 1/1 | [[Wombo]] |
 | Zipper | Advanced | 2/2 | [[Zipper]] |
 
-## 🟡 부분 완료 (1) — 우선 처리 대상
+## 🟡 부분 완료 (3) — 우선 처리 대상
 
 | 박스 | 난이도 | 플래그 | writeup |
 |---|---|---|---|
-| Flu | Intermediate | 1/2 | [[Flu]] |
+| Hutch | Intermediate | 1/2 | [[Hutch]] |
+| Jacko | Intermediate | 1/2 | [[Jacko]] |
+| Nagoya | Advanced | 1/2 | [[Nagoya]] |
 
-## ⬜ 미착수 (252)
+## ⬜ 미착수 (246)
 
 체크박스를 채우며 진행한다. `노트O` = 볼트에 기존 노트가 이미 있음(참고 자료로 활용 가능).
 
-### Fundamental (27)
+### Fundamental (26)
 
 - [ ] Assignment `0/2`
 - [ ] BossPlayersCTF `0/2`
-- [ ] Bratarina `0/1`
 - [ ] ClamAV `0/1`
 - [ ] Cobbles `0/2`
 - [ ] Compromised `0/2`
@@ -98,7 +101,7 @@ tags:
 - [ ] SunsetTwilight `0/2`
 - [ ] Wheels `0/2`
 
-### Intermediate (197)
+### Intermediate (195)
 
 - [ ] Access `0/2`  ← 노트O
 - [ ] AdminPanel `0/1`
@@ -128,7 +131,6 @@ tags:
 - [ ] Clipper `0/2`
 - [ ] Clone `0/1`
 - [ ] Cobweb `0/2`
-- [ ] Cockpit `0/2`  ← 노트O
 - [ ] Confusion `0/2`
 - [ ] Convertex `0/2`
 - [ ] Craft `0/2`
@@ -207,7 +209,6 @@ tags:
 - [ ] image `0/2`
 - [ ] Infilo `0/1`
 - [ ] InvokeAI_RCE `0/1`
-- [ ] Jacko `0/2`  ← 노트O
 - [ ] Jordak `0/2`
 - [ ] Keights `0/2`
 - [ ] KeyVault `0/2`
@@ -298,7 +299,7 @@ tags:
 - [ ] ZenPhoto `0/2`
 - [ ] Zino `0/2`
 
-### Advanced (26)
+### Advanced (25)
 
 - [ ] BadCorp `0/2`
 - [ ] BlackGate `0/2`
@@ -314,7 +315,6 @@ tags:
 - [ ] Gradle `0/2`
 - [ ] Injecto `0/2`
 - [ ] Megavolt `0/2`
-- [ ] Nagoya `0/2`  ← 노트O
 - [ ] Peppo `0/2`
 - [ ] Phobos `0/2`
 - [ ] Powergrid `0/2`

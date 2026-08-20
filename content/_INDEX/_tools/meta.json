@@ -9,17 +9,6 @@
   "name": "index"
  },
  {
-  "platform": "misc",
-  "kind": "기타",
-  "size": 7816,
-  "techniques": [
-   "tech/lin/sudo-abuse"
-  ],
-  "encoding": "utf-8",
-  "rel": ".claude/agents/writeup-auditor.md",
-  "name": "writeup-auditor"
- },
- {
   "platform": "report",
   "kind": "보고서",
   "size": 22145,
@@ -109,7 +98,7 @@
  {
   "platform": "cheatsheet",
   "kind": "참조",
-  "size": 63719,
+  "size": 63740,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
@@ -121,6 +110,7 @@
    "tech/ad/ntlm-relay",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/ad/gpo-abuse",
    "tech/ad/ticket-forge",
    "tech/ad/delegation",
@@ -255,7 +245,7 @@
  {
   "platform": "cheatsheet",
   "kind": "참조",
-  "size": 14607,
+  "size": 14628,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
@@ -267,6 +257,7 @@
    "tech/ad/ntlm-relay",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/ad/gpo-abuse",
    "tech/ad/ticket-forge",
    "tech/ad/delegation",
@@ -296,11 +287,12 @@
  {
   "platform": "cheatsheet",
   "kind": "참조",
-  "size": 6091,
+  "size": 6112,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
    "tech/ad/ntlm-relay",
+   "tech/ad/userenum",
    "tech/lin/passwd-write",
    "tech/web/lfi-rfi",
    "tech/web/ssti",
@@ -470,6 +462,7 @@
    "tech/ad/dcsync",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/win/seimpersonate",
    "tech/win/sebackup",
    "tech/win/serestore",
@@ -630,7 +623,7 @@
  {
   "platform": "cheatsheet",
   "kind": "참조",
-  "size": 46422,
+  "size": 46443,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
@@ -642,6 +635,7 @@
    "tech/ad/ntlm-relay",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/ad/gpo-abuse",
    "tech/ad/ticket-forge",
    "tech/ad/delegation",
@@ -726,7 +720,7 @@
  {
   "platform": "cheatsheet",
   "kind": "참조",
-  "size": 147043,
+  "size": 147064,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
@@ -734,6 +728,7 @@
    "tech/ad/ntlm-relay",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/ad/dnsadmins",
    "tech/ad/ticket-forge",
    "tech/win/potato",
@@ -1112,8 +1107,9 @@
  {
   "platform": "exam",
   "kind": "머신",
-  "size": 24211,
+  "size": 24233,
   "techniques": [
+   "tech/ad/userenum",
    "tech/win/seimpersonate",
    "tech/win/service-abuse",
    "tech/win/alwaysinstall",
@@ -1228,12 +1224,13 @@
  {
   "platform": "exam",
   "kind": "머신",
-  "size": 2168,
+  "size": 2189,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/asreproast",
    "tech/ad/adcs",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/svc/smb",
    "tech/exec/winrm",
    "tech/payload/msfvenom"
@@ -1555,8 +1552,9 @@
  {
   "platform": "htb",
   "kind": "머신",
-  "size": 22623,
+  "size": 22644,
   "techniques": [
+   "tech/ad/userenum",
    "tech/ad/dnsadmins",
    "tech/win/sebackup",
    "tech/win/serestore",
@@ -2227,9 +2225,10 @@
  {
   "platform": "htb",
   "kind": "머신",
-  "size": 32117,
+  "size": 32138,
   "techniques": [
    "tech/ad/adcs",
+   "tech/ad/userenum",
    "tech/ad/dnsadmins",
    "tech/db/mssql",
    "tech/svc/smb",
@@ -2708,7 +2707,7 @@
  {
   "platform": "pg-course",
   "kind": "참조",
-  "size": 22894,
+  "size": 22909,
   "techniques": [
    "tech/ad/kerberoast",
    "tech/ad/dcsync",
@@ -2734,6 +2733,7 @@
    "tech/web/cmd-injection",
    "tech/web/default-creds",
    "tech/db/mysql",
+   "tech/db/h2",
    "tech/svc/smb",
    "tech/exec/winrm",
    "tech/exec/psexec",
@@ -2997,6 +2997,40 @@
  {
   "platform": "pg",
   "kind": "머신",
+  "size": 38118,
+  "techniques": [
+   "tech/svc/smtp",
+   "tech/rce/cmd-injection",
+   "tech/payload/revshell",
+   "tech/svc/smb"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   25,
+   80,
+   445
+  ],
+  "services": [
+   "http",
+   "netbios-ssn",
+   "smtp",
+   "ssh"
+  ],
+  "manual_domain": true,
+  "cves": [
+   "CVE-2020-7247"
+  ],
+  "manual_cves": true,
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Bratarina.md",
+  "name": "Bratarina"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
   "size": 91708,
   "techniques": [
    "tech/web/file-upload",
@@ -3028,7 +3062,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 80129,
+  "size": 77817,
   "techniques": [
    "tech/web/sqli",
    "tech/web/file-upload",
@@ -3194,7 +3228,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 69823,
+  "size": 69819,
   "techniques": [
    "tech/ad/dcsync",
    "tech/win/potato",
@@ -3263,13 +3297,50 @@
    "unisql"
   ],
   "ip": "192.168.144.141",
-  "domain": "challenge.lab",
+  "domain": "oscp.exam",
   "cves": [
    "CVE-2020-13151"
   ],
   "status": "완료",
   "rel": "03. PG/Challenge 4 - OSCP A.md",
   "name": "Challenge 4 - OSCP A"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 27674,
+  "techniques": [
+   "tech/mail/smtp",
+   "tech/injection/command",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   25,
+   80,
+   139,
+   199,
+   445
+  ],
+  "services": [
+   "http",
+   "netbios-ssn",
+   "smtp",
+   "smux",
+   "ssh"
+  ],
+  "ip": "192.168.248.42",
+  "domain": "0xbabe.local",
+  "cves": [
+   "CVE-2007-4560"
+  ],
+  "manual_cves": true,
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/ClamAV.md",
+  "name": "ClamAV"
  },
  {
   "platform": "pg",
@@ -3309,12 +3380,17 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 6501,
+  "size": 50166,
   "techniques": [
+   "tech/enum/dirbust",
+   "tech/enum/searchsploit",
+   "tech/web/auth-bypass",
+   "tech/web/sqli",
+   "tech/db/mysql",
+   "tech/cred/reuse",
    "tech/lin/sudo-abuse",
-   "tech/lin/container-escape",
    "tech/lin/wildcard",
-   "tech/enum/dirbust"
+   "tech/lin/suid"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -3328,7 +3404,9 @@
    "ssh"
   ],
   "ip": "192.168.150.10",
-  "status": "미완",
+  "domain": "blaze.offsec",
+  "manual_tags": true,
+  "status": "완료",
   "rel": "03. PG/Cockpit.md",
   "name": "Cockpit"
  },
@@ -3364,7 +3442,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 84996,
+  "size": 81642,
   "techniques": [
    "tech/web/deserialization",
    "tech/web/default-creds",
@@ -3425,7 +3503,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 65640,
+  "size": 62458,
   "techniques": [
    "tech/web/default-creds",
    "tech/web/file-upload",
@@ -3567,11 +3645,12 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 59257,
+  "size": 86184,
   "techniques": [
    "tech/web/ssti",
    "tech/enum/searchsploit",
-   "tech/payload/revshell"
+   "tech/payload/revshell",
+   "tech/lin/cron"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -3594,6 +3673,40 @@
   "status": "완료",
   "rel": "03. PG/Flu.md",
   "name": "Flu"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 32630,
+  "techniques": [
+   "tech/enum/dirbust",
+   "tech/enum/osint",
+   "tech/cred/crack",
+   "tech/cred/spray",
+   "tech/cred/reuse",
+   "tech/svc/pop3",
+   "tech/lin/motd",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   80,
+   110,
+   143
+  ],
+  "services": [
+   "http",
+   "imap",
+   "pop3",
+   "ssh"
+  ],
+  "manual_cves": true,
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Fowsniff.md",
+  "name": "Fowsniff"
  },
  {
   "platform": "pg",
@@ -3625,7 +3738,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 85684,
+  "size": 85722,
   "techniques": [
    "tech/web/ssrf",
    "tech/ad/ntlm-relay",
@@ -3681,7 +3794,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 98135,
+  "size": 94349,
   "techniques": [
    "tech/web/auth-bypass",
    "tech/web/webdav",
@@ -3703,7 +3816,7 @@
    "ssl/abyss"
   ],
   "ip": "192.168.248.25",
-  "domain": "fuguhub.local",
+  "manual_domain": true,
   "cves": [
    "CVE-2023-24078"
   ],
@@ -3716,7 +3829,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 110772,
+  "size": 117263,
   "techniques": [
    "tech/ad/bloodhound",
    "tech/ad/acl-abuse",
@@ -3760,7 +3873,8 @@
   "domain": "hutch.offsec",
   "manual_cves": true,
   "manual_tags": true,
-  "status": "완료",
+  "status": "부분",
+  "manual_status": true,
   "rel": "03. PG/Hutch.md",
   "name": "Hutch"
  },
@@ -3802,10 +3916,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 16817,
+  "size": 64052,
   "techniques": [
    "tech/enum/dirbust",
    "tech/enum/searchsploit",
+   "tech/web/default-creds",
    "tech/payload/msfvenom",
    "tech/payload/revshell"
   ],
@@ -3827,18 +3942,22 @@
    "xmlipcregsvc"
   ],
   "ip": "192.168.120.66",
-  "status": "미완",
+  "manual_cves": true,
+  "manual_tags": true,
+  "status": "부분",
+  "manual_status": true,
   "rel": "03. PG/Jacko.md",
   "name": "Jacko"
  },
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 84554,
+  "size": 84575,
   "techniques": [
    "tech/ad/dcsync",
    "tech/ad/pth",
    "tech/ad/bloodhound",
+   "tech/ad/userenum",
    "tech/win/seimpersonate",
    "tech/win/sebackup",
    "tech/win/serestore",
@@ -3904,7 +4023,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 126144,
+  "size": 121236,
   "techniques": [
    "tech/web/default-creds",
    "tech/web/cmd-injection",
@@ -3992,21 +4111,20 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 44836,
+  "size": 64732,
   "techniques": [
-   "tech/ad/kerberoast",
-   "tech/ad/asreproast",
-   "tech/ad/dcsync",
-   "tech/ad/bloodhound",
-   "tech/win/potato",
-   "tech/win/seimpersonate",
-   "tech/web/lfi-rfi",
-   "tech/db/mssql",
-   "tech/svc/smb",
-   "tech/exec/winrm",
+   "tech/enum/dirbust",
+   "tech/cred/spray",
    "tech/cred/crack",
+   "tech/ad/bloodhound",
+   "tech/ad/kerberoast",
+   "tech/ad/acl-abuse",
+   "tech/ad/ticket-forge",
+   "tech/exec/winrm",
    "tech/pivot/ligolo",
-   "tech/pivot/ssh-tunnel",
+   "tech/db/mssql",
+   "tech/win/seimpersonate",
+   "tech/win/potato",
    "tech/payload/revshell"
   ],
   "encoding": "utf-8",
@@ -4041,7 +4159,10 @@
   ],
   "ip": "192.168.120.21",
   "domain": "nagoya-industries.com",
-  "status": "미완",
+  "manual_cves": true,
+  "manual_tags": true,
+  "status": "부분",
+  "manual_status": true,
   "rel": "03. PG/Nagoya.md",
   "name": "Nagoya"
  },
@@ -4157,7 +4278,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 99058,
+  "size": 94569,
   "techniques": [
    "tech/web/default-creds",
    "tech/payload/revshell",
@@ -4186,7 +4307,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 81774,
+  "size": 78092,
   "techniques": [
    "tech/web/default-creds",
    "tech/enum/searchsploit",
@@ -4205,9 +4326,9 @@
   ],
   "ip": "192.168.132.26",
   "cves": [
-   "CVE-2023-0297",
-   "CVE-2024-39205"
+   "CVE-2023-0297"
   ],
+  "manual_cves": true,
   "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/pyLoader.md",
@@ -4216,7 +4337,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 112976,
+  "size": 113334,
   "techniques": [
    "tech/ad/bloodhound",
    "tech/ad/acl-abuse",
@@ -4269,7 +4390,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 83911,
+  "size": 80542,
   "techniques": [
    "tech/web/cmd-injection",
    "tech/lin/sudo-abuse",
@@ -4420,7 +4541,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 86014,
+  "size": 81762,
   "techniques": [
    "tech/db/mysql",
    "tech/win/seimpersonate",
@@ -4573,7 +4694,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 64529,
+  "size": 62894,
   "techniques": [
    "tech/web/lfi-rfi",
    "tech/lin/wildcard",
@@ -4591,9 +4712,7 @@
    "ssh"
   ],
   "ip": "192.168.164.229",
-  "cves": [
-   "CVE-2021-3560"
-  ],
+  "manual_cves": true,
   "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Zipper.md",
@@ -4602,7 +4721,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 17102,
+  "size": 17181,
   "techniques": [
    "tech/ad/dcsync",
    "tech/ad/adcs",
@@ -4670,7 +4789,7 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 18944,
+  "size": 21977,
   "techniques": [
    "tech/ad/pth",
    "tech/lin/suid",

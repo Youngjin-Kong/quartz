@@ -24,7 +24,7 @@ PLAT_LABEL = {
 }
 KIND_TAG = {"머신": "machine", "참조": "reference", "이론": "theory",
             "보고서": "report", "기타": "misc"}
-STATUS_TAG = {"완료": "solved", "미완": "unsolved", "빈-스텁": "empty"}
+STATUS_TAG = {"완료": "solved", "미완": "unsolved", "부분": "partial", "빈-스텁": "empty"}
 
 
 def yaml_list(vals):
@@ -63,6 +63,15 @@ def build_fm(m):
     if m.get("manual_cves"):
         # CVE 도 사람이 관리한다. 반증·비교로 언급한 번호가 색인되는 것을 막는다.
         lines.append("manual_cves: true")
+    if m.get("manual_status"):
+        # 완료/부분/미완도 사람이 관리한다. 자동 판정은 본문에 `proof.txt` 문자열만 있으면
+        # 완료로 찍어, 1/2 인 박스를 완료로 둔갑시킨다(Hutch·Nagoya·Jacko).
+        lines.append("manual_status: true")
+    if m.get("manual_domain"):
+        # 도메인도 사람이 관리한다. 본문 최빈값 추출은 **반증하려고 적은 이름까지**
+        # 도메인으로 승격시킨다(Bratarina 의 실패한 vhost 추측 `flaskbb.local`).
+        # ⚠️ 이 줄을 빼면 선언이 사라져 다음 refresh 때 휴리스틱이 되살아난다 — 무한 회귀다.
+        lines.append("manual_domain: true")
     lines.append("tech_count: %d" % len(m["techniques"]))
     lines.append("---")
     return "\n".join(lines) + "\n"

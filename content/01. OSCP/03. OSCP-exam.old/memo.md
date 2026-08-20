@@ -7,13 +7,14 @@ tags:
   - tech/ad/asreproast
   - tech/ad/adcs
   - tech/ad/bloodhound
+  - tech/ad/userenum
   - tech/svc/smb
   - tech/exec/winrm
   - tech/payload/msfvenom
 type: machine
 platform: exam
 status: unsolved
-tech_count: 7
+tech_count: 8
 ---
 
 ![[oscp_cheatsheet_3.html]]

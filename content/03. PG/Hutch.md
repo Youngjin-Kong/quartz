@@ -3,7 +3,7 @@ tags:
   - type/machine
   - platform/pg
   - os/windows
-  - status/solved
+  - status/partial
   - tech/ad/bloodhound
   - tech/ad/acl-abuse
   - tech/ad/dcsync
@@ -18,20 +18,34 @@ ip: 192.168.178.122
 domain: hutch.offsec
 ports: [53, 80, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
 services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
-status: solved
+status: partial
 manual_tags: true
 manual_cves: true
+manual_status: true
 tech_count: 7
 ---
 > [!info] PG Practice — Hutch · **Active Directory 단일 DC**
-> **타겟** 192.168.178.122 → (리버트 후) 192.168.216.122 · **OS** Windows Server 2019 Standard (build 17763, `HUTCHDC.hutch.offsec`) · **난이도** Intermediate · **플래그 1개**(§5의 `[가정]` 참조)
+> **타겟** 192.168.178.122 → (리버트 후) 192.168.216.122 · **OS** Windows Server 2019 Standard (build 17763, `HUTCHDC.hutch.offsec`) · **난이도** Intermediate · **플래그 2개 중 1개 확보** — `proof.txt` 만 얻었고 `local.txt` 는 놓쳤다 (§5 · §6-9)
 > **경로 요약** **익명 LDAP 바인드**로 사용자 열거 → kerbrute로 유효성 확인 → AS-REP roast **전멸** → **LDAP `description` 필드에 평문 비밀번호** → 스프레이로 `fmcsorley` 확보 → BloodHound가 `fmcsorley --ReadLAPSPassword--> HUTCHDC` 확인 → **pyLAPS로 `ms-Mcs-AdmPwd` 읽기** → 그 값이 **도메인 Administrator의 비밀번호** → **DCSync(DRSUAPI)** → PtH로 evil-winrm → proof.txt
 
 > [!warning] 이 노트를 읽는 규약 — 관측된 것과 재구성을 구분한다
 > - **Kali 산출물로 실증됨**: `~/PG/Hutch/nmap.log` · `users.txt` · `kerbrute_linux_386` · BloodHound JSON 7종(`20260515132325_*`) · `~/git/pyLAPS/pyLAPS.py` 소스
-> - **원본 노트에만 있는 출력**(대조 원본 없음): `ldapsearch` 세션 · `kerbrute` · `GetNPUsers` · `nxc` 스프레이 · `smbmap` · `pyLAPS` · `secretsdump` · evil-winrm 세션
+> - **볼트 스크린샷으로 실증됨**(2026-08-20 6장 전부 직접 열어 대조): 익명 `ldapsearch` 사용자 열거 · BloodHound `ReadLAPSPassword` 엣지 · `pyLAPS` 출력 · `netexec smb` 관리자 확인 · `secretsdump` 덤프 · evil-winrm 의 `type proof.txt`+`ipconfig`. **값이 본문과 한 글자도 다르지 않았다**
+> - **어느 쪽으로도 대조 원본이 없는 출력**: `kerbrute` · `GetNPUsers` · `nxc` 스프레이 · `smbmap` · §5 evil-winrm 블록의 `dir` 목록(스크린샷은 `type` 부터 시작한다)
 > - **`~/.zsh_history` 에 Hutch 구간이 «남아 있지 않다».** 2026-05-14~15 기록은 히스토리 버퍼(2552행)에서 밀려났다. **그래서 이 노트의 시행착오 장은 원본 노트가 스스로 남긴 흔적(명령·출력·IP 불일치)에서만 복원**했다 — [[Resourced]]처럼 history로 뒷받침되는 부분은 없다
 > - **이 노트가 새로 판정한 것**은 전부 근거를 함께 적었고, 근거가 없으면 `[가정]`으로 표시했다. 특히 §2-6의 **NT 해시 대조는 2026-08-20에 직접 계산한 것**이다
+
+> [!warning] 적대적 검증 정정 이력 — 2026-08-20 (2차)
+> 이 노트의 **플래그 개수 판정이 실측으로 반증됐다.** 개작 당시의 `[가정]` 하나가 상단 요약·§5·§6-9·볼트 진행현황까지 연쇄로 오염시킨 사례다.
+>
+> | # | 반증된 원문 | 무엇이 틀렸나 | 근거 |
+> |---|---|---|---|
+> | A | §5 — *"**[가정]** PG의 단일 DC 박스는 사용자 프로필이 실질적으로 Administrator 하나뿐이라 `proof.txt` 만 두는 경우가 있으므로, 이 박스를 **1플래그 박스로 판단**한다."* | **반증됨.** 포털이 Hutch 를 **`0/2`** 로 표시한다. 2플래그 박스이고 이 노트는 **1/2 · 부분 완료**다 | 2026-08-20 포털 전수 조회 |
+> | B | 상단 요약 — *"**플래그 1개**(§5의 `[가정]` 참조)"* | A 의 파생. **"2개 중 1개 확보"** 로 정정 | 위와 같음 |
+> | C | §5 — *"`nxc winrm <IP> -u fmcsorley -p 'CrabSharkJellyfish192'` 로 그 계정의 WinRM 가능 여부부터 본다"* (재도전 지침) | **잘못된 조언.** `fmcsorley` 는 WinRM·RDP 가 **불가능**하다. 이 경로로는 `local.txt` 에 못 간다 | `20260515132325_computers.json` — `PSRemoteUsers` `Collected:true`·멤버 **0**, `RemoteDesktopUsers` **0**; `groups.json` 의 `REMOTE MANAGEMENT USERS` **0** |
+> | D | §6-9 제목 — *"**`fmcsorley` 로는 셸을 시도조차 하지 않았다** — `local.txt` 미확보와 직결된다"* | **잘못된 인과.** 그 셸은 시도해도 안 열렸다. 진짜 원인은 **도메인 관리자 셸에서 `C:\Users` 를 나열하지 않은 것** | C 와 같음 |
+>
+> **원본이 옳았던 것** — `local.txt` 를 확보하지 못했다는 서술 자체는 **정확했다.** `~/PG/Hutch/` 전체, 2026-05-14~15 홈 디렉터리 전 파일(mtime 스윕), 볼트 스크린샷 6장, `~/.zsh_history`, Kali 측 Claude 세션 기록을 전부 훑어도 `local.txt` 값이 존재한 흔적이 **없다.** 노트가 스스로 "안 했다"고 적은 것이 맞았다.
 
 ---
 
@@ -1130,16 +1144,31 @@ Ethernet adapter Ethernet0:
 |---|---|---|---|
 | **proof.txt** | `C:\Users\Administrator\Desktop\proof.txt` | `14fb84ee9468eda117d59d5c6d378774` | evil-winrm (PtH) — **대화형 PowerShell** |
 
-> [!warning] **`local.txt` 는 확보하지 못했다** — 이 박스가 단일 플래그인가?
-> `C:\Users\Administrator` 전체 목록에 `local.txt` 가 없고, 다른 사용자 프로필을 조회한 기록도 없다.
-> **[가정]** PG의 단일 DC 박스는 **사용자 프로필이 실질적으로 Administrator 하나뿐**이라 `proof.txt` 만 두는 경우가 있으므로, 이 박스를 **1플래그 박스로 판단**한다.
-> **다만 확정하지 못했다.** 재도전한다면 이 순서로 확인하라 — 도메인 관리자 권한이 이미 있으므로 **1분이면 끝난다**:
+> [!danger] **`local.txt` 를 놓쳤다 — 이 박스는 2플래그다**
+> 포털이 Hutch 를 **`0/2`** 로 표시한다(2026-08-20 실측). 따라서 확보한 것은 `proof.txt` 하나뿐이고 이 박스는 **미완**이다.
+> `C:\Users\Administrator\Desktop` 에 `local.txt` 가 없는 것은 맞다. 그런데 **거기 있을 이유가 애초에 없었다** — PG 는 `local.txt` 를 **저권한 사용자 프로필**에 둔다. `C:\Users` 를 한 번도 나열하지 않아 그 사실을 확인할 기회 자체가 없었다.
+>
+> **재도전 시 — 이미 도메인 관리자이므로 명령 두 줄이면 끝난다.** 별도 셸이 필요 없다:
 > ```powershell
 > Get-ChildItem C:\Users -Force | Select-Object Name
-> Get-ChildItem C:\ -Recurse -Force -Include local.txt,proof.txt -ErrorAction SilentlyContinue |
+> type C:\Users\fmcsorley\Desktop\local.txt
+> ```
+> 그래도 안 나오면 전수로:
+> ```powershell
+> Get-ChildItem C:\ -Recurse -Force -Include local.txt -ErrorAction SilentlyContinue |
 >   ForEach-Object { $_.FullName; Get-Content $_.FullName }
 > ```
-> 특히 **`fmcsorley` 프로필**을 확인하라. local.txt가 있다면 거기다. (`nxc winrm <IP> -u fmcsorley -p 'CrabSharkJellyfish192'` 로 그 계정의 WinRM 가능 여부부터 본다.)
+> **[가정]** 위치를 `C:\Users\fmcsorley\Desktop` 으로 잡은 근거는 **이 박스가 자격증명을 내주는 유일한 계정이 `fmcsorley`** 라는 것뿐이다. 실제로 확인한 것이 아니다.
+
+> [!warning] **`fmcsorley` 로 WinRM 셸을 여는 길은 «없었다»** — 이 판정은 산출물로 확정된다
+> "local.txt 를 얻으려면 `fmcsorley` 셸이 필요하다"는 생각은 **틀렸다.** 2026-05-15 13:23 에 수집한 BloodHound 덤프가 이미 답을 갖고 있었다.
+> 덤프를 다시 파싱해 보면 `HUTCHDC` 의 **`PSRemoteUsers` 가 `Collected: true` 인데 멤버 0명**이고, `RemoteDesktopUsers`·`DcomUsers` 도 0명이다. `groups.json` 의 `REMOTE MANAGEMENT USERS@HUTCH.OFFSEC` 역시 **멤버 0**. 비교군으로 `LocalAdmins` 는 3명(RID 500 · Domain Admins · Enterprise Admins)이 정상적으로 잡혔으므로 **수집 실패가 아니라 진짜로 비어 있다.**
+>
+> 같은 확인을 다음에 할 때 쓸 한 줄 (**이 형태로 돌린 것은 아니다 — 위 판정은 `python3` 로 같은 필드를 읽어 얻었다**):
+> ```bash
+> jq -r '.data[] | "\(.Properties.name) psremote=\(.PSRemoteUsers.Results|length) rdp=\(.RemoteDesktopUsers.Results|length)"' *_computers.json
+> ```
+> 즉 `evil-winrm -u fmcsorley` 는 **시도했더라도 실패했을 것**이다. `local.txt` 는 처음부터 **도메인 관리자 셸에서 남의 프로필을 읽어야** 하는 것이었고, 그 셸은 14:52 에 이미 손에 있었다.
 
 > [!tip] 시험 증거 형식
 > 위 세션은 `type proof.txt` 직후 `ipconfig` 를 쳐서 **플래그 값과 타겟 IP가 한 화면**에 들어갔다. 이것이 OSCP가 요구하는 형태다. 더 확실히 하려면 한 줄로:
@@ -1201,8 +1230,11 @@ nxc smb <IP> -u users.txt -p '<password>' --continue-on-success
 
 nmap이 IIS 10.0과 WebDAV 메서드 목록을 보여줬지만, **이 노트에는 80번을 파고든 기록이 하나도 없다.** `gobuster`·`feroxbuster`·`davtest`·`curl -X PUT` 어느 것도 없다.
 
-> [!note] 결과적으로는 옳은 판단이었지만, **근거가 있어서 옳았던 것은 아니다**
-> 정답 경로가 LDAP 쪽이었으므로 시간을 아꼈다. 하지만 **"안 봤는데 마침 없었다"** 는 재현 가능한 전략이 아니다.
+> [!danger] **2026-08-20 재검증으로 이 절의 평가가 뒤집혔다**
+> 이 박스는 **2플래그**이고 `local.txt` 를 놓쳤다(§5). `fmcsorley` 는 WinRM·RDP 가 막혀 있으므로 **저권한 셸 경로가 따로 있었다면 80/tcp 가 유일한 후보**다. 즉 80번을 건너뛴 것은 «마침 필요 없었던 절약»이 아니라 **플래그 하나를 잃은 지점일 수 있다.** [가정] — 실제로 던져보지 않아 확정하지 못한다.
+
+> [!note] 정답 경로를 아꼈다는 점은 맞지만, **근거가 있어서 옳았던 것은 아니다**
+> 결과적으로 LDAP 쪽으로 `proof.txt` 까지 갔다. 하지만 **"안 봤는데 마침 없었다"** 는 재현 가능한 전략이 아니다.
 > **실제로는 이렇게 «값싸게» 배제했어야 한다** — 합쳐서 3분:
 > ```bash
 > curl -sSI http://<IP>/                                                # 배너·리다이렉트
@@ -1295,7 +1327,12 @@ nxc ldap <IP> -u fmcsorley -p 'CrabSharkJellyfish192' -M laps
 
 # 4) 도메인 관리자 → DCSync → PtH
 impacket-secretsdump "hutch.offsec/administrator:<LAPS평문>@<IP>" -just-dc-ntlm
-evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4        # proof.txt
+evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4
+
+# 5) 플래그 «둘 다» — 이 박스는 2/2 다 (§5)
+#    *Evil-WinRM* PS> Get-ChildItem C:\Users -Force | Select-Object Name
+#    *Evil-WinRM* PS> type C:\Users\<저권한사용자>\Desktop\local.txt
+#    *Evil-WinRM* PS> type C:\Users\Administrator\Desktop\proof.txt
 ```
 
 > [!warning] 위 블록은 **실행 기록이 아니라 «재구성한 절차»** 다
@@ -1321,20 +1358,35 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4        #
 > 명령어 원문·해시 값·플래그 값·LAPS 평문·스크린샷은 **전부 정확했다.** 특히 §2-4의 해시 대조가 성립한다는 것은 **원본에 기록된 LAPS 평문과 덤프 해시가 «둘 다» 정확했다**는 강한 증거다 — 둘 중 하나라도 틀렸으면 MD4가 일치할 수 없다.
 > 개작이 바꾼 것은 **«설명»과 «분류»** 이지 «관측»이 아니다.
 
-### 6-9. **`fmcsorley` 로는 셸을 시도조차 하지 않았다** — `local.txt` 미확보와 직결된다
+### 6-9. **`local.txt` 를 놓친 진짜 원인** — `C:\Users` 를 나열하지 않았다
 
-`fmcsorley:CrabSharkJellyfish192` 를 얻은 뒤 한 것은 **SMB 공유 열거(§3-3)와 BloodHound(§4-1) 둘뿐**이다. **그 계정으로 WinRM/RDP를 시도한 기록이 없다.**
+이 박스에서 잃은 것은 플래그 하나다. 원인을 정확히 짚어야 다음 박스에서 안 반복한다.
+
+**틀린 진단**: "`fmcsorley` 로 셸을 안 열어봐서 놓쳤다." — §5에서 보였듯 `PSRemoteUsers`·`RemoteDesktopUsers` 가 **둘 다 0명**이라 그 셸은 애초에 열리지 않는다.
+
+**맞는 진단**: **14:52 에 도메인 관리자 대화형 셸을 손에 쥐고 있었는데 `C:\Users` 를 한 번도 나열하지 않았다.** `cd Desktop` → `dir` → `type proof.txt` 로 곧장 갔고, 그 디렉터리에 `proof.txt` 하나뿐인 것을 보고 **"이 박스는 플래그가 하나"** 라고 결론지었다. 관리자 프로필에 `local.txt` 가 없는 것은 **정상**인데 그것을 플래그 개수의 근거로 삼았다.
+
+> [!tip] 일반화 — **플래그 개수를 «내가 본 디렉터리»로 추론하지 마라**
+> 개수는 포털이 `N/M` 으로 알려준다. 셸을 잡았으면 **디렉터리 하나를 보고 끝내지 말고** 항상:
+> ```powershell
+> Get-ChildItem C:\Users -Force | Select-Object Name
+> ```
+> 리눅스면 `ls -la /home` · `ls -la /root`. **비용 3초**, 이 박스에서는 그 3초가 플래그 하나였다.
+
+그 밖에 `fmcsorley` 자격증명을 얻은 직후 했어야 할 것들 — 셸은 안 됐겠지만 **열거는 됐다**:
 
 | 시도했어야 할 것 | 왜 | 비용 |
 |---|---|---|
-| `nxc winrm <IP> -u fmcsorley -p 'CrabSharkJellyfish192'` | **`Remote Management Users` 멤버면 그 자리에서 대화형 셸**이다. [[Resourced]]의 `L.Livingstone` 이 정확히 그 경우였다 | 5초 |
+| `nxc winrm <IP> -u fmcsorley -p 'CrabSharkJellyfish192'` | **결과적으로 실패했을 시도지만 «5초에 배제»되는 것이 값이다.** [[Resourced]]의 `L.Livingstone` 은 같은 시도가 통한 경우다 — 되는지 여부는 도메인마다 다르니 **매번 친다** | 5초 |
 | `nxc ldap <IP> -u .. -p .. --users --admin-count` | 익명으로 안 보이던 `Administrator`·`domainadmin` 이 **인증하면 보인다**(§1-3) | 5초 |
 | `impacket-GetUserSPNs -request` | Kerberoast. 이 도메인엔 대상이 없었지만 **확인은 했어야 한다** | 10초 |
 | `nxc smb <IP> -u .. -p .. --pass-pol` | §3-1의 196회 스프레이가 **얼마나 위험했는지** 사후에라도 알 수 있었다 | 5초 |
 
-> [!danger] 이 누락이 §5의 **`local.txt` 불확실성**을 만들었다
-> 만약 이 박스에 `local.txt` 가 있다면 그것은 **`C:\Users\fmcsorley\Desktop`** 이다. 그런데 `fmcsorley` 셸을 열어본 적이 없고, Administrator 셸에서도 `C:\Users` 목록을 확인하지 않았다.
-> **자격증명을 얻으면 «셸이 되는지»를 반드시 확인하라** — 플래그가 거기 있을 수 있고, 없더라도 **로컬 열거로 다음 단계가 나온다.**
+> [!danger] 그렇다면 **의도된 저권한 셸은 어디였나**
+> `fmcsorley` 로 WinRM·RDP 가 안 되는데 PG 가 `local.txt` 를 저권한 프로필에 뒀다면, 이 박스에는 **다른 초기 셸 경로가 설계돼 있었다**는 뜻이 된다. 남은 후보는 하나뿐이다 — **80/tcp IIS 10.0 의 WebDAV**(§1-1 nmap 이 `PUT`·`MKCOL`·`MOVE` 를 보고했다, §6-4).
+> **[가정]** 이다. WebDAV 를 실제로 던져본 적이 없어 확정할 수 없다. 다만 **§6-4 의 "80번을 안 봤다"가 단순한 시간 절약이 아니라 «플래그 하나를 잃은 지점»일 수 있다**는 것은 기록해 둔다.
+>
+> ⚠️ 설령 그 경로였더라도 **웹셸로 읽은 플래그는 OSCP 에서 0점**이다([[Butch]]). 업로드한 `.aspx` 는 **리버스셸을 띄우는 용도**로만 쓰고 플래그는 대화형 셸에서 읽어야 한다.
 
 > [!note] Windows 셸을 잡자마자 칠 명령 — 리눅스 반사신경은 **전부 무용지물**이다
 > | 리눅스 | **Windows 대응** | 무엇을 찾는가 |
@@ -1476,7 +1528,8 @@ evil-winrm -i <IP> -u administrator -H d1722dc7b059af8df626c88ee2d279e4        #
 | kerbrute → AS-REP roast | ~20분 | **10분** | AS-REP 0건이면 **미련 없이 접어라.** 다시 시도해도 결과는 같다 |
 | `description` 발견 → 스프레이 | ~3시간(11:14→14:28, 다른 작업 포함) | **20분** | `description` 전수 조회는 **AS-REP 직후 곧바로** 했어야 한다. 이 박스에서 가장 늦게 도착한 조사다 |
 | BloodHound → LAPS | ~7분(14:28→14:35) | 10분 | `ReadLAPSPassword` 엣지를 보면 **1분 안에 pyLAPS/`-M laps`** |
-| LAPS → DCSync → 플래그 | ~11분(14:35→14:52) | 15분 | — |
+| LAPS → DCSync → `proof.txt` | ~11분(14:35→14:52) | 15분 | — |
+| **`local.txt` 회수** | **하지 않음 — 박스를 여기서 놓았다** | **+3분** | 셸을 잡았으면 **`Get-ChildItem C:\Users -Force` 를 먼저** 친다. 한 디렉터리만 보고 "플래그는 하나"라고 결론짓지 마라 (§6-9) |
 
 > [!danger] 이 박스의 교훈 — **`description` 전수 조회를 «맨 앞»으로 옮겨라**
 > 실제로는 AS-REP roast와 사용자명 스프레이에 시간을 쓴 뒤에야 `description`을 봤다. **순서가 뒤집혀 있었다.**
