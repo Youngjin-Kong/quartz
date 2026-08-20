@@ -129,6 +129,29 @@ CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.I)
 SOLVED_RE = re.compile(r"root\.txt|proof\.txt|local\.txt|nt authority\\system|uid=0\(root\)", re.I)
 
 
+MANUAL_RE = re.compile(r"^manual_tags:\s*true\s*(?:#.*)?$", re.M | re.I)
+DECL_TAG_RE = re.compile(r"^  - (tech/\S+)\s*$", re.M)
+
+
+def declared_tags(text):
+    """노트가 `manual_tags: true` 를 선언했으면 프론트매터의 tech/* 태그를 그대로 쓴다.
+
+    학습용으로 깊게 쓴 writeup은 배경 지식·대안 경로·GTFOBins 비교표에서 실제로 쓰지
+    않은 기법을 대량으로 언급한다. 본문 키워드 매칭은 그것까지 잡아내 과잉 태깅이 된다.
+    그런 노트는 사람이 태그를 관리하고, 자동 추출은 그 선언을 존중한다.
+    선언이 없으면 종전대로 본문에서 자동 판정한다.
+    """
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end < 0:
+        return None
+    fm = text[:end]
+    if not MANUAL_RE.search(fm):
+        return None
+    return DECL_TAG_RE.findall(fm)
+
+
 def read_text(path):
     raw = open(path, "rb").read()
     for enc in ("utf-8", "cp949"):
@@ -185,13 +208,18 @@ def extract(path, rel):
         if len(cves) > 12:
             meta["cve_bulk"] = True   # 취약점 스캐너 출력 덤프로 추정
 
-    techs = []
-    for tag, pats in TECH:
-        for pr in pats:
-            if pr.search(text):
-                techs.append(tag)
-                break
-    meta["techniques"] = techs
+    manual = declared_tags(text)
+    if manual is not None:
+        meta["techniques"] = manual
+        meta["manual_tags"] = True
+    else:
+        techs = []
+        for tag, pats in TECH:
+            for pr in pats:
+                if pr.search(text):
+                    techs.append(tag)
+                    break
+        meta["techniques"] = techs
 
     if kind == "머신":
         meta["status"] = "완료" if SOLVED_RE.search(text) else "미완"

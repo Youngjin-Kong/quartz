@@ -48,6 +48,9 @@ def build_fm(m):
         lines.append("cves: [%s]" % ", ".join(m["cves"]))
     if m.get("status"):
         lines.append("status: %s" % STATUS_TAG.get(m["status"], m["status"]))
+    if m.get("manual_tags"):
+        # 태그는 사람이 관리한다 — extract.py 가 이 선언을 보고 자동 판정을 건너뛴다.
+        lines.append("manual_tags: true")
     lines.append("tech_count: %d" % len(m["techniques"]))
     lines.append("---")
     return "\n".join(lines) + "\n"
@@ -76,7 +79,10 @@ def main():
         if head.startswith("---\n") or head.startswith("---\r\n"):
             end = raw.find(b"\n---", 3)
             fm_blob = raw[:end] if end > 0 else b""
-            ours = b"tech_count:" in fm_blob       # 우리가 생성한 블록만 교체 대상
+            # tech_count 또는 manual_tags 가 있으면 이 도구가 관리하는 블록이다.
+            # manual_tags 노트도 갱신 대상에 포함해야 ip/ports/services/cves 가 최신으로 유지된다.
+            # (태그 자체는 extract.py 가 선언값을 그대로 넘겨주므로 덮이지 않는다)
+            ours = (b"tech_count:" in fm_blob) or (b"manual_tags:" in fm_blob)
             if refresh and ours:
                 nl = raw.find(b"\n", end + 1)
                 raw = raw[nl + 1:]                 # 기존 블록 제거

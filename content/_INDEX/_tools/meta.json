@@ -2912,16 +2912,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 8775,
+  "size": 73595,
   "techniques": [
-   "tech/win/service-abuse",
    "tech/lin/suid",
-   "tech/lin/sudo-abuse",
    "tech/lin/cron",
-   "tech/web/ssti",
-   "tech/enum/dirbust",
-   "tech/enum/peas",
-   "tech/enum/searchsploit"
+   "tech/payload/revshell"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -2934,15 +2929,21 @@
    "ssh"
   ],
   "ip": "192.168.115.12",
-  "status": "미완",
+  "cves": [
+   "CVE-2021-21425",
+   "CVE-2021-4034"
+  ],
+  "manual_tags": true,
+  "status": "완료",
   "rel": "03. PG/Astronaut.md",
   "name": "Astronaut"
  },
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 18963,
+  "size": 93054,
   "techniques": [
+   "tech/web/file-upload",
    "tech/exec/ssh-key",
    "tech/payload/revshell"
   ],
@@ -2958,8 +2959,12 @@
   ],
   "ip": "192.168.243.182",
   "cves": [
-   "CVE-2021-22205"
+   "CVE-2016-3714",
+   "CVE-2021-22204",
+   "CVE-2021-22205",
+   "CVE-2022-44268"
   ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Breakout.md",
   "name": "Breakout"
@@ -2967,12 +2972,13 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 9754,
+  "size": 62414,
   "techniques": [
-   "tech/web/lfi-rfi",
+   "tech/web/sqli",
    "tech/web/file-upload",
+   "tech/db/mssql",
    "tech/exec/winrm",
-   "tech/enum/dirbust"
+   "tech/payload/revshell"
   ],
   "encoding": "utf-8",
   "os": "windows",
@@ -2994,6 +3000,7 @@
    "smtp"
   ],
   "ip": "192.168.243.63",
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Butch.md",
   "name": "Butch"
@@ -3269,8 +3276,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 4070,
+  "size": 50076,
   "techniques": [
+   "tech/web/default-creds",
+   "tech/web/file-upload",
+   "tech/cred/reuse",
    "tech/payload/revshell"
   ],
   "encoding": "utf-8",
@@ -3284,6 +3294,10 @@
    "ssh"
   ],
   "ip": "192.168.243.23",
+  "cves": [
+   "CVE-2018-15473"
+  ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Codo.md",
   "name": "Codo"
@@ -3291,15 +3305,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 12688,
+  "size": 64551,
   "techniques": [
-   "tech/lin/sudo-abuse",
-   "tech/lin/path-hijack",
-   "tech/web/sqli",
-   "tech/web/lfi-rfi",
-   "tech/web/webdav",
    "tech/web/deserialization",
    "tech/web/default-creds",
+   "tech/lin/sudo-abuse",
    "tech/enum/dirbust",
    "tech/enum/searchsploit",
    "tech/payload/revshell"
@@ -3322,6 +3332,7 @@
   "cves": [
    "CVE-2022-23940"
   ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Crane.md",
   "name": "Crane"
@@ -3351,6 +3362,93 @@
   "status": "완료",
   "rel": "03. PG/CVE-2025-10952.md",
   "name": "CVE-2025-10952"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 66437,
+  "techniques": [
+   "tech/web/default-creds",
+   "tech/web/file-upload",
+   "tech/lin/cron",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   80
+  ],
+  "services": [
+   "http",
+   "ssh"
+  ],
+  "domain": "exfiltrated.offsec",
+  "cves": [
+   "CVE-2018-19422",
+   "CVE-2021-22204"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Exfiltrated.md",
+  "name": "Exfiltrated"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 49911,
+  "techniques": [
+   "tech/svc/ftp",
+   "tech/web/file-upload",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   21,
+   80
+  ],
+  "services": [
+   "ftp",
+   "http"
+  ],
+  "domain": "exghost.local",
+  "cves": [
+   "CVE-2021-22204",
+   "CVE-2021-4034"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Exghost.md",
+  "name": "Exghost"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 59824,
+  "techniques": [
+   "tech/web/lfi-rfi",
+   "tech/exec/ssh-key",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   3000,
+   9090
+  ],
+  "services": [
+   "http",
+   "ssh"
+  ],
+  "cves": [
+   "CVE-2021-43798"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Fanatastic.md",
+  "name": "Fanatastic"
  },
  {
   "platform": "pg",
@@ -3440,6 +3538,33 @@
  {
   "platform": "pg",
   "kind": "머신",
+  "size": 24944,
+  "techniques": [
+   "tech/web/sqli",
+   "tech/web/webdav",
+   "tech/web/default-creds",
+   "tech/db/mysql",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   17445,
+   30455
+  ],
+  "services": [
+   "http",
+   "ssh"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Hawat.md",
+  "name": "Hawat"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
   "size": 18285,
   "techniques": [
    "tech/ad/ntlm-relay",
@@ -3490,12 +3615,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 14418,
+  "size": 70916,
   "techniques": [
-   "tech/lin/passwd-write",
-   "tech/web/webdav",
    "tech/web/default-creds",
-   "tech/enum/dirbust",
+   "tech/web/webdav",
+   "tech/web/file-upload",
    "tech/payload/revshell"
   ],
   "encoding": "utf-8",
@@ -3517,6 +3641,7 @@
    "CVE-2023-24078",
    "CVE-2024-27697"
   ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Hub.md",
   "name": "Hub"
@@ -3701,9 +3826,11 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 5103,
+  "size": 74622,
   "techniques": [
-   "tech/enum/peas",
+   "tech/web/default-creds",
+   "tech/lin/capabilities",
+   "tech/cred/reuse",
    "tech/payload/revshell"
   ],
   "encoding": "utf-8",
@@ -3720,6 +3847,7 @@
   "cves": [
    "CVE-2021-43857"
   ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Levram.md",
   "name": "Levram"
@@ -3727,9 +3855,10 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 14136,
+  "size": 69213,
   "techniques": [
-   "tech/enum/dirbust"
+   "tech/web/auth-bypass",
+   "tech/cred/reuse"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -3745,9 +3874,41 @@
   "cves": [
    "CVE-2025-29927"
   ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/MiddlewareBypass.md",
   "name": "MiddlewareBypass"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 61882,
+  "techniques": [
+   "tech/web/webdav",
+   "tech/lin/path-hijack",
+   "tech/lin/cron",
+   "tech/cred/crack",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   25,
+   80,
+   111,
+   8888
+  ],
+  "services": [
+   "http",
+   "rpcbind",
+   "smtp",
+   "ssh"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Muddy.md",
+  "name": "Muddy"
  },
  {
   "platform": "pg",
@@ -3808,9 +3969,13 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 18803,
+  "size": 81611,
   "techniques": [
-   "tech/web/lfi-rfi",
+   "tech/pwn/bof",
+   "tech/pwn/format-string",
+   "tech/pwn/rop",
+   "tech/win/sedebugprivilege",
+   "tech/svc/ftp",
    "tech/payload/msfvenom",
    "tech/payload/revshell"
   ],
@@ -3834,9 +3999,10 @@
    "netbios-ssn"
   ],
   "ip": "192.168.243.20",
+  "manual_tags": true,
   "status": "완료",
-  "rel": "03. PG/Osaca.md",
-  "name": "Osaca"
+  "rel": "03. PG/Osaka.md",
+  "name": "Osaka"
  },
  {
   "platform": "pg",
@@ -3977,16 +4143,39 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 50263,
+  "size": 62007,
   "techniques": [
-   "tech/lin/suid",
-   "tech/lin/capabilities",
-   "tech/lin/cron",
-   "tech/lin/nfs",
-   "tech/lin/kernel-exploit",
+   "tech/lin/sudo-abuse",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "linux",
+  "ports": [
+   22,
+   3000
+  ],
+  "services": [
+   "http",
+   "ssh"
+  ],
+  "ip": "192.168.248.22",
+  "cves": [
+   "CVE-2022-25765"
+  ],
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/RubyDome.md",
+  "name": "RubyDome"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 104471,
+  "techniques": [
+   "tech/svc/nfs",
    "tech/web/sqli",
-   "tech/exec/ssh-key",
-   "tech/enum/dirbust"
+   "tech/cred/crack",
+   "tech/exec/ssh-key"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -4008,6 +4197,10 @@
   ],
   "ip": "192.168.248.222",
   "domain": "scarlet.local",
+  "cves": [
+   "CVE-2021-4034"
+  ],
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Scarlet.md",
   "name": "Scarlet"
@@ -4090,6 +4283,36 @@
   "status": "완료",
   "rel": "03. PG/Sorcerer.md",
   "name": "Sorcerer"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 73625,
+  "techniques": [
+   "tech/db/mysql",
+   "tech/win/seimpersonate",
+   "tech/win/potato",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "os": "windows",
+  "ports": [
+   135,
+   139,
+   445,
+   3128
+  ],
+  "services": [
+   "http-proxy",
+   "microsoft-ds",
+   "msrpc",
+   "netbios-ssn"
+  ],
+  "ip": "192.168.248.189",
+  "manual_tags": true,
+  "status": "완료",
+  "rel": "03. PG/Squid.md",
+  "name": "Squid"
  },
  {
   "platform": "pg",
@@ -4180,13 +4403,12 @@
  {
   "platform": "pg",
   "kind": "머신",
-  "size": 10468,
+  "size": 57239,
   "techniques": [
    "tech/web/lfi-rfi",
-   "tech/web/file-upload",
-   "tech/enum/dirbust",
-   "tech/enum/peas",
-   "tech/payload/revshell"
+   "tech/lin/wildcard",
+   "tech/lin/cron",
+   "tech/cred/reuse"
   ],
   "encoding": "utf-8",
   "os": "linux",
@@ -4199,9 +4421,81 @@
    "ssh"
   ],
   "ip": "192.168.164.229",
+  "manual_tags": true,
   "status": "완료",
   "rel": "03. PG/Zipper.md",
   "name": "Zipper"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 10518,
+  "techniques": [
+   "tech/lin/sudo-abuse",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "domain": "portal.offsec",
+  "cves": [
+   "CVE-2023-33831",
+   "CVE-2023-40582",
+   "CVE-2023-46818",
+   "CVE-2023-6019",
+   "CVE-2024-12029",
+   "CVE-2024-25180",
+   "CVE-2024-27292",
+   "CVE-2024-32880",
+   "CVE-2024-35374",
+   "CVE-2024-36401",
+   "CVE-2024-3673",
+   "CVE-2024-39914",
+   "CVE-2024-40453",
+   "CVE-2024-46507",
+   "CVE-2024-46986",
+   "CVE-2024-48061",
+   "CVE-2024-48573",
+   "CVE-2024-48914",
+   "CVE-2024-51482",
+   "CVE-2024-5334",
+   "CVE-2024-55415",
+   "CVE-2024-55963",
+   "CVE-2024-56145",
+   "CVE-2025-10952",
+   "CVE-2025-21624",
+   "CVE-2025-27136",
+   "CVE-2025-27520",
+   "CVE-2025-27636",
+   "CVE-2025-2945",
+   "CVE-2025-30208",
+   "CVE-2025-31131",
+   "CVE-2025-32101",
+   "CVE-2025-32375",
+   "CVE-2025-50817",
+   "CVE-2025-50946",
+   "CVE-2025-5880"
+  ],
+  "cve_bulk": true,
+  "status": "미완",
+  "rel": "03. PG/_STATUS.md",
+  "name": "_STATUS"
+ },
+ {
+  "platform": "pg",
+  "kind": "머신",
+  "size": 7224,
+  "techniques": [
+   "tech/lin/suid",
+   "tech/lin/sudo-abuse",
+   "tech/lin/capabilities",
+   "tech/lin/cron",
+   "tech/web/sqli",
+   "tech/payload/msfvenom",
+   "tech/payload/revshell"
+  ],
+  "encoding": "utf-8",
+  "status": "완료",
+  "rel": "03. PG/_WRITEUP-STANDARD.md",
+  "name": "_WRITEUP-STANDARD"
  },
  {
   "platform": "swsec",
