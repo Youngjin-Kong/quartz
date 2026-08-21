@@ -25,26 +25,6 @@ tech_count: 4
 > **경로** SMB 널 세션으로 `share$` (= Apache 웹루트) 열람 → `deets.txt` 에 평문 `12345`, `wp-config.php` 에 `Admin:TogieMYSQL12345^^` → `rpcclient` SID 조회로 사용자명 `togie` 확보 → `ssh togie:12345` → **rbash 감옥** → `bash -c` 로 탈출 → `sudo -l` 이 `(ALL : ALL) ALL` → root
 > **핵심** 파일 공유가 웹루트를 그대로 노출하면 설정파일이 곧 자격증명 덤프다. 그리고 **제한 셸은 PATH 를 같이 제한하지 않으면 아무것도 제한하지 못한다.**
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 이 노트는 작성자와 분리된 감사를 한 번 통과했다. Kali 산출물(`~/PG/LazySysAdmin/`)·볼트 스크린샷·`nmap-services` 원본과 대조해 아래를 고쳤다. **플래그·해시·IP·자격증명은 한 바이트도 손대지 않았다.**
->
-> | 어디 | 무엇이 틀렸나 | 어떻게 고쳤나 |
-> |---|---|---|
-> | 1장 nmap | "6667 은 top-1000 밖이라 `-p-` 가 아니면 못 본다" | **거짓.** `nmap-services` 개방빈도 순으로 6667/tcp 는 tcp 300위권 = 기본 top-1000 안. 못 본 이유는 예열 스캔이 `--top-ports 200`(`quick.log`)이었기 때문 |
-> | 1장 nmap 블록 | `ssh-hostkey`·`irc-info`·host script 결과를 말없이 잘라 연속 출력처럼 보였다 | `nmap.log` 원문으로 복원 |
-> | 1장 robots | "앞의 셋은 빈 디렉터리" | `old/`·`test/` 는 빈 디렉터리가 맞고 `TR2/` 는 **웹루트에 존재하지 않는다**(`smb_share_ls.txt`) |
-> | 1장 rpcclient | "1000 만 해석됨 = 실제 계정은 togie 하나" | 물어본 범위는 1000~1002 뿐. root 로 본 `/etc/passwd` 로 뒷받침해 다시 씀 |
-> | 4장 | "셸을 잡자마자 `harvest.sh` 를 돌렸다"→ 그 SUDO 출력이 막판 판단 근거인 것처럼 서술 | **시간 서사 역전.** 스크립트는 root(16:45:50) 뒤인 16:46·16:48 에 돌았다. 실제 단서는 첫 `id` 의 `27(sudo)`. 산출물 시각표를 넣어 정정 |
-> | 4장 SUDO 블록 | `harvest_togie.txt` 의 SUDO 섹션을 `(sudo -n 실패)` 에서 끊어 인용 — 바로 다음 줄부터 `(ALL : ALL) ALL` 이 이미 있다 | 섹션 전문으로 복원 |
-> | 4장 `sudo -S -l` 블록 | post-quantum 경고 3행과 배너 첫 행을 잘라냄 | `try_sudo_l.log` 원문으로 복원 |
-> | 4장 root 블록 | 명령을 `whoami; id` 로 줄여 적고, 출력은 `...` 뒤에 `proof_root.txt` 앞부분을 붙였다 — 실행된 적 없는 조합 | 실제 명령(타겟 `auth.log` 의 `COMMAND=` 로 교차확인)으로 되돌리고, 출력은 5장 전문을 가리키게 함 |
-> | 4장 | "`stdin: is not a tty` 는 `/etc/profile` 계열이 뱉는 잡음" | 근거를 `/root/.profile` 의 `mesg n` 으로 좁히고 `[가정]` 표기 |
-> | 5장 플래그 블록 | 배너·post-quantum 경고·`Connection ... closed` 를 잘라 깔끔하게 만듦 | `proof_user.txt`·`proof_root.txt` 전문 복원 |
-> | 6장 ③ | "`sudo -n` 은 NOPASSWD 항목만 보여준다" | **틀린 일반 지식.** `-n` 은 프롬프트 금지 플래그라 인증이 필요하면 목록을 거르는 게 아니라 `a password is required` 로 죽는다 |
-> | 남긴 흔적 | `auth.log`·`wtmp`·`.bash_history` 를 "확인하지 않았다 `[가정]`" | `traces_confirmed.log` 로 전부 실측 확인됨 — 수치를 넣어 확정으로 승격 |
->
-> 감사에서 **반증되어 그대로 둔 것**: `scp -O` 인과(6장 ①, `try9_sftp_rbash.log` + `sshd_config` 의 `Subsystem sftp /usr/lib/openssh/sftp-server` 로 뒷받침), `grep -o` 문맥 요구 오판(6장 ④, `wp_home.html` 실측 56건), pkexec·커널 미시도의 `[가정]` 표기(옳다), 타임존 환산.
-
 ## 0. 이 박스에서 배우는 것
 
 - **SMB 널 세션 열람** — 인증 없이 붙는 공유가 하나라도 있으면 `recurse ON; ls` 부터. 여기서는 그 공유가 웹루트였다.
@@ -516,7 +496,7 @@ Connection to 192.168.248.36 closed.
 
 **① `scp` 가 조용히 끊겼다** — `harvest.sh` 를 올리려는데 `scp: Connection closed`. 방화벽이나 권한 문제로 읽기 쉬운데 아니다. `scp -O` (대문자 O, legacy SCP 프로토콜 강제)로 즉시 해결됐다.
 
-원인은 이때는 몰랐고 rbash 정체를 파악한 뒤에 맞춰졌다. 최신 OpenSSH 의 `scp` 는 기본으로 **SFTP 서브시스템**을 쓴다. `sshd_config` 에는 `Subsystem sftp /usr/lib/openssh/sftp-server` 가 정상 등재돼 있었는데, sshd 는 외부 서브시스템을 **사용자의 로그인 셸에 `-c` 로 넘겨** 실행한다. 그 셸이 rbash라 `/usr/lib/openssh/sftp-server` 에 `/` 가 들어 있다는 이유로 거부하고 연결이 끊긴다. `sftp` 를 직접 붙여보면 같은 증상이 재현된다.
+원인은 이때는 몰랐고 rbash 정체를 파악한 뒤에 맞춰졌다. 최신 OpenSSH 의 `scp` 는 기본으로 **SFTP 서브시스템**을 쓴다. `sshd_config` 에는 `Subsystem sftp /usr/lib/openssh/sftp-server` 가 정상 등재돼 있었는데, sshd 는 외부 서브시스템을 **사용자의 로그인 셸에 `-c` 로 넘겨** 실행한다. 그 셸이 rbash 라 `/usr/lib/openssh/sftp-server` 에 `/` 가 들어 있다는 이유로 거부하고 연결이 끊긴다. `sftp` 를 직접 붙여보면 같은 증상이 재현된다.
 
 ```
 ┌──(kali㉿kali)-[~/PG/LazySysAdmin]
@@ -531,7 +511,7 @@ Connection closed
 
 **구형 리눅스 박스에 파일이 안 올라가면 `-O` 를 먼저 때려보고, 그래도 안 되면 로그인 셸을 의심하라.** 나머지 대안 `cat file | ssh user@host 'cat > /tmp/x'` 는 여기서 rbash 가 `>` 를 막아 어차피 실패했을 것이다.
 
-**② rbash 를 방화벽으로 오독할 뻔했다** — `sh /tmp/.h.sh >/dev/null` 이 `rbash: /dev/null: restricted` 를 뱉었을 때 처음 든 생각은 "파일이 안 올라갔나"였다. 실제로는 파일은 멀쩡히 올라가 있었고(`ls -la /tmp/.h.sh` 로 확인) 셸이 리다이렉션을 거부한 것이다. **에러 메시지의 앞부분(`rbash:`)을 읽어라** — 어느 계층이 거부했는지가 프롬프트 이름에 적혀 있다.
+**② rbash 를 방화벽으로 오독할 뻔했다** — `sh /tmp/.h.sh >/dev/null` 이 `rbash: /dev/null: restricted` 를 뱉었을 때 처음 든 생각은 "파일이 안 올라갔나"였다. 실제로는 파일은 멀쩡히 올라가 있었고(`ls -la /tmp/.h.sh` 로 확인) 셸이 리다이렉션을 거부한 것이다. **에러 메시지의 앞부분(`rbash:`)을 읽어라** — 어느 계층이 거부했는지가 그 이름에 적혀 있다.
 
 **③ `sudo -n -l` 이 빈손이었다** — 열거 스크립트의 SUDO 섹션이 `sudo: a password is required` 한 줄로 끝난다. 이 출력만 보면 "sudo 경로 없음"으로 읽히는데, 실제 답은 `(ALL : ALL) ALL` 이었다.
 

@@ -23,21 +23,6 @@ manual_tags: true
 manual_cves: true
 tech_count: 7
 ---
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 초고를 산출물(`~/PG/Flimsy/` 26개 파일)·APISIX 2.8 소스·Kali 실측과 대조해 고친 것. 전문은 `03. PG/_AUDIT/Flimsy-audit.md`.
->
-> | 위치 | 무엇이 틀렸나 | 근거 |
-> |---|---|---|
-> | §2 우회 메커니즘 | "하위 요청의 클라이언트 IP 를 `X-Real-IP` 에서 가져온다" — 2.8 의 `batch-requests.lua` 에는 IP 처리 코드가 아예 없다 | apisix 2.8 `apisix/plugins/batch-requests.lua` |
-> | §3 "안쪽만 넣으면 바깥 요청이 걸러진다" | 반대다. 안쪽(`headers`)이 우선이고 바깥은 빈 키만 채운다. batch-requests 엔드포인트 자체에는 IP 제한이 없다 | 같은 소스 + `try1_batch_probe.log`(외부 IP 에서 200) |
-> | §2 IP 허용목록 기본값 `127.0.0.1` | 실제 기본값은 `127.0.0.0/24` | apisix 2.8 `conf/config-default.yaml` |
-> | §1 "gobuster 를 끝까지 돌렸다" | 끝까지 안 돌았다. 타임아웃 에러가 쏟아지는 상태로 21:38 에 죽였다 | `gobuster_root.full.txt` 말미 |
-> | §6-4 "`grep -c` 가 395,013 을 줬다" | grep 종류 차이가 아니라 **1분 사이에 로그가 자란 것**이다 | `traces_confirmed.log`(21:35) vs `traces_nginx.log`(21:36) |
-> | 남긴 흔적 `apt/history.log` | `apt-get update` 는 history.log 에 아무것도 안 남긴다 | Kali 에서 직접 실행해 diff |
-> | §3 PTY 승격 명령 | 실제 친 명령과 다르게 정리돼 있었다 | `pane_full.txt` 원문 복원 |
-> | §4 `ls -ld` 블록 · §6-5 Kali 프롬프트 블록 | 산출물에 없고 PTY 에코 패턴과도 안 맞는다 → 코드펜스 해제 | 아래 각 절 |
-> | 남긴 흔적 `pwn1` "남아 있다고 가정" | 박스가 살아 있을 때 기준이었다. **「삭제 확인 못 함 / 박스 정지로 해소」로 분리**해 적었다 — 「확인된 삭제」와 「리버트로 사라짐」은 다른 정보다 | `writeup_notes.txt` 21:38 · `routes_after_cleanup.json`(0바이트) |
-
 > [!info] PG Practice — Flimsy
 > **타겟** 192.168.248.220 · **OS** Ubuntu 20.04 (`flimsy`) · **난이도** Fundamental · **플래그 2개**
 > **경로 요약** tcp/43500 **Apache APISIX 2.8** → **CVE-2022-24112** (`batch-requests` 가 하위 요청을 루프백에서 재발행하고 호출자 헤더를 그대로 실어, Admin API 의 IP 허용목록이 무너진다) → 기본 admin key 로 라우트 생성, `filter_func` 안의 Lua `os.execute` 로 RCE → `franklin`(uid 65534) → 세계쓰기 `/etc/apt/apt.conf.d` + 매분 도는 `root apt-get update` → SUID bash → root
@@ -245,7 +230,7 @@ curl -s -i -X POST "http://$T/apisix/batch-requests" \
   -d '{"headers":{"X-Real-IP":"127.0.0.1","X-API-KEY":"edd1c9f034335f136f87ad84b625c8f1","Content-Type":"application/json"},"timeout":1500,"pipeline":[{"method":"GET","path":"/apisix/admin/routes"}]}'
 ```
 
-`X-Real-IP` 가 **두 군데** 들어가 있다. 초고는 "안쪽만 넣으면 바깥 요청이 걸러진다"고 적었는데 **틀렸다.** 2.8 소스의 `set_common_header()` 는 ① 본문 `headers` 를 하위 요청에 먼저 깔고 ② 바깥 요청 헤더로 **아직 안 채워진 키만** 메운다. 즉 안쪽이 우선이고 바깥은 예비다. 그리고 `/apisix/batch-requests` 는 데이터플레인 엔드포인트라 IP 제한이 걸려 있지 않다 — 실제로 우리 외부 IP 에서 보낸 바깥 요청이 그대로 200 을 받았다(아래 로그).
+`X-Real-IP` 가 **두 군데** 들어가 있다. "안쪽만 넣으면 바깥 요청이 걸러진다"고 읽기 쉬운데 **그렇지 않다.** 2.8 소스의 `set_common_header()` 는 ① 본문 `headers` 를 하위 요청에 먼저 깔고 ② 바깥 요청 헤더로 **아직 안 채워진 키만** 메운다. 즉 안쪽이 우선이고 바깥은 예비다. 그리고 `/apisix/batch-requests` 는 데이터플레인 엔드포인트라 IP 제한이 걸려 있지 않다 — 실제로 우리 외부 IP 에서 보낸 바깥 요청이 그대로 200 을 받았다(아래 로그).
 
 둘 다 넣는 건 손해가 없어서 그대로 뒀다. 시험장에서 헷갈리면 **본문 `headers` 쪽 하나면 된다.**
 
@@ -440,7 +425,7 @@ no crontab for franklin
 
 **`/etc/apt/apt.conf.d` 가 쓰기 가능**하고 **root 가 매분 `apt-get update` 를 돈다.** 이 두 줄을 나란히 놓으면 끝이다.
 
-퍼미션 확인. 초고에는 이 자리에 `ls -ld /etc/apt/apt.conf.d /root` 출력이 코드블록으로 실려 있었는데, **산출물 어디에도 그 명령의 출력이 없고** PTY 에코도 없어 손질된 블록으로 판단해 걷어냈다. 같은 사실은 아래 세 곳에 실제로 남아 있다.
+퍼미션 확인. `ls -ld /etc/apt/apt.conf.d /root` 를 따로 친 출력은 **산출물 어디에도 없다** — 그러니 그 형태로는 인용할 수 없다. 같은 사실은 아래 세 곳에 실제로 남아 있다.
 
 - `harvest_franklin.txt` 의 `===== WRITABLE =====` 목록에 `/etc/apt/apt.conf.d` 가 들어 있다 (franklin 이 쓸 수 있다는 뜻)
 - 21:30 작업 메모에 그 디렉터리가 `drwxrwxrwx` 로 적혀 있다
@@ -678,7 +663,7 @@ ash; chmod 4755 /tmp/rootbash";};$
 | 21:36 | 419,537 | `traces_nginx.log` — `wc -l` 로 전체 행수 |
 | 21:36 | 419,573 | `traces_nginx.log` — `grep -F` 로 우리 IP 행 |
 
-초고는 이걸 "`grep -c` 가 이상한 값을 줘서 `grep -F` 로 다시 셌다"로 적었는데 **틀렸다.** 세 값의 차이는 grep 종류가 아니라 **로그가 계속 자라고 있었던 것**이다. 1분 사이에 24,560행이 늘었고(≈400 req/s), `wc -l` 보다 `grep -F` 가 36행 많은 것도 두 명령 사이의 몇 초 차이다. 우리 IP 행이 전체 행수보다 많다는 것 자체가 "파일이 움직이고 있다"는 신호였다.
+이걸 "`grep -c` 가 이상한 값을 줘서 `grep -F` 로 다시 셌다"로 읽기 쉬운데 **틀렸다.** 세 값의 차이는 grep 종류가 아니라 **로그가 계속 자라고 있었던 것**이다. 1분 사이에 24,560행이 늘었고(≈400 req/s), `wc -l` 보다 `grep -F` 가 36행 많은 것도 두 명령 사이의 몇 초 차이다. 우리 IP 행이 전체 행수보다 많다는 것 자체가 "파일이 움직이고 있다"는 신호였다.
 
 원인은 실제 줄을 눈으로 봐서 확정했다.
 
@@ -693,7 +678,7 @@ ash; chmod 4755 /tmp/rootbash";};$
 
 정리 단계에서 43500 이 응답을 멈췄다. 타겟 안에서 `127.0.0.1:43500` 을 때려도 같았다. hung `curl` 을 끊으려고 tmux 페인에 `C-c` 를 보냈는데, **그게 원격 curl 이 아니라 로컬 `nc` 를 죽여** 셸까지 함께 날아갔다.
 
-알아챈 방법은 단순했다. 페인에 `id` 를 쳤더니 `uid=1000(kali)` 가 돌아왔다 — **프롬프트가 타겟이 아니라 Kali 로 돌아와 있었다.** (초고는 이 자리에 `┌──(kali㉿kali)` 프롬프트가 붙은 코드블록을 넣어뒀는데, 이 박스의 Kali 명령은 전부 비대화형 `ssh kali "..."` 로 돌렸으므로 그런 프롬프트가 찍힐 자리가 없다. 창작이라 걷어냈다.)
+알아챈 방법은 단순했다. 페인에 `id` 를 쳤더니 `uid=1000(kali)` 가 돌아왔다 — **프롬프트가 타겟이 아니라 Kali 로 돌아와 있었다.** (이 박스의 Kali 명령은 전부 비대화형 `ssh kali "..."` 로 돌렸으므로 그 화면을 `┌──(kali㉿kali)` 프롬프트가 붙은 블록으로 재현할 수는 없다. 그런 프롬프트가 찍힐 자리가 애초에 없다.)
 
 재획득을 4회 시도했다(21:43~21:47). 전부 무응답 — APISIX 가 뻗어서 `/pwn1` 라우트 자체가 안 먹는다. TCP 는 붙는데 HTTP 응답이 없다. 아래는 그때 화면이고 **파일로 보존하지 못했다** — 셸을 잃은 뒤의 확인이라 산출물이 얇다.
 
@@ -797,7 +782,7 @@ PORT      STATE SERVICE         VERSION
 - `/usr/local/apisix/logs/access.log` — 우리 IP 로 **49행**
 - `/var/log/auth.log` — 우리 세션 항목 **없음**. CRON 세션만 기록돼 있다. 리버스셸은 PAM 을 거치지 않는다
 - `wtmp`(`last`) — 우리 항목 **없음**. pty 로그인이 아니기 때문이다
-- `/var/log/apt/history.log` — **우리 항목 없음.** 초고는 "훅이 걸려 있던 동안의 `apt-get update` 항목"이 남았다고 적었는데 틀렸다. `apt-get update` 는 history.log 에 아무것도 쓰지 않는다(Kali 에서 실행 전후 diff 로 확인 — 무변화). 이 파일에 있는 것은 같은 시간대의 `unattended-upgrade` 항목들이고 박스가 스스로 돌린 것이다. 훅은 `Pre-Invoke` 라 더더욱 남지 않는다
+- `/var/log/apt/history.log` — **우리 항목 없음.** "훅이 걸려 있던 동안의 `apt-get update` 항목"이 남았을 것 같지만 아니다. `apt-get update` 는 history.log 에 아무것도 쓰지 않는다(Kali 에서 실행 전후 diff 로 확인 — 무변화). 이 파일에 있는 것은 같은 시간대의 `unattended-upgrade` 항목들이고 박스가 스스로 돌린 것이다. 훅은 `Pre-Invoke` 라 더더욱 남지 않는다
 
 **확인하지 않은 것** — `/var/log/syslog`, `btmp`, APISIX `error.log` 는 열어보지 않았다. 셸을 잃은 뒤라 확인이 불가능해졌다.
 

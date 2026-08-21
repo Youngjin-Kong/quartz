@@ -19,14 +19,14 @@ manual_cves: true
 > 경로: 80 Apache 2.4.53 → `/zm-prod/` 에 **ZoneMinder 1.34.23** 가 `OPT_USE_AUTH` 꺼진 채 노출(무인증 admin 콘솔) → Monitor 하나를 만들어 Event 를 생성 → **Filter `AutoExecuteCmd` → `zmfilter.pl` 의 `qx()`** 로 명령 실행 → **숫자 접두(`9;`) 로 PHP7 느슨비교 타입저글링을 우회** → 리버스셸(www-data, **아웃바운드 tcp/80**) → `/home/isaac/local.txt`.
 > **root 는 못 얻었다.** 4장에 배제 목록과 남은 lead 를 남긴다.
 
-이 박스는 **먼저 러너가 초기 침투에 실패했다가**(로그인 폼만 파고 웹앱을 통째로 놓쳤다) web-exploit 재검토에서 뚫렸다. 그 실패 서사가 6장 세 번째 함정의 실체다.
+이 박스는 **초기 침투에 한 번 실패했다가**(로그인 폼만 파고 웹앱을 통째로 놓쳤다) 웹 취약점 재검토에서 뚫렸다. 그 실패 서사가 6장 세 번째 함정의 실체다.
 
 ## 0. 이 박스에서 배우는 것
 
 - **ZoneMinder 무인증 인식** — `OPT_USE_AUTH` 가 꺼져 있으면 `?view=console`·`?view=options` 가 로그인 없이 200. `/zm/` 이 표준 경로지만 여기선 `/zm-prod/` 로 옮겨져 있었다.
 - **Filter `AutoExecuteCmd` = 명령 실행 sink.** ZoneMinder 의 이벤트 필터는 매칭 이벤트마다 사용자가 넣은 명령을 `qx()`(백틱) 로 돌린다. 정상 기능이지만 무인증이면 그대로 RCE.
 - **PHP 7 느슨비교 타입저글링이 명령을 조용히 삼키는 함정** — 기본값 정수 `0` 과 `!=` 비교에서 비숫자 문자열이 `0` 으로 캐스팅돼 "변경 없음"으로 버려진다. **숫자로 시작하는 페이로드만 저장된다.**
-- **자동 도구가 못 찾은 경로가 로그에 유출돼 있을 수 있다** — `/server-status` 에 `GET /zm-prod/` 가 찍혀 있었는데 러너가 "미끼 소음"으로 치부했다.
+- **자동 도구가 못 찾은 경로가 로그에 유출돼 있을 수 있다** — `/server-status` 에 `GET /zm-prod/` 가 찍혀 있었는데 1차 열거에서 "미끼 소음"으로 치부했다.
 - **아웃바운드 포트는 계층별로 확인** — 443·ICMP·53 막힘, 80 열림. 백그라운드(`setsid … &`) 페이로드가 실패를 은폐한다.
 - **시험 출제 가능성**: ZoneMinder 는 PG 에 반복 출제된다([[Pebbles]] 는 1.29.0 SQLi). "무인증 CCTV/감시 웹앱 + `?view=` 라우팅" 을 보면 곧바로 버전·인증 상태부터 확인하는 반사가 전이된다. 명령 실행 필터/스크립트 훅이 있는 관리 웹앱(ZoneMinder·Cacti·Nagios·LibreNMS 류) 전반에 같은 접근이 통한다.
 
@@ -59,7 +59,7 @@ PORT   STATE SERVICE VERSION
 
 `/` 는 `Cobbles` 라는 로그인 폼(`index.php`, POST username/password)이다. 응답 헤더에 `x-backend-server: primary`, Set-Cookie 없음. `/server-status`(mod_status) 가 열려 있어 백엔드 VHost 가 `127.0.0.1:8080` 임이 드러난다 — 즉 80 Apache 는 8080 백엔드로의 프록시다.
 
-**여기서 러너와 web-exploit 이 갈렸다.** `/server-status` 스코어보드에는 내부 디렉터리 스캐너의 버스트가 계속 찍혔고, 그 안에 **`GET /zm-prod/ HTTP/1.0`** 이 섞여 있었다(`burst.txt` 에 105회, `burst_uniq.txt` 에 유니크로 남음). 러너는 이 스캐너 트래픽을 통째로 "로그를 채우는 미끼 소음" 으로 판단하고 버렸다. web-exploit 은 그 로그 줄을 **경로 힌트**로 읽었다 — 이게 진입의 전부다(6장 함정 3).
+**여기서 1차 열거와 재검토가 갈렸다.** `/server-status` 스코어보드에는 내부 디렉터리 스캐너의 버스트가 계속 찍혔고, 그 안에 **`GET /zm-prod/ HTTP/1.0`** 이 섞여 있었다(`burst.txt` 에 105회, `burst_uniq.txt` 에 유니크로 남음). 1차 열거에서는 이 스캐너 트래픽을 통째로 "로그를 채우는 미끼 소음" 으로 판단하고 버렸다. 재검토에서는 그 로그 줄을 **경로 힌트**로 읽었다 — 이게 진입의 전부다(6장 함정 3).
 
 디렉터리 브루트(feroxbuster: common / directory-list-2.3-medium ~220k×php,txt,html,bak / raft-large-directories)는 `index.php` `style.css` `favicon.png` `server-status` 밖에 못 찾았다. **워드리스트에 `zm-prod` 가 없었기 때문**이다. 자동 열거가 0을 뱉어도 앱이 없는 게 아니라, 워드리스트에 그 이름이 없을 뿐이었다.
 
@@ -126,7 +126,7 @@ if ( $this->{$field} != $value ) {
 - `0 != "id > /tmp/x"` → 비숫자 문자열은 `(int)0` 으로 캐스팅 → `0 != 0` = **false** → 변경으로 안 잡힘 → `AutoExecuteCmd` 는 기본값 `0` 그대로 저장된다.
 - 그러면 `zmfilter.pl` 은 `qx("0 /event/path")` 를 돌리고 — 셸에는 `0` 이라는 명령이 없다. 로그에 **`Executing '0 /path/to/event'`** 가 남는다. 명령이 통째로 버려진 것이다.
 
-web-exploit 이 무인증 로그 뷰에서 이 `Executing '0 …'` 를 관측한 게 결정타였다. 저장값이 `0` 으로 남았다는 것은 위 캐스팅으로만 설명된다. **앞선 두 번의 리버스셸 시도가 아무 에러 없이 실패한 이유가 이것**이었다 — 페이로드가 `setsid`·`bash` 처럼 비숫자로 시작해 전부 삼켜졌다.
+재검토에서 무인증 로그 뷰의 이 `Executing '0 …'` 를 관측한 게 결정타였다. 저장값이 `0` 으로 남았다는 것은 위 캐스팅으로만 설명된다. **앞선 두 번의 리버스셸 시도가 아무 에러 없이 실패한 이유가 이것**이었다 — 페이로드가 `setsid`·`bash` 처럼 비숫자로 시작해 전부 삼켜졌다.
 
 우회는 간단하다. **명령 앞에 `9;`(또는 `1;`) 를 붙여 nonzero 로 캐스팅**시킨다:
 
@@ -247,7 +247,7 @@ $2b$12$NHZsm6AM2f2LQVROriz79ul3D6DnmFiZC.ZK5eqbF.ZWfwH9bqUJ6
 **남은 lead 둘 (둘 다 「시도하지 않음」·`[가정]`):**
 
 1. `[가정]` **logrotate postrotate 훅** — `/etc/logrotate.d/zoneminder` 가 회전 후 `/usr/bin/zmpkg.pl` 류를 root 로 실행하고, `/var/log/zm/*` 가 www-data 쓰기 가능이라면 회전 시점에 권한상승 여지가 있다. 다만 zoneminder logrotate 는 대개 **weekly** 라 시험 시간 안에 트리거하기 어렵다(강제 회전은 root 권한이 필요). 실제 훅 내용·주기는 이 박스에서 확인하지 못했다.
-2. `[가정]` **커널 익스플로잇** — `uname -r` 5.10.0-15(Debian bullseye). 후보는 있으나 공유 랩에서 커널 익스는 리스크가 커 총괄 미승인으로 시도하지 않았다.
+2. `[가정]` **커널 익스플로잇** — `uname -r` 5.10.0-15(Debian bullseye). 후보는 있으나 공유 랩에서 커널 익스는 리스크가 커 승인 없이 시도하지 않았다.
 
 ## 5. 플래그
 
@@ -282,15 +282,15 @@ $2b$12$NHZsm6AM2f2LQVROriz79ul3D6DnmFiZC.ZK5eqbF.ZWfwH9bqUJ6
 > [!warning] 원격 방화벽 오독 주의
 > 이 박스의 raw `egress*.log` 에 찍힌 `192.168.248.214.80 > 192.168.45.207.xxxxx` 패킷들은 **connect-back 이 아니라 내 curl 요청에 대한 타겟 Apache 의 응답**(source port 80)이다. connect-back 증거는 `try*_.log` 의 0-packet 캡처와 최종 80 셸 성립이다. tcpdump 원문을 connect-back 으로 오독하지 말 것.
 
-### 함정 3 — 러너가 웹앱을 통째로 놓쳤다 (진입점이 로그에 있었다)
+### 함정 3 — 웹앱을 통째로 놓쳤다 (진입점이 로그에 있었다)
 
-이 박스는 **먼저 실패했다.** 러너는 로그인 폼(`index.php`)만 실질 표면으로 보고 2.5시간을 태웠다:
+이 박스는 **먼저 실패했다.** 초기 침투 시도에서는 로그인 폼(`index.php`)만 실질 표면으로 보고 2.5시간을 태웠다:
 
 - **비밀번호 브루트** — hydra→ffuf(100스레드) rockyou 로 웹 로그인을 때려 **2.13M/14.3M 시도, 히트 0**. (유저 열거로 `sam` 하나는 확인됨: `Invalid username!` vs `Invalid password!`.)
 - **리버스프록시 헤더 미끼** — `x-backend-server: primary` 를 "primary 가 있으면 secondary 가 있다" 로 읽고 300+ 요청으로 secondary 백엔드를 찾아 헤맴. 완전 정적 헤더였다.
 - **request smuggling / traversal** — CVE-2023-25690, CVE-2021-41773/42013 전부 부정(순수 ProxyPass, 패치됨).
 
-**이 셋은 전부 진짜 앱(`/zm-prod/`)에 도달조차 못 한 상태에서 벌인 것**이었다. 그런데 진입점은 처음부터 로그에 있었다 — `/server-status` 스코어보드의 내부 스캐너 버스트에 **`GET /zm-prod/ HTTP/1.0`** 이 105회 찍혀 있었고(`burst.txt`), 러너는 스캐너 트래픽 전체를 "미끼 소음" 으로 치웠다.
+**이 셋은 전부 진짜 앱(`/zm-prod/`)에 도달조차 못 한 상태에서 벌인 것**이었다. 그런데 진입점은 처음부터 로그에 있었다 — `/server-status` 스코어보드의 내부 스캐너 버스트에 **`GET /zm-prod/ HTTP/1.0`** 이 105회 찍혀 있었고(`burst.txt`), 그때는 스캐너 트래픽 전체를 "미끼 소음" 으로 치웠다.
 
 교훈: **자동 도구(feroxbuster)가 못 찾은 경로가 로그에 노출돼 있을 수 있다.** 워드리스트에 `zm-prod` 가 없으면 dirbust 는 영원히 0을 준다. `/server-status`·access 로그·referrer 같은 데 남은 경로 문자열을 **눈으로 읽는 것**이, 브루트를 한 시간 더 돌리는 것보다 낫다. "미끼 소음" 판정을 내리기 전에 그 소음이 참조하는 경로를 한 번은 직접 쳐 봐라.
 
@@ -302,7 +302,7 @@ ZoneMinder 1.34.x 하면 CVE-2023-26035(`?view=snapshot` 미인증 RCE, msf `zon
 
 1. **무인증 감시/관리 웹앱을 보면 버전·인증 상태부터.** ZoneMinder·Cacti·Nagios·LibreNMS 류는 "매칭 이벤트에 명령 실행" 같은 스크립트 훅을 정상 기능으로 갖는다. 무인증이면 그 훅 = RCE.
 2. **저장 폼 200 ≠ 저장 성공.** 명령 실행형 기능에서 콜백이 없으면 방화벽을 의심하기 전에 앱 로그로 "실제 실행된 명령" 을 확인하라. 여기선 정수 기본값과의 느슨비교가 값을 삼켰고, 로그의 `Executing '0 …'` 가 정답을 알려줬다.
-3. **자동 도구 0 = 앱 부재 아님.** dirbust 가 아무것도 못 찾으면 워드리스트에 그 이름이 없을 뿐일 수 있다. `/server-status`·로그·헤더에 남은 경로를 눈으로 읽어라. 러너가 여기서 2.5시간을 잃었다.
+3. **자동 도구 0 = 앱 부재 아님.** dirbust 가 아무것도 못 찾으면 워드리스트에 그 이름이 없을 뿐일 수 있다. `/server-status`·로그·헤더에 남은 경로를 눈으로 읽어라. 여기서 2.5시간을 잃었다.
 4. **아웃바운드는 계층별로.** 443·ICMP·53 막히고 80만 열리는 구성이 흔하다. 진단은 전경·출력캡처형으로 실행부터 확정하고, 포트를 443→80→53 로 바꿔가며 좁힌다. `setsid … &` 백그라운드는 실패를 은폐하니 진단 단계에서 쓰지 마라.
 5. **손절**: 유저 열거가 된다고 브루트 박스가 아니다. rockyou 앞 수만 개에 안 나오면(여기선 2.1M 무히트) 그 시점이 방향 전환점이다.
 
@@ -322,8 +322,8 @@ ZoneMinder 1.34.x 하면 CVE-2023-26035(`?view=snapshot` 미인증 RCE, msf `zon
 ## 남긴 흔적 / 관련 노트
 
 - **셸 획득 후 정리**: `pwn` Monitor 와 실행한 Filter 는 ZoneMinder DB 에 남아 있을 수 있다(무인증 콘솔에서 삭제 가능). 업로드 파일: `/var/cache/zoneminder/cache/o.txt`(id 출력). tmux 세션·리스너는 종료.
-  - ⚠️ `~/PG/Cobbles/traces_confirmed.log` 는 **러너 단계(05:51)에 쓰인 것으로 "셸 미획득" 이라 적혀 있으나, 이후 web-exploit 이 셸을 얻었다** — 그 파일은 최종 상태가 아니다.
-- **타겟 로그**: access.log 에 러너의 웹 브루트 ~2.1M, auth.log 에 sam SSH 실패 ~700 — 러너 단계 흔적, 셸 없던 시점이라 정리 불가.
+  - ⚠️ `~/PG/Cobbles/traces_confirmed.log` 는 **초기 침투 단계(05:51)에 쓰인 것으로 "셸 미획득" 이라 적혀 있으나, 이후 재검토에서 셸을 얻었다** — 그 파일은 최종 상태가 아니다.
+- **타겟 로그**: access.log 에 초기 침투 단계의 웹 브루트 ~2.1M, auth.log 에 sam SSH 실패 ~700 — 셸 없던 시점이라 정리 불가.
 - Kali `~/PG/Cobbles/` 산출물 보존: `nmap.log`, `zm-src/`, `mon.data`·`rce.data`·`rsh80.data` 등 필터 페이로드, `zm_post.sh`/`zm_rce.sh` 헬퍼, `admin.hash`, `egress*.log`·`try*.log`, `burst*.txt`, `NOTES_final.txt`·`WEB_ENTRY_FINDING.txt`·`writeup_notes.txt`, 스크린샷.
-- 스크린샷: `![[PG-Cobbles-zm-version.png]]`(버전) · `![[PG-Cobbles-zm-console.png]]`(무인증 콘솔+pwn Monitor). 러너의 `PG-Cobbles-login.png`·`PG-Cobbles-serverstatus.png` 도 `파일보관\` 에 보존(로그 대체 가능이라 본문 미첨부).
-- 상세: `03. PG/_AUDIT/Cobbles-run.md`(러너 실패 서사) · 유사 표면 [[Pebbles]] · [[_STATUS]]
+- 스크린샷: `![[PG-Cobbles-zm-version.png]]`(버전) · `![[PG-Cobbles-zm-console.png]]`(무인증 콘솔+pwn Monitor). 초기 열거 때 찍은 `PG-Cobbles-login.png`·`PG-Cobbles-serverstatus.png` 도 `파일보관\` 에 보존(로그 대체 가능이라 본문 미첨부).
+- 유사 표면 [[Pebbles]] · [[_STATUS]]

@@ -21,47 +21,48 @@ manual_tags: true
 manual_cves: true
 tech_count: 6
 ---
-> [!info] PG Practice — **Clue** · Advanced · **플래그 2/2**
-> **타겟** 192.168.115.240 (리버트 후 `.178.240` → `.239.240`) · **OS** Debian 10 buster, 커널 4.19.0-21-amd64 · **호스트명** `clue` (FQDN `clue.pg`)
-> **경로 요약** 3000 **Cassandra Web 0.5.0** 경로 traversal → `/proc/self/cmdline` 에서 `cassie:SecondBiteTheApple330` → SMB `//CLUE/backup` 약탈 → **live 설정에서** FreeSWITCH ESL 비밀번호 `StrongClueConEight021` → **8021 ESL `api system`** 으로 명령 실행 → `su cassie` → `sudo -u root cassandra-web` 로 **같은 취약점을 root 권한으로 재사용** → `/home/anthony/.ssh/id_rsa` → **`ssh root@`**
+> [!info] PG Practice — Clue · Advanced · **플래그 2/2**
+> 타겟 192.168.115.240 (리버트 후 `.178.240` → `.239.240`) · OS Debian 10 buster, 커널 4.19.0-21-amd64 · 호스트명 `clue` (FQDN `clue.pg`)
+> **경로 요약** 3000 Cassandra Web 0.5.0 경로 traversal → `/proc/self/cmdline` 에서 `cassie:SecondBiteTheApple330` → SMB `//CLUE/backup` 약탈 → live 설정에서 FreeSWITCH ESL 비밀번호 `StrongClueConEight021` → 8021 ESL `api system` 으로 명령 실행 → `su cassie` → `sudo -u root cassandra-web` 로 같은 취약점을 root 권한으로 재사용 → `/home/anthony/.ssh/id_rsa` → `ssh root@`
 
-> [!danger] 이 박스의 진짜 값어치는 **막다른 길 세 개**에 있다
-> 익스플로잇 후보가 셋이었다. Kali 산출물의 타임스탬프로 승패가 확정된다:
->
-> | 시각(`~/PG/Clue/` mtime) | 후보 | 결과 |
-> |---|---|---|
-> | 06-16 **10:27** clone → **10:31** `__pycache__` | `CVE-2021-44142/` (Samba vfs_fruit) | ❌ **막다른 길** — 4분 만에 버려졌다 |
-> | 06-16 **13:58** | `49362.py` (Cassandra Web RFR) | ✅ **성공** — 자격증명 채굴의 출발점 |
-> | 06-16 **16:47** | `47799.py` (FreeSWITCH ESL) | ✅ **성공** — 단, **원문 그대로는 실패한다.** 손으로 고쳐야 했다 |
-> | 06-22 **13:12** | `id_rsa` | ✅ root |
->
-> `__pycache__` 가 clone보다 4분 늦다는 것은 **`check_vulnerable.py` 를 실제로 실행했다**는 증거다(임포트가 컴파일됐다). 그리고 그 뒤로 그 디렉터리에 아무 일도 일어나지 않았다. §2-6과 §6-①에서 **왜 처음부터 될 수 없었는지**를 소스와 벤더 어드바이저리로 확정한다.
+**이 박스의 진짜 값어치는 막다른 길 세 개에 있다**
+
+익스플로잇 후보가 셋이었다. Kali 산출물의 타임스탬프로 승패가 확정된다:
+
+| 시각(`~/PG/Clue/` mtime) | 후보 | 결과 |
+|---|---|---|
+| 06-16 10:27 clone → 10:31 `__pycache__` | `CVE-2021-44142/` (Samba vfs_fruit) | ❌ **막다른 길** — 4분 만에 버려졌다 |
+| 06-16 13:58 | `49362.py` (Cassandra Web RFR) | ✅ 성공 — 자격증명 채굴의 출발점 |
+| 06-16 16:47 | `47799.py` (FreeSWITCH ESL) | ✅ 성공 — 단, **원문 그대로는 실패한다.** 손으로 고쳐야 했다 |
+| 06-22 13:12 | `id_rsa` | ✅ root |
+
+`__pycache__` 가 clone보다 4분 늦다는 것은 **`check_vulnerable.py` 를 실제로 실행했다**는 증거다(임포트가 컴파일됐다). 그리고 그 뒤로 그 디렉터리에 아무 일도 일어나지 않았다. §2-6과 §6-①에서 왜 처음부터 될 수 없었는지를 소스와 벤더 어드바이저리로 확정한다.
 
 > [!warning] 관측된 것과 재구성한 것 · 그리고 IP가 세 번 바뀐다
-> - **실증됨** — §1 nmap(`nmap.log` 대조) · §2 익스플로잇 메커니즘(**디스크의 `49362.py`·`47799.py`·`CVE-2021-44142/apple.py` 원문**) · §2-5 ESL ACL(**SMB로 약탈한 실제 설정 파일**) · §4 `sudo -l`(스크린샷) · §6 시행착오 명령(**`~/.zsh_history` 회수**) · §6 도구 동작(Kali에서 직접 실행)
+> - **실증됨** — §1 nmap(`nmap.log` 대조) · §2 익스플로잇 메커니즘(디스크의 `49362.py`·`47799.py`·`CVE-2021-44142/apple.py` 원문) · §2-5 ESL ACL(SMB로 약탈한 실제 설정 파일) · §4 `sudo -l`(스크린샷) · §6 시행착오 명령(`~/.zsh_history` 회수) · §6 도구 동작(Kali에서 직접 실행)
 > - **원본 노트 보존** — §3·§4·§5의 터미널 출력은 원본 writeup의 기록을 그대로 옮겼다
-> - **IP 변천** — 박스가 리버트되며 `192.168.115.240` → `192.168.178.240` → `192.168.239.240` 로 바뀌었다. 본문의 IP가 장마다 다른 것은 **오타가 아니라 실제 기록**이다. §6-⑨ 참조
+> - **IP 변천** — 박스가 리버트되며 `192.168.115.240` → `192.168.178.240` → `192.168.239.240` 로 바뀌었다. 본문의 IP가 장마다 다른 것은 오타가 아니라 실제 기록이다. §6-⑨ 참조
 
 ---
 
 ## 0. 이 박스에서 배우는 것
 
-- **`/proc/self/cmdline` 은 파일 읽기 취약점의 최우선 목표다** — 자격증명이 CLI 인자로 넘어가는 서비스는 프로세스 인자에 **평문으로 박혀 있다**
-- **백업은 현재 상태가 아니다** — SMB에서 훔친 설정 파일의 비밀번호(`ClueCon`)는 **틀렸다.** 같은 파일의 **live 버전**에는 다른 값이 들어 있었다
-- **같은 취약점을 두 번, 다른 권한으로 쓴다** — 이 박스의 권한상승은 새 취약점이 아니라 **§2의 traversal을 root 권한 프로세스에 다시 거는 것**이다. 이 발상이 이 박스의 핵심이다
-- **키 파일의 주석은 소유자가 아니다** — `anthony@clue` 라고 적힌 키로 로그인되는 계정은 **root** 였다
-- **공개 PoC는 그대로 돌아가지 않는다** — `47799.py` 는 하드코딩된 비밀번호를 고쳐야 했고, 고친 뒤에도 **주석은 거짓말로 남는다**
-- **막다른 길을 4분 만에 접는 법** — CVE-2021-44142는 버전은 맞았지만 **설정 게이트**가 안 맞았다. 버전만 보고 던지면 안 되는 이유
+- **`/proc/self/cmdline` 은 파일 읽기 취약점의 최우선 목표다** — 자격증명이 CLI 인자로 넘어가는 서비스는 프로세스 인자에 평문으로 박혀 있다
+- **백업은 현재 상태가 아니다** — SMB에서 훔친 설정 파일의 비밀번호(`ClueCon`)는 틀렸다. 같은 파일의 live 버전에는 다른 값이 들어 있었다
+- **같은 취약점을 두 번, 다른 권한으로 쓴다** — 이 박스의 권한상승은 새 취약점이 아니라 §2의 traversal을 root 권한 프로세스에 다시 거는 것이다. 이 발상이 이 박스의 핵심이다
+- **키 파일의 주석은 소유자가 아니다** — `anthony@clue` 라고 적힌 키로 로그인되는 계정은 root 였다
+- **공개 PoC는 그대로 돌아가지 않는다** — `47799.py` 는 하드코딩된 비밀번호를 고쳐야 했고, 고친 뒤에도 주석은 거짓말로 남는다
+- **막다른 길을 4분 만에 접는 법** — CVE-2021-44142는 버전은 맞았지만 설정 게이트가 안 맞았다. 버전만 보고 던지면 안 되는 이유
 
 > [!tip] 시험 출제 가능성
 >
 > | 요소 | 출제 가능성 | 이유 |
 > |---|---|---|
-> | **디렉터리 traversal → 파일 읽기 → 자격증명** | **매우 높음** | 시험 단골. `/proc/self/cmdline`·`/proc/self/environ`·설정 파일이 표준 목표다 |
-> | **훔친 자격증명의 재사용(SMB↔SSH↔서비스)** | **매우 높음** | 자격증명 하나로 **모든 서비스를 전부 시도**하는 것이 시험의 기본 반사다 |
-> | **`sudo -l` NOPASSWD 바이너리 악용** | **매우 높음** | GTFOBins에 없는 바이너리도 나온다. **그 프로그램이 무엇을 하는지**로 풀어야 한다 — 이 박스가 정확히 그 경우다 |
-> | **SSH 개인키 → 로그인** | **매우 높음** | 키를 주웠으면 **모든 사용자 이름으로 시도**한다. 주석을 믿지 않는다 |
-> | FreeSWITCH·Cassandra Web | 낮음 | 제품은 안 나온다. **"관리 소켓이 인증만 통과하면 명령을 실행해 준다"** 는 유형이 나온다 |
+> | 디렉터리 traversal → 파일 읽기 → 자격증명 | 매우 높음 | 시험 단골. `/proc/self/cmdline`·`/proc/self/environ`·설정 파일이 표준 목표다 |
+> | 훔친 자격증명의 재사용(SMB↔SSH↔서비스) | 매우 높음 | 자격증명 하나로 **모든 서비스를 전부 시도**하는 것이 시험의 기본 반사다 |
+> | `sudo -l` NOPASSWD 바이너리 악용 | 매우 높음 | GTFOBins에 없는 바이너리도 나온다. **그 프로그램이 무엇을 하는지**로 풀어야 한다 — 이 박스가 정확히 그 경우다 |
+> | SSH 개인키 → 로그인 | 매우 높음 | 키를 주웠으면 **모든 사용자 이름으로 시도**한다. 주석을 믿지 않는다 |
+> | FreeSWITCH·Cassandra Web | 낮음 | 제품은 안 나온다. "관리 소켓이 인증만 통과하면 명령을 실행해 준다" 는 유형이 나온다 |
 >
 > 변형은 이런 모습이다 — Cassandra Web 대신 임의 Rack/Sinatra 앱, ESL 대신 Redis(`6379`)·Docker API(`2375`)·Jenkins CLI. **"관리 포트 + 약한 인증 = 명령 실행"** 은 같다.
 
@@ -141,20 +142,20 @@ Nmap done: 1 IP address (1 host up) scanned in 84.98 seconds
 
 ### 1-2. 이 출력에서 읽어야 할 것 — 공격면 6개의 우선순위
 
-> [!note] `Not shown: 65529 filtered tcp ports (no-response)`
-> Flu는 `closed ... (reset)` 이었는데 여기는 `filtered ... (no-response)` 다. **방화벽이 앞에 있다**는 뜻이고, 그래서 nmap이 OS 지문을 못 잡았다(`could not find at least 1 open and 1 closed port`). 열린 6개 외에는 **아무 응답도 안 온다** — 즉 **리버스셸의 아웃바운드도 의심 대상**이다.
+`Not shown: 65529 filtered tcp ports (no-response)` — Flu는 `closed ... (reset)` 이었는데 여기는 `filtered ... (no-response)` 다. **방화벽이 앞에 있다**는 뜻이고, 그래서 nmap이 OS 지문을 못 잡았다(`could not find at least 1 open and 1 closed port`). 열린 6개 외에는 아무 응답도 안 온다 — 즉 리버스셸의 아웃바운드도 의심 대상이다.
 
 | 포트 | 판정 | 우선순위와 이유 |
 |---|---|---|
-| **3000** Thin httpd, `http-title: Cassandra Web` | **제품명이 제목에 그대로** | **1순위.** 제품명 + 소규모 OSS = exploit-db 적중률 최고 |
-| **8021** `freeswitch-event FreeSWITCH mod_event_socket` | nmap이 **정확히 지문 식별** | **2순위.** ESL은 **인증만 통과하면 명령을 실행해 주는 관리 소켓**이다 |
-| **445/139** Samba **4.9.5-Debian** | 버전 확정 | 3순위. 자격증명이 생기면 즉시 돌아온다 |
-| **80** Apache 2.4.38, **403 Forbidden** | 루트가 막혀 있다 | 4순위. 디렉터리 열거 대상 |
-| **22** OpenSSH 7.9p1 | Debian 10 확정 | 자격증명 대기 |
+| **3000** Thin httpd, `http-title: Cassandra Web` | 제품명이 제목에 그대로 | **1순위.** 제품명 + 소규모 OSS = exploit-db 적중률 최고 |
+| **8021** `freeswitch-event FreeSWITCH mod_event_socket` | nmap이 정확히 지문 식별 | **2순위.** ESL은 인증만 통과하면 명령을 실행해 주는 관리 소켓이다 |
+| 445/139 Samba 4.9.5-Debian | 버전 확정 | 3순위. 자격증명이 생기면 즉시 돌아온다 |
+| 80 Apache 2.4.38, 403 Forbidden | 루트가 막혀 있다 | 4순위. 디렉터리 열거 대상 |
+| 22 OpenSSH 7.9p1 | Debian 10 확정 | 자격증명 대기 |
 
-> [!tip] `Service Info: Hosts: 127.0.0.1, CLUE` 와 `Domain name: pg`
-> `smb-os-discovery` 가 호스트명 `clue`, FQDN `clue.pg` 를 그냥 알려준다. **인증 없이** 얻는 정보다.
-> 그리고 `OS: Windows 6.1 (Samba 4.9.5-Debian)` — **Windows가 아니다.** Samba가 하위 호환을 위해 Windows 7 문자열을 광고하는 것이다. 여기에 속아 Windows 익스플로잇을 찾으면 시간을 태운다.
+**`Service Info: Hosts: 127.0.0.1, CLUE` 와 `Domain name: pg`**
+
+`smb-os-discovery` 가 호스트명 `clue`, FQDN `clue.pg` 를 그냥 알려준다. **인증 없이** 얻는 정보다.
+그리고 `OS: Windows 6.1 (Samba 4.9.5-Debian)` — Windows가 아니다. Samba가 하위 호환을 위해 Windows 7 문자열을 광고하는 것이다. 여기에 속아 Windows 익스플로잇을 찾으면 시간을 태운다.
 
 ### 1-3. Cassandra Web — 버전 판정
 
@@ -183,10 +184,10 @@ Copied to: /home/kali/PG/Clue/49362.py
 
 ![[Pasted image 20260616140217.png]]
 
-> [!warning] 버전 근거가 **1개뿐**이다 — 이 박스가 운이 좋았던 지점
-> nmap은 `http-title: Cassandra Web` 만 알려줬을 뿐 **버전은 말하지 않았다.** exploit-db에 Cassandra Web 항목이 하나뿐이라 자연히 0.5.0을 골랐고, 결과적으로 맞았다.
-> **이건 판정이 아니라 도박이었다.** 사후에 `/proc/self/cmdline` 이 `ruby2.5 ... cassandra-web` 을 보여줬고, 익스플로잇의 traversal 깊이 상수(§2-2)가 실제 gem 경로 깊이와 맞아떨어진 것이 **사후 검증**이 됐다.
-> `Codes: N/A` · `Verified: False` 에도 주목하라 — **CVE 번호가 없고 EDB가 검증도 안 한 익스플로잇**이다. 누적 교훈 2번("버전 판정은 독립 근거 2개")을 만족하지 못한 채 던진 것이다. [[Hub]] · [[Levram]] 참조.
+> [!warning] 버전 근거가 1개뿐이다 — 이 박스가 운이 좋았던 지점
+> nmap은 `http-title: Cassandra Web` 만 알려줬을 뿐 버전은 말하지 않았다. exploit-db에 Cassandra Web 항목이 하나뿐이라 자연히 0.5.0을 골랐고, 결과적으로 맞았다.
+> **이건 판정이 아니라 도박이었다.** 사후에 `/proc/self/cmdline` 이 `ruby2.5 ... cassandra-web` 을 보여줬고, 익스플로잇의 traversal 깊이 상수(§2-2)가 실제 gem 경로 깊이와 맞아떨어진 것이 사후 검증이 됐다.
+> `Codes: N/A` · `Verified: False` 에도 주목하라 — CVE 번호가 없고 EDB가 검증도 안 한 익스플로잇이다. 누적 교훈 2번("버전 판정은 독립 근거 2개")을 만족하지 못한 채 던진 것이다. [[Hub]] · [[Levram]] 참조.
 
 ---
 
@@ -205,12 +206,13 @@ Cassandra Web은 Ruby(Sinatra/Rack) 기반 웹 UI이고, 정적 자산을 gem �
 
 **핵심은 두 문장이다:**
 
-1. `Rack::Protection` 이 **꺼져 있다** — 이 미들웨어 묶음에 `Rack::Protection::PathTraversal` 이 들어 있고, 그것이 요청 경로의 `../` 를 정규화해 주는 역할을 한다. 꺼 두면 정적 파일 핸들러가 `../` 가 든 경로를 **그대로 파일시스템 경로로 이어붙인다.**
+1. `Rack::Protection` 이 **꺼져 있다** — 이 미들웨어 묶음에 `Rack::Protection::PathTraversal` 이 들어 있고, 그것이 요청 경로의 `../` 를 정규화해 주는 역할을 한다. 꺼 두면 정적 파일 핸들러가 `../` 가 든 경로를 그대로 파일시스템 경로로 이어붙인다.
 2. **자격증명이 CLI 인자로 넘어간다** — 그래서 파일 읽기만으로 자격증명이 샌다. 이게 §2-3이다.
 
-> [!note] 이 결함에는 CVE 번호가 없다
-> EDB 49362의 `Codes: N/A` 가 그 표시다. 저자는 GitHub 저장소와 v0.6.0에서 고쳐졌다고만 적었다.
-> **CVE가 없다고 안 위험한 게 아니다.** 그리고 이 노트의 프론트매터에 `cves:` 항목이 아예 없는 이유이기도 하다 — 이 박스를 뚫은 것 중 CVE 번호가 붙은 것은 **하나도 없다.**
+**이 결함에는 CVE 번호가 없다**
+
+EDB 49362의 `Codes: N/A` 가 그 표시다. 저자는 GitHub 저장소와 v0.6.0에서 고쳐졌다고만 적었다.
+CVE가 없다고 안 위험한 게 아니다. 그리고 이 노트의 프론트매터에 `cves:` 항목이 아예 없는 이유이기도 하다 — 이 박스를 뚫은 것 중 CVE 번호가 붙은 것은 **하나도 없다.**
 
 ### 2-2. 왜 `../` 를 여덟 번인가 — 상수의 의미
 
@@ -233,12 +235,13 @@ public(1) → app(2) → cassandra-web-0.5.0(3) → gems(4)
   → 2.7.0(5) → gems(6) → lib(7) → var(8)     = 8 단계
 ```
 
-> [!tip] 타겟의 루비는 **2.5** 였는데 왜 8이 그대로 맞았나
-> `/proc/self/cmdline` 이 `/usr/bin/ruby2.5` 를 보여줬으니 실제 경로는 `.../gems/2.5.0/gems/...` 다. **버전 문자열만 다르고 깊이는 같다** — 그래서 8이 그대로 통했다.
->
-> 그리고 **초과 traversal은 무해하다.** POSIX에서 `/..` 는 `/` 다. 루트에 도달한 뒤의 `../` 는 아무 일도 하지 않는다.
-> **그래서 애매하면 넉넉하게 넣는 것이 정답이다** — §4에서 손으로 칠 때 9개를 쓴 이유다. 모자라면 실패하지만 넘쳐도 성공한다.
-> 깊이를 조절해야 하면 `-n` 이 있다: `python 49362.py TARGET /etc/passwd -n 12`
+**타겟의 루비는 2.5 였는데 왜 8이 그대로 맞았나**
+
+`/proc/self/cmdline` 이 `/usr/bin/ruby2.5` 를 보여줬으니 실제 경로는 `.../gems/2.5.0/gems/...` 다. 버전 문자열만 다르고 깊이는 같다 — 그래서 8이 그대로 통했다.
+
+그리고 초과 traversal은 무해하다. POSIX에서 `/..` 는 `/` 다. 루트에 도달한 뒤의 `../` 는 아무 일도 하지 않는다.
+그래서 애매하면 넉넉하게 넣는 것이 정답이다 — §4에서 손으로 칠 때 9개를 쓴 이유다. 모자라면 실패하지만 넘쳐도 성공한다.
+깊이를 조절해야 하면 `-n` 이 있다: `python 49362.py TARGET /etc/passwd -n 12`
 
 익스플로잇의 판정 로직도 읽어 둘 값어치가 있다 (원문):
 
@@ -265,21 +268,23 @@ if(SIGNATURE in req.text):
 
 Cassandra Web은 백엔드 Cassandra DB에 붙기 위한 자격증명을 **커맨드라인 인자로** 받는다. 그래서 argv에 평문으로 있다.
 
-> [!danger] `ps aux` 로 자격증명이 보인다면, `/proc/*/cmdline` 로도 보인다
-> 이건 Cassandra Web의 결함이 아니라 **커널이 제공하는 정상 동작**이다. 어떤 프로그램이든 비밀을 CLI 인자로 받으면 **같은 호스트의 모든 사용자에게 노출**된다.
-> **파일 읽기를 얻었을 때의 표준 목표 목록:**
->
-> | 경로 | 무엇이 나오나 |
-> |---|---|
-> | `/proc/self/cmdline` | **그 서비스 자신의 argv** ← 이 박스의 정답 |
-> | `/proc/self/environ` | 환경변수 (DB URL·토큰·`AWS_SECRET_*`) |
-> | `/proc/self/cwd/<파일>` | 앱 작업 디렉터리 기준 상대 경로 접근 |
-> | `/proc/sched_debug` · `/proc/net/tcp` | **다른 프로세스의 PID 목록** → `/proc/<pid>/cmdline` 으로 확장 |
-> | `/etc/passwd` | 사용자 목록 + 홈 경로 (동작 확인 겸용) |
-> | `~/.ssh/id_rsa` · `~/.bash_history` | 키와 명령 이력 |
-> | 앱 설정 파일 | DB 비밀번호 |
->
-> 익스플로잇 자신의 `-h` 도움말이 `/proc/sched_debug + /proc/<cass-web-pid>/cmdline` 을 예시로 적어 둔 것은 그래서다.
+#### `ps aux` 로 자격증명이 보인다면, `/proc/*/cmdline` 로도 보인다
+
+이건 Cassandra Web의 결함이 아니라 **커널이 제공하는 정상 동작**이다. 어떤 프로그램이든 비밀을 CLI 인자로 받으면 같은 호스트의 모든 사용자에게 노출된다.
+
+파일 읽기를 얻었을 때의 표준 목표 목록:
+
+| 경로 | 무엇이 나오나 |
+|---|---|
+| `/proc/self/cmdline` | 그 서비스 자신의 argv ← 이 박스의 정답 |
+| `/proc/self/environ` | 환경변수 (DB URL·토큰·`AWS_SECRET_*`) |
+| `/proc/self/cwd/<파일>` | 앱 작업 디렉터리 기준 상대 경로 접근 |
+| `/proc/sched_debug` · `/proc/net/tcp` | 다른 프로세스의 PID 목록 → `/proc/<pid>/cmdline` 으로 확장 |
+| `/etc/passwd` | 사용자 목록 + 홈 경로 (동작 확인 겸용) |
+| `~/.ssh/id_rsa` · `~/.bash_history` | 키와 명령 이력 |
+| 앱 설정 파일 | DB 비밀번호 |
+
+익스플로잇 자신의 `-h` 도움말이 `/proc/sched_debug + /proc/<cass-web-pid>/cmdline` 을 예시로 적어 둔 것은 그래서다.
 
 ### 2-4. FreeSWITCH ESL — "인증하면 명령을 실행해 주는" 소켓
 
@@ -299,23 +304,24 @@ if b'auth/request' in response:
 | 단계 | 와이어에 흐르는 것 | 의미 |
 |---|---|---|
 | 1 | 서버 → `Content-Type: auth/request` | 접속하면 서버가 먼저 인증을 요구한다 |
-| 2 | 클라 → `auth <password>\n\n` | **사용자 이름이 없다.** 비밀번호 하나뿐이다 |
+| 2 | 클라 → `auth <password>\n\n` | 사용자 이름이 없다. 비밀번호 하나뿐이다 |
 | 3 | 서버 → `+OK accepted` | 통과 |
 | 4 | 클라 → `api system <cmd>\n\n` | **`system` API 가 셸 명령을 그대로 실행한다** |
 
-> [!danger] 빈 줄 두 개(`\n\n`)가 프로토콜의 종결자다
-> ESL은 명령을 **빈 줄로 끝낸다.** `\n` 하나만 보내면 서버가 계속 기다리고 아무 일도 안 일어난다.
-> 그래서 이 익스플로잇은 **`nc` 로도 손으로 재현된다** — 시험에서 스크립트를 못 쓰는 상황의 수동 대안이다:
->
-> ```
-> nc 192.168.115.240 8021
-> auth StrongClueConEight021
-> (빈 줄)
-> api system id
-> (빈 줄)
-> ```
->
-> 취약점이라 부를 것도 없다. **`api system` 은 문서에 있는 정상 기능**이다. 결함은 이 소켓이 **원격에서 도달 가능**하고 **비밀번호만으로 열린다**는 배치에 있다.
+#### 빈 줄 두 개(`\n\n`)가 프로토콜의 종결자다
+
+ESL은 명령을 **빈 줄로 끝낸다.** `\n` 하나만 보내면 서버가 계속 기다리고 아무 일도 안 일어난다.
+그래서 이 익스플로잇은 `nc` 로도 손으로 재현된다 — 시험에서 스크립트를 못 쓰는 상황의 수동 대안이다:
+
+```
+nc 192.168.115.240 8021
+auth StrongClueConEight021
+(빈 줄)
+api system id
+(빈 줄)
+```
+
+취약점이라 부를 것도 없다. `api system` 은 문서에 있는 정상 기능이다. 결함은 이 소켓이 원격에서 도달 가능하고 비밀번호만으로 열린다는 배치에 있다.
 
 ### 2-5. 왜 원격에서 되는가 — 익스플로잇 헤더의 주장을 실제 설정으로 반증한다
 
@@ -343,28 +349,28 @@ if b'auth/request' in response:
 </configuration>
 ```
 
-> [!danger] 원격 차단의 정체는 `apply-inbound-acl` 이고, **주석 처리되어 출하된다**
-> 원격 접속을 막는 것은 `apply-inbound-acl = loopback.auto` 다. 위 파일에서 그 줄은 **`<!-- -->` 안에 있다** — 즉 **적용되지 않는다.**
-> 게다가 `listen-ip` 가 `::`(모든 인터페이스)다. **기본 설정이 이미 원격에 열려 있다.**
->
-> 즉 익스플로잇 헤더의 *"By default commands are not accepted from remote hosts"* 는 **이 배포판의 설정 파일과 맞지 않는다.** 저자는 Windows 인스톨러(x64 MSI)에서 시험했고 — 헤더의 `Software Link` 가 그것이다 — 배포판마다 출하 설정이 다르다.
->
-> **이것이 표준의 "단정형 일반 지식은 때려보고 넣는다" 규칙이 필요한 이유다.** 벤더 문서나 익스플로잇 주석의 "기본값은 이렇다"는 **그 배포판·그 버전의 실제 파일**로만 확인된다. 여기서는 운 좋게 **타겟의 설정 파일 자체를 손에 넣어** 확인할 수 있었다.
+#### 원격 차단의 정체는 `apply-inbound-acl` 이고, 주석 처리되어 출하된다
 
-그리고 **live 설정은 이것과 또 다르다** (§3-4에서 traversal로 읽은 것):
+원격 접속을 막는 것은 `apply-inbound-acl = loopback.auto` 다. 위 파일에서 그 줄은 **`<!-- -->` 안에 있다** — 즉 적용되지 않는다.
+게다가 `listen-ip` 가 `::`(모든 인터페이스)다. 기본 설정이 이미 원격에 열려 있다.
 
-| 항목 | SMB 백업본 | **live (`/etc/freeswitch/...`)** |
+즉 익스플로잇 헤더의 *"By default commands are not accepted from remote hosts"* 는 이 배포판의 설정 파일과 맞지 않는다. 저자는 Windows 인스톨러(x64 MSI)에서 시험했고 — 헤더의 `Software Link` 가 그것이다 — 배포판마다 출하 설정이 다르다.
+
+이것이 표준의 "단정형 일반 지식은 때려보고 넣는다" 규칙이 필요한 이유다. 벤더 문서나 익스플로잇 주석의 "기본값은 이렇다"는 **그 배포판·그 버전의 실제 파일**로만 확인된다. 여기서는 운 좋게 타겟의 설정 파일 자체를 손에 넣어 확인할 수 있었다.
+
+그리고 live 설정은 이것과 또 다르다 (§3-4에서 traversal로 읽은 것):
+
+| 항목 | SMB 백업본 | live (`/etc/freeswitch/...`) |
 |---|---|---|
 | `listen-ip` | `::` | `0.0.0.0` |
-| `password` | **`ClueCon`** (FreeSWITCH 기본값) | **`StrongClueConEight021`** |
-| `apply-inbound-acl` | 주석 처리됨 | **줄 자체가 없음** |
+| `password` | `ClueCon` (FreeSWITCH 기본값) | **`StrongClueConEight021`** |
+| `apply-inbound-acl` | 주석 처리됨 | 줄 자체가 없음 |
 
 **백업이 현재가 아니다.** §6-⑤가 이 함정의 기록이다.
 
 ### 2-6. 막다른 길의 해부 — CVE-2021-44142 (Samba vfs_fruit)
 
-> [!abstract] 이 절은 **실패한 시도**의 분석이다
-> 실행한 것은 `check_vulnerable.py` 한 번뿐이고 **그 출력은 남아 있지 않다.** 아래 메커니즘 설명은 전부 **디스크의 PoC 소스(`~/PG/Clue/CVE-2021-44142/apple.py`·`check_vulnerable.py`·`README.md`)와 Samba 어드바이저리**에서 온 것이다. 이 박스에서 관측된 것이 아니다.
+**이 절은 실패한 시도의 분석이다.** 실행한 것은 `check_vulnerable.py` 한 번뿐이고 **그 출력은 남아 있지 않다.** 아래 메커니즘 설명은 전부 디스크의 PoC 소스(`~/PG/Clue/CVE-2021-44142/apple.py`·`check_vulnerable.py`·`README.md`)와 Samba 어드바이저리에서 온 것이다. 이 박스에서 관측된 것이 아니다.
 
 **무엇인가.** Samba의 `vfs_fruit` 모듈(macOS/Time Machine 호환 계층)이 확장 속성(EA)에 저장된 **AppleDouble 메타데이터를 파싱할 때** 생기는 힙 경계 밖 읽기/쓰기다. Pwn2Own Austin 2021에서 Western Digital PR4100을 상대로 쓰였다.
 
@@ -381,28 +387,29 @@ if b'auth/request' in response:
     assert len(b) == 402, f"len(b) == {len(b)}"
 ```
 
-전체 xattr는 **402바이트**인데 `ADEID_FINDERI` 엔트리의 offset을 **401**(버퍼 끝)로 지정한다. FinderInfo는 규격상 **32바이트**(`ADEDLEN_FINDERI = 32`)를 읽으므로 `401 + 32 = 433 > 402` — **31바이트를 버퍼 밖에서 읽는다.** 그 밖에 놓인 것이 talloc 청크 헤더라 **힙 쿠키와 연결리스트 포인터가 새어 나온다.** `check_vulnerable.py` 의 `looks_like_heap_pointer()` 가 유저스페이스 범위·NULL 페이지 아님·16바이트 정렬을 검사해 "포인터답다"고 판정하는 것이 그 확인이다.
+전체 xattr는 402바이트인데 `ADEID_FINDERI` 엔트리의 offset을 401(버퍼 끝)로 지정한다. FinderInfo는 규격상 32바이트(`ADEDLEN_FINDERI = 32`)를 읽으므로 `401 + 32 = 433 > 402` — **31바이트를 버퍼 밖에서 읽는다.** 그 밖에 놓인 것이 talloc 청크 헤더라 힙 쿠키와 연결리스트 포인터가 새어 나온다. `check_vulnerable.py` 의 `looks_like_heap_pointer()` 가 유저스페이스 범위·NULL 페이지 아님·16바이트 정렬을 검사해 "포인터답다"고 판정하는 것이 그 확인이다.
 
 읽어 내는 통로는 **NTFS 대체 데이터 스트림 문법**이다 — `Open(tree, f"{filename}:AFP_AfpInfo")` 로 EA 스트림을 열고 `afp_file.read(0, 0x3c)` 로 60바이트를 받는다. 그 60바이트의 FinderInfo 자리(오프셋 16부터 32바이트)가 곧 OOB로 읽힌 힙 내용이다.
 
-> [!danger] **왜 이 박스에서는 처음부터 될 수 없었나** — 버전이 아니라 **설정 게이트**다
-> Samba 어드바이저리를 확인했다:
->
-> | 항목 | 어드바이저리 | Clue |
-> |---|---|---|
-> | 영향 버전 | **4.13.17 미만 전부** (수정: 4.13.17 / 4.14.12 / 4.15.5) | Samba **4.9.5-Debian** → **범위 안이다** ✅ |
-> | 필수 설정 | 공유에 `vfs_fruit` 이 로드되고 `fruit:metadata=netatalk` **또는** `fruit:resource=file` (둘 다 기본값) | **확인 불가** ❌ |
-> | 필요 권한 | 파일의 **확장 속성에 쓰기 가능한** 사용자 (guest 포함 가능) | 게스트 쓰기 여부 불명 ❌ |
-> | 대상 공유 | 실재하는 공유 이름 | **`TimeMachineBackup` 은 이 박스에 없다** ❌ |
->
-> **즉 버전은 맞았고 나머지가 전부 안 맞았다.** 특히 마지막 줄이 결정적이다 — §6-①에서 보듯 공유 이름을 **README 예시에서 그대로 복사**했다.
->
-> `fruit:metadata=netatalk` 가 전제인 이유는 이 값이 **메타데이터를 Netatalk 호환 형식, 즉 `org.netatalk.Metadata` 확장 속성의 AppleDouble 블롭으로 저장**하게 만들기 때문이다. 그 파서가 터지는 코드다. 값이 `stream` 이면 애초에 AppleDouble을 파싱하지 않으므로 **취약 코드에 도달하지 않는다.**
-> [가정] Debian 기본 `smb.conf` 는 `vfs objects` 에 `fruit` 을 넣지 않는다 — 옵트인 모듈이다. 그렇다면 공유 이름이 맞았더라도 실패했을 것이다. 타겟이 정지돼 `smb.conf` 로 확인하지 못했다.
->
-> **일반화: "버전이 취약 범위에 든다"는 필요조건이지 충분조건이 아니다.** 설정 게이트가 있는 CVE는 그 게이트를 먼저 확인한다. 확인 비용이 익스플로잇 시도 비용보다 싸다.
+#### 왜 이 박스에서는 처음부터 될 수 없었나 — 버전이 아니라 설정 게이트다
 
-### 2-7. 권한상승의 발상 — **같은 취약점을 다른 권한으로 다시 건다**
+Samba 어드바이저리를 확인했다:
+
+| 항목 | 어드바이저리 | Clue |
+|---|---|---|
+| 영향 버전 | 4.13.17 미만 전부 (수정: 4.13.17 / 4.14.12 / 4.15.5) | Samba 4.9.5-Debian → **범위 안이다** ✅ |
+| 필수 설정 | 공유에 `vfs_fruit` 이 로드되고 `fruit:metadata=netatalk` 또는 `fruit:resource=file` (둘 다 기본값) | 확인 불가 ❌ |
+| 필요 권한 | 파일의 확장 속성에 쓰기 가능한 사용자 (guest 포함 가능) | 게스트 쓰기 여부 불명 ❌ |
+| 대상 공유 | 실재하는 공유 이름 | **`TimeMachineBackup` 은 이 박스에 없다** ❌ |
+
+**즉 버전은 맞았고 나머지가 전부 안 맞았다.** 특히 마지막 줄이 결정적이다 — §6-①에서 보듯 공유 이름을 README 예시에서 그대로 복사했다.
+
+`fruit:metadata=netatalk` 가 전제인 이유는 이 값이 메타데이터를 Netatalk 호환 형식, 즉 `org.netatalk.Metadata` 확장 속성의 AppleDouble 블롭으로 저장하게 만들기 때문이다. 그 파서가 터지는 코드다. 값이 `stream` 이면 애초에 AppleDouble을 파싱하지 않으므로 **취약 코드에 도달하지 않는다.**
+[가정] Debian 기본 `smb.conf` 는 `vfs objects` 에 `fruit` 을 넣지 않는다 — 옵트인 모듈이다. 그렇다면 공유 이름이 맞았더라도 실패했을 것이다. 타겟이 정지돼 `smb.conf` 로 확인하지 못했다.
+
+**일반화: "버전이 취약 범위에 든다"는 필요조건이지 충분조건이 아니다.** 설정 게이트가 있는 CVE는 그 게이트를 먼저 확인한다. 확인 비용이 익스플로잇 시도 비용보다 싸다.
+
+### 2-7. 권한상승의 발상 — 같은 취약점을 다른 권한으로 다시 건다
 
 이 박스의 권한상승에는 **새 취약점이 없다.** 재료는 두 개다:
 
@@ -411,25 +418,26 @@ if b'auth/request' in response:
 ② cassandra-web 0.5.0 은 임의 파일 읽기 취약점이 있다   ← §2-1, 이미 쓴 그것
 ```
 
-`①` 로 `②` 를 **root 권한으로 다시 띄우면**, 그 프로세스의 파일 읽기 능력이 곧 **root의 파일 읽기 능력**이 된다.
+`①` 로 `②` 를 **root 권한으로 다시 띄우면**, 그 프로세스의 파일 읽기 능력이 곧 root의 파일 읽기 능력이 된다.
 
 ```
 [기존] cassie 권한 인스턴스 :3000  ──traversal──▶ cassie 가 읽을 수 있는 파일만
 [신규] root  권한 인스턴스 :9999  ──traversal──▶ 파일시스템 전체  ← /home/anthony/.ssh/id_rsa
 ```
 
-> [!tip] 이 사고방식이 이 박스에서 가져갈 가장 큰 것
-> `sudo -l` 에 GTFOBins에 없는 낯선 바이너리가 뜨면 이렇게 묻는다:
-> **"이 프로그램이 평소에 하는 일이 뭔가? 그 일을 root 권한으로 하면 무엇이 되는가?"**
->
-> | 프로그램의 일 | root 권한이면 |
-> |---|---|
-> | 파일을 읽어서 보여준다 (웹 UI·뷰어·로그 도구) | **임의 파일 읽기** ← 이 박스 |
-> | 파일을 쓴다 (백업·설정 저장) | 임의 파일 쓰기 → `/etc/passwd`·`authorized_keys`·cron |
-> | 하위 프로세스를 띄운다 (`-e`·`--exec`·플러그인) | 직접 명령 실행 |
-> | 네트워크로 듣는다 | **그 서비스의 모든 결함이 root 결함이 된다** ← 이 박스가 정확히 이것 |
->
-> GTFOBins는 목록이지 사고법이 아니다. **없으면 직접 추론한다.**
+#### 이 사고방식이 이 박스에서 가져갈 가장 큰 것
+
+`sudo -l` 에 GTFOBins에 없는 낯선 바이너리가 뜨면 이렇게 묻는다:
+**"이 프로그램이 평소에 하는 일이 뭔가? 그 일을 root 권한으로 하면 무엇이 되는가?"**
+
+| 프로그램의 일 | root 권한이면 |
+|---|---|
+| 파일을 읽어서 보여준다 (웹 UI·뷰어·로그 도구) | 임의 파일 읽기 ← 이 박스 |
+| 파일을 쓴다 (백업·설정 저장) | 임의 파일 쓰기 → `/etc/passwd`·`authorized_keys`·cron |
+| 하위 프로세스를 띄운다 (`-e`·`--exec`·플러그인) | 직접 명령 실행 |
+| 네트워크로 듣는다 | 그 서비스의 모든 결함이 root 결함이 된다 ← 이 박스가 정확히 이것 |
+
+GTFOBins는 목록이지 사고법이 아니다. **없으면 직접 추론한다.**
 
 ---
 
@@ -475,16 +483,16 @@ anthony:x:1001:1001::/home/anthony:/bin/bash
 
 ![[Pasted image 20260616141139.png]]
 
-> [!tip] 여기서 뽑아야 할 **네 줄** — 이 박스의 지도가 전부 여기 있다
->
-> | 줄 | 읽는 법 |
-> |---|---|
-> | `cassie:x:1000:1000::/home/cassie:/bin/bash` | **UID 1000 = 첫 실사용자.** 셸이 있다 → **로그인 대상 1순위** |
-> | `anthony:x:1001:1001::/home/anthony:/bin/bash` | **두 번째 실사용자.** 셸이 있다 → 횡이동 대상. **§4에서 이 홈의 `.ssh/id_rsa` 가 답이 된다** |
-> | `freeswitch:x:998:998:FreeSWITCH:/var/lib/freeswitch:/bin/false` | 서비스 계정. **홈이 `/var/lib/freeswitch`** → **`local.txt` 가 여기 있다**(§5) |
-> | `cassandra:...:/var/lib/cassandra:/usr/sbin/nologin` | DB 서비스 계정. 로그인 불가 |
->
-> **`/bin/bash` 를 가진 계정만 세면 `cassie` 와 `anthony` 둘이다.** 이 박스의 사람 계정은 그 둘뿐이고, 실제 경로가 정확히 `cassie → anthony(의 키) → root` 로 흘렀다.
+#### 여기서 뽑아야 할 네 줄 — 이 박스의 지도가 전부 여기 있다
+
+| 줄 | 읽는 법 |
+|---|---|
+| `cassie:x:1000:1000::/home/cassie:/bin/bash` | UID 1000 = 첫 실사용자. 셸이 있다 → **로그인 대상 1순위** |
+| `anthony:x:1001:1001::/home/anthony:/bin/bash` | 두 번째 실사용자. 셸이 있다 → 횡이동 대상. **§4에서 이 홈의 `.ssh/id_rsa` 가 답이 된다** |
+| `freeswitch:x:998:998:FreeSWITCH:/var/lib/freeswitch:/bin/false` | 서비스 계정. 홈이 `/var/lib/freeswitch` → **`local.txt` 가 여기 있다**(§5) |
+| `cassandra:...:/var/lib/cassandra:/usr/sbin/nologin` | DB 서비스 계정. 로그인 불가 |
+
+**`/bin/bash` 를 가진 계정만 세면 `cassie` 와 `anthony` 둘이다.** 이 박스의 사람 계정은 그 둘뿐이고, 실제 경로가 정확히 `cassie → anthony(의 키) → root` 로 흘렀다.
 
 ### 3-2. 자격증명 채굴 — `/proc/self/cmdline`
 

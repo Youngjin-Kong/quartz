@@ -23,7 +23,7 @@ tech_count: 2
 > **플래그** `proof.txt` = `d3441ce13f1b497ccb0575effb70ba65` · **`local.txt`은 존재하지 않는다**(단일 플래그 박스)
 
 > [!warning] 이 노트를 읽는 규약 — 관측과 재구성을 구분하라
-> 이 노트의 터미널 블록은 Kali 산출물 `~/PG/Wombo/`로 **실증된 것만** 코드펜스에 넣었다. 실증 출처: `nmap.log`·`nmap_lowrate.log`(정찰) · `redis_recon.txt`(Redis INFO/CONFIG) · `module_list.txt`·`id_output.txt`(익스플로잇 결과) · `verify_run.log`·`exploit_run.log`(스크립트 실행 로그) · `ssh_dir_check.txt`(타겟 에러 원문) · `manual_procedure.txt`(수동 절차) · `flags.txt`. 이 익스플로잇은 총괄이 **처음부터 재현해 재검증**했다.
+> 이 노트의 터미널 블록은 Kali 산출물 `~/PG/Wombo/`로 **실증된 것만** 코드펜스에 넣었다. 실증 출처: `nmap.log`·`nmap_lowrate.log`(정찰) · `redis_recon.txt`(Redis INFO/CONFIG) · `module_list.txt`·`id_output.txt`(익스플로잇 결과) · `verify_run.log`·`exploit_run.log`(스크립트 실행 로그) · `ssh_dir_check.txt`(타겟 에러 원문) · `manual_procedure.txt`(수동 절차) · `flags.txt`. 이 익스플로잇은 **처음부터 재현해 재검증**했다.
 > - **도구 동작·기본값에 대한 단정**은 별도 확인했다. Kali의 `redis-cli`/`redis-server`는 **8.0.4**라 타겟(5.0.9)과 에러 문구가 다르다 — 그래서 타겟 동작을 Kali 로컬 출력으로 대체하지 않았고, 타겟 고유 에러는 `ssh_dir_check.txt`처럼 **타겟에 직접 친 것만** 인용한다.
 > - `[가정]` 표시가 붙은 문장은 이 박스에서 실행하지 않은 대안 경로다.
 
@@ -344,7 +344,7 @@ redis-cli -h 192.168.248.69 system.exec 'cat /root/proof.txt'
 | `proof.txt` | `/root/proof.txt` | `d3441ce13f1b497ccb0575effb70ba65` |
 | `local.txt` | **존재하지 않음** | — |
 
-`local.txt` 부재는 추정이 아니라 **확인된 사실**이다(`flags.txt`, 총괄 재검증):
+`local.txt` 부재는 추정이 아니라 **확인된 사실**이다(`flags.txt`, 재검증):
 
 ```bash
 $ find / -name local.txt 2>/dev/null      # 무결과
@@ -427,7 +427,7 @@ dir
 > [!warning] Kali 로컬로 타겟 동작을 흉내 내지 마라 — 버전이 다르다
 > Kali의 `redis-server`는 **8.0.4**라 `MODULE LOAD`·`CONFIG SET dir`·`EVAL package` 모두 타겟(5.0.9)과 **에러 문구가 다르다**(8.x는 `enable-module-command`·`protected config` 같은 신규 가드를 낸다). 그래서 이 노트는 타겟 고유 동작을 **타겟에 직접 친 출력**(`ssh_dir_check.txt` 등)으로만 인용한다. CVE-2022-0543의 "package/os가 nil"은 소스 컴파일 Redis의 일반 성질로 서술했고, 타겟의 Lua 출력을 코드펜스로 위조하지 않았다.
 
-### ⑥ 총괄의 오진 — glibc 2.24 불일치 의심은 틀렸다
+### ⑥ 오진 — glibc 2.24 불일치 의심은 틀렸다
 
 처음에 "`exp.so`가 최신 Kali(glibc 2.35+)에서 빌드됐으니 Debian 9(glibc 2.24)에서 심볼 불일치로 로드 실패할 것"이라 의심했다. **틀렸다.** `objdump -T exp.so`가 요구 심볼로 **`GLIBC_2.2.5` 하나만** 보였다(3-1). 이 모듈이 쓰는 함수(`popen`·`socket`·`dup2`·`execve`·`strcat`)는 전부 glibc 초기부터 있던 심볼이라 최신 버전 심볼을 끌어오지 않는다. Debian 9는 2.24 ≥ 2.2.5이므로 **그대로 로드된다.**
 
@@ -472,9 +472,9 @@ dir
 
 ## 남긴 흔적 / 정리
 
-총괄이 검증 후 정리했다:
+검증 후 정리했다:
 - **직접 확인함**: `module unload system` · `slaveof no one` · `config set dir /` · `config set dbfilename dump.rdb` 복구 · `exp.so` 삭제 · tmux 세션 명명 종료.
-- `[가정]` 이전 단계에서 에이전트가 제거한 마커(재확인하지 못한 항목): `/etc/cron.d/{zz,pwnjob}` · `/var/spool/cron/crontabs/root` · `/var/www/html/*.txt` 진단용 파일. `writeup_notes.txt`에 "제거 완료·webroot+cron.d clean 확인"으로 적혀 있으나 총괄이 사후에 직접 재확인하지는 않았다.
+- `[가정]` 앞선 단계에서 제거한 마커(재확인하지 못한 항목): `/etc/cron.d/{zz,pwnjob}` · `/var/spool/cron/crontabs/root` · `/var/www/html/*.txt` 진단용 파일. `writeup_notes.txt`에 "제거 완료·webroot+cron.d clean 확인"으로 적혀 있으나 사후에 직접 재확인하지는 않았다.
 - Redis 상태는 `role master` / `dir /` / `dbfilename dump.rdb`로 원복 확인됨.
 
 ## 관련 노트

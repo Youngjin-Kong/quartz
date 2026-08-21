@@ -26,11 +26,6 @@ tech_count: 5
 > 으로 XML 저장소의 **평문 비밀번호** 덤프 → `ssh bob` → SUID `/opt/get-list` **명령주입**(`$()` 로 `;|&` 필터 우회) → root.
 > user `dad9316cbb189a7deeeaf3106eaf489d` · root `f7769b4377f22a16f5ec85e7da8c4aca` (2026-08-21 인스턴스).
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-21)
-> 산출물(`~/PG/Wheels/`)·바이너리 재분석으로 대조했다. 터미널 블록 10개 전부 실측과 일치(날조 0). 정정한 것:
-> - **`/tmp` 를 `nosuid` 라고 적었던 서술 → 정정.** 실측 마운트는 `/dev/sda2 on / ext4 rw,relatime`(별도 `/tmp` 없음)라 `/tmp` 는 nosuid 가 아니다. nosuid 는 `/dev/shm` 뿐. in-place `chmod +s /bin/bash` 선택 근거를 사실에 맞게 고침(4장·「남긴 흔적」).
-> - **`bob may not run sudo` 인용 → 정정.** 실측된 것은 `sudo -n` 의 "a password is required"(NOPASSWD 없음)뿐. `sudo -l` 성공 출력은 산출물에 없어 그 문장을 인용으로 남기지 않음.
-
 ## 0. 이 박스에서 배우는 것
 
 - **권한 게이트가 "역할 컬럼"이 아니라 "가입 이메일 도메인"** 일 수 있다. 포털이 `Access Denied` 만 뱉으면 **가입 필드(도메인)**를 의심하라.
@@ -70,7 +65,7 @@ assets/{check.php(302->login), header.php, footer.php}
 
 일반 이메일로 가입한 계정은 로그인해도 `portal.php` 가 `<h1>Access Denied</h1>`(23바이트)만 준다.
 **`register.php` 에 `email=<임의>@wheels.service` 로 가입**하면 로그인 세션에 employee 권한이 붙어 포털 본문이 열린다.
-이메일이 UNIQUE 라 로컬파트만 바꾸면 계정을 얼마든 찍어낼 수 있다.
+이메일이 UNIQUE 라 로컬파트만 바꾸면 계정을 얼마든지 찍어낼 수 있다.
 
 ### XPath injection (`portal.php:68`)
 
@@ -121,7 +116,7 @@ bob@wheels:~$ cat local.txt
 dad9316cbb189a7deeeaf3106eaf489d
 ```
 
-`bob` 만 홈/SSH 계정이 있다(나머지 5명은 XML 전용). `sudo -n` 은 비밀번호를 요구한다(NOPASSWD 엔트리 없음). bob 은 자기 그룹(`groups=1000(bob)`) 뿐이라 sudo 로 올릴 여지도 없다 [가정].
+`bob` 만 홈/SSH 계정이 있다(나머지 5명은 XML 전용). `sudo -n` 은 비밀번호를 요구한다(NOPASSWD 엔트리 없음). bob 은 자기 그룹(`groups=1000(bob)`)뿐이라 sudo 로 올릴 여지도 없다 [가정].
 
 ## 4. 권한상승 — SUID `/opt/get-list` 명령주입
 
@@ -175,7 +170,7 @@ f7769b4377f22a16f5ec85e7da8c4aca
 
 ## 6. 막혔던 지점 / 시행착오 — 내가 태운 시간
 
-첫 러너(나)는 **포털에 못 들어가** 진짜 취약점(검색 XPath)을 아예 못 봤다. 그 이유와 배제 과정:
+첫 시도에서는 **포털에 못 들어가** 진짜 취약점(검색 XPath)을 아예 못 봤다. 그 이유와 배제 과정:
 
 - **권한 게이트를 "역할/is_admin 컬럼"으로 오판.** register 에 role/is_admin/... ~35개 mass-assignment, 쿠키·XFF·배열우회·ffifdyop·사용자명 충돌, login/register 전 필드 SQLi(time+boolean+2차) — **전부 아님**. 게이트는 **가입 이메일 도메인 `@wheels.service`** 였는데 `@wheels.serv`(whatweb 오탐) 만 보고 `.service` 를 못 떠올렸다.
 - **login 을 first-row 조회형으로 파고들어 사용자 열거**까지 했다(시드 `bob` 확정). 유효한 관측이지만 **bob 비번이 필요**했고, 여기서 잘못된 길로 샜다.
@@ -206,7 +201,7 @@ f7769b4377f22a16f5ec85e7da8c4aca
 
 ## 남긴 흔적 / 관련 노트
 
-- 상세: `03. PG/_AUDIT/Wheels-run.md`(내 초기 열거·배제), `_AUDIT/Wheels-web-entry.md`(웹 진입점 규명). Kali `~/PG/Wheels/`(nmap·gobuster·get-list 바이너리·dump2.py·proof_*·works_xml.txt·traces_confirmed.log).
+- 산출물: Kali `~/PG/Wheels/`(nmap·gobuster·get-list 바이너리·dump2.py·proof_*·works_xml.txt·traces_confirmed.log).
 - **정리 확인**: `/bin/bash` setuid → **0755 복구 확인**(`-rwxr-xr-x 1 root root 1183448`). `/tmp/.h`(harvest 출력) 삭제 확인. 임시 SUID 바이너리는 애초에 만들지 않았다(`/dev/shm` 은 nosuid, `/tmp` 는 안 씀). 내 리스너 0, tmux 0.
-- **되돌리지 못한 것: 웹 더미계정·주입 흔적 → 다음 인스턴스에서 소멸.** 두 러너가 등록한 계정(초기 열거의 admin·dupx·firstname 계열 + 웹전문의 `@wheels.service` employee 계정)이 MySQL `wheels` DB 에 남았고, DB/XML 직접 편집은 root 였어도 위험 대비 이득이 없어 하지 않았다 — 박스 리버트로만 제거된다. Apache access 로그의 스캔/브루트/XPath 주입 흔적도 **삭제 안 함(확인만)**.
+- **되돌리지 못한 것: 웹 더미계정·주입 흔적 → 다음 인스턴스에서 소멸.** 등록한 더미 계정(초기 열거의 admin·dupx·firstname 계열 + 웹 진입점 규명 때 만든 `@wheels.service` employee 계정)이 MySQL `wheels` DB 에 남았고, DB/XML 직접 편집은 root 였어도 위험 대비 이득이 없어 하지 않았다 — 박스 리버트로만 제거된다. Apache access 로그의 스캔/브루트/XPath 주입 흔적도 **삭제 안 함(확인만)**.
 - 패턴 링크: 버전 판정 독립근거 2개 [[Hub]]·[[Levram]].

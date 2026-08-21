@@ -1,0 +1,79 @@
+# Nmap 7.98 scan initiated Thu Jul 16 09:20:14 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.142.110
+Nmap scan report for 192.168.142.110
+Host is up (0.19s latency).
+Not shown: 65528 filtered tcp ports (no-response)
+PORT     STATE  SERVICE VERSION
+22/tcp   open   ssh     OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 b0:17:33:f0:09:bd:aa:92:1c:3e:82:4b:fc:c9:22:c2 (ECDSA)
+|_  256 47:53:a9:2f:d8:e6:c8:d5:88:35:6e:a4:d1:ca:8e:eb (ED25519)
+43/tcp   open   whois?
+| fingerprint-strings: 
+|   GenericLines, GetRequest, HTTPOptions, Help, RTSPRequest, SSLSessionReq: 
+|     % OSCP.EXAM Domain Registry
+|     entries found for the queried object.
+|     assistance, contact: it-ops@oscp.exam
+|     ERROR:101: no entries found
+|     match was found in the registry database.
+|_    WHOIS query
+80/tcp   closed http
+110/tcp  open   pop3    Dovecot pop3d
+|_pop3-capabilities: RESP-CODES SASL(PLAIN LOGIN) TOP USER UIDL PIPELINING CAPA STLS AUTH-RESP-CODE
+| ssl-cert: Subject: commonName=oscp
+| Subject Alternative Name: DNS:oscp
+| Not valid before: 2026-02-27T18:13:19
+|_Not valid after:  2036-02-25T18:13:19
+|_ssl-date: TLS randomness does not represent time
+143/tcp  open   imap    Dovecot imapd (Ubuntu)
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=oscp
+| Subject Alternative Name: DNS:oscp
+| Not valid before: 2026-02-27T18:13:19
+|_Not valid after:  2036-02-25T18:13:19
+|_imap-capabilities: listed SASL-IR post-login ID STARTTLS Pre-login IDLE capabilities have ENABLE LITERAL+ IMAP4rev1 more OK LOGIN-REFERRALS AUTH=LOGINA0001 AUTH=PLAIN
+443/tcp  closed https
+8005/tcp closed mxi
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port43-TCP:V=7.98%I=7%D=7/16%Time=6A5823E0%P=x86_64-pc-linux-gnu%r(Gene
+SF:ricLines,DF,"%\x20OSCP\.EXAM\x20Domain\x20Registry\n%\n%\x20No\x20entri
+SF:es\x20found\x20for\x20the\x20queried\x20object\.\n%\n%\x20For\x20assist
+SF:ance,\x20contact:\x20it-ops@oscp\.exam\n%\n%\x20ERROR:101:\x20no\x20ent
+SF:ries\x20found\n%\n%%\x20No\x20match\x20was\x20found\x20in\x20the\x20reg
+SF:istry\x20database\.\n\n%\x20End\x20of\x20WHOIS\x20query\n")%r(GetReques
+SF:t,DF,"%\x20OSCP\.EXAM\x20Domain\x20Registry\n%\n%\x20No\x20entries\x20f
+SF:ound\x20for\x20the\x20queried\x20object\.\n%\n%\x20For\x20assistance,\x
+SF:20contact:\x20it-ops@oscp\.exam\n%\n%\x20ERROR:101:\x20no\x20entries\x2
+SF:0found\n%\n%%\x20No\x20match\x20was\x20found\x20in\x20the\x20registry\x
+SF:20database\.\n\n%\x20End\x20of\x20WHOIS\x20query\n")%r(HTTPOptions,DF,"
+SF:%\x20OSCP\.EXAM\x20Domain\x20Registry\n%\n%\x20No\x20entries\x20found\x
+SF:20for\x20the\x20queried\x20object\.\n%\n%\x20For\x20assistance,\x20cont
+SF:act:\x20it-ops@oscp\.exam\n%\n%\x20ERROR:101:\x20no\x20entries\x20found
+SF:\n%\n%%\x20No\x20match\x20was\x20found\x20in\x20the\x20registry\x20data
+SF:base\.\n\n%\x20End\x20of\x20WHOIS\x20query\n")%r(RTSPRequest,DF,"%\x20O
+SF:SCP\.EXAM\x20Domain\x20Registry\n%\n%\x20No\x20entries\x20found\x20for\
+SF:x20the\x20queried\x20object\.\n%\n%\x20For\x20assistance,\x20contact:\x
+SF:20it-ops@oscp\.exam\n%\n%\x20ERROR:101:\x20no\x20entries\x20found\n%\n%
+SF:%\x20No\x20match\x20was\x20found\x20in\x20the\x20registry\x20database\.
+SF:\n\n%\x20End\x20of\x20WHOIS\x20query\n")%r(Help,DF,"%\x20OSCP\.EXAM\x20
+SF:Domain\x20Registry\n%\n%\x20No\x20entries\x20found\x20for\x20the\x20que
+SF:ried\x20object\.\n%\n%\x20For\x20assistance,\x20contact:\x20it-ops@oscp
+SF:\.exam\n%\n%\x20ERROR:101:\x20no\x20entries\x20found\n%\n%%\x20No\x20ma
+SF:tch\x20was\x20found\x20in\x20the\x20registry\x20database\.\n\n%\x20End\
+SF:x20of\x20WHOIS\x20query\n")%r(SSLSessionReq,DF,"%\x20OSCP\.EXAM\x20Doma
+SF:in\x20Registry\n%\n%\x20No\x20entries\x20found\x20for\x20the\x20queried
+SF:\x20object\.\n%\n%\x20For\x20assistance,\x20contact:\x20it-ops@oscp\.ex
+SF:am\n%\n%\x20ERROR:101:\x20no\x20entries\x20found\n%\n%%\x20No\x20match\
+SF:x20was\x20found\x20in\x20the\x20registry\x20database\.\n\n%\x20End\x20o
+SF:f\x20WHOIS\x20query\n");
+Aggressive OS guesses: Linux 4.15 (92%), Linux 4.19 - 5.15 (92%), Linux 3.11 - 4.9 (88%), Linux 3.2 - 3.8 (88%), IPFire 2.25 firewall (Linux 4.14) (86%), IPFire 2.27 (Linux 5.15 - 6.1) (86%), Linux 2.6.32 (86%), Linux 3.5 (86%), Linux 4.0 - 4.4 (86%), Linux 4.2 (86%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 2 hops
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE (using port 80/tcp)
+HOP RTT       ADDRESS
+1   186.71 ms 192.168.49.1
+2   187.13 ms 192.168.142.110
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Thu Jul 16 09:22:31 2026 -- 1 IP address (1 host up) scanned in 136.42 seconds

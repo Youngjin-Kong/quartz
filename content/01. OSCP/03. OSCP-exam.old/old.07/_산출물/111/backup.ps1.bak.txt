@@ -1,0 +1,22 @@
+# System Backup Script
+# Maintained by IT Operations
+# v1.4 - revised paths: 2026-01-08
+
+$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+$logFile = 'C:\Backups\backup.log'
+
+$backupPaths = @(
+    'C:\Users\Administrator\Documents',
+    'C:\Reports'
+    # Add additional commands below
+)
+
+foreach ($path in $backupPaths) {
+    if (Test-Path $path) {
+        Add-Content -Path $logFile -Value "[$timestamp] OK: $path"
+    } else {
+        Add-Content -Path $logFile -Value "[$timestamp] WARN: path not found - $path"
+    }
+}
+
+Add-Content -Path $logFile -Value "[$timestamp] --- cycle complete ---"

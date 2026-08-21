@@ -60,11 +60,30 @@ def sync_and_deploy():
         #           (2) 읽기 전용 객체 파일 때문에 다음 실행의 rmtree 가 죽는다
         #   실행파일·압축 — 웹에 올릴 이유가 없고 용량만 차지한다.
         #                   노트가 참조하는 이미지는 그대로 복사된다.
+        #
+        #   내부 운영 문서 — 2026-08-21 추가. 발행 사이트에서 실제로 열려 있었다:
+        #     CLAUDE.md 가 /quartz/CLAUDE 에서 16,526자로 렌더됐고 그 안에 Kali 접속
+        #     주소·VPN 주소·에이전트 파이프라인 구조가 그대로 들어 있었다.
+        #     여기서 막는 것이 quartz.config.ts 의 ignorePatterns 보다 상위 조치다 —
+        #     ignorePatterns 는 «렌더»만 막고 원본 .md 는 공개 저장소에 커밋된다.
+        #   ⚠️ 이 목록은 볼트의 «작업용» 산출물을 겨눈다. 노트 본체가 아니다.
         ignore_func = shutil.ignore_patterns(
             '.git', '.gitignore', '.gitattributes',
             '.obsidian', '.trash', 'private', '*.canvas',
             '*.exe', '*.msi', '*.dll', '*.zip', '*.7z', '*.rar', '*.tar', '*.gz', '*.iso',
-            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm','*_WRITEUP-STANDARD*'
+            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm','*_WRITEUP-STANDARD*',
+            # 에이전트 지시·설정 — 훅 스크립트와 서브에이전트 정의가 통째로 들어간다
+            '.claude', 'CLAUDE.md',
+            # 적대적 검증 산출물 — 「무엇이 틀렸었는지」를 독자가 먼저 보게 된다
+            '_AUDIT',
+            # 노트 개작 백업 — 같은 글의 옛 판본이 중복 발행된다
+            '_backup', '*.bak', '*.bak[0-9]', '*.bak[0-9][0-9]',
+            # 색인 파이프라인 소스와 중간 산출물 — 노트가 아니다
+            '_tools',
+            # 내부 인수인계·진행 관리 문서
+            '_HANDOFF.md', '_STATUS.md',
+            # 빈 디렉터리·임시 노트
+            'storage', '무제',
         )
         shutil.copytree(SOURCE_VAULT, DEST_QUARTZ_CONTENT, ignore=ignore_func)
         

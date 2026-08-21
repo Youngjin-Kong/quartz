@@ -1,0 +1,100 @@
+﻿===================================================================
+  TOASTER System Backup - Full Snapshot
+  Date: 2026-01-06 02:00:03 EST
+  Type: Full System Backup (Scheduled)
+  Backup Agent: Windows Server Backup v10.0
+  Target: C:\backups\archive
+===================================================================
+
+[02:00:03] Initializing backup job TOASTER-FULL-20260106...
+[02:00:03] Enumerating volumes...
+[02:00:04]   C:\ (System, Boot) - 47.2 GB used / 100.0 GB total
+[02:00:04]   D:\ (Data)         -  8.6 GB used /  50.0 GB total
+[02:00:05] Snapshot provider: VSS (Volume Shadow Copy)
+[02:00:05] Creating shadow copy of C:\...
+[02:00:08] Shadow copy {4a2e7c91-bf03-4d8a-a6f2-1e5c9d3b7a08} created.
+[02:00:08] Creating shadow copy of D:\...
+[02:00:10] Shadow copy {8f1d3e57-c4a9-42b1-9e76-3d8a5f2c1b04} created.
+--- Registry Hive Backup ---
+[02:00:11] Backing up HKLM\SYSTEM        ... OK (14.2 MB)
+[02:00:12] Backing up HKLM\SOFTWARE      ... OK (87.4 MB)
+[02:00:14] Backing up HKLM\SAM           ... OK (256 KB)
+[02:00:14] Backing up HKLM\SECURITY      ... OK (128 KB)
+[02:00:15] Backing up HKU\.DEFAULT       ... OK (1.1 MB)
+
+--- User Profile Backup ---
+[02:00:16] Processing 30 user profiles...
+[02:00:16]   Administrator       C:\Users\Administrator        482 MB  OK
+[02:00:42]   alex.flugty         C:\Users\alex.flugty          124 MB  OK
+[02:00:51]   alyssa.donaldson    C:\Users\alyssa.donaldson       87 MB  OK
+[02:00:57]   amanda.taylor       C:\Users\amanda.taylor          92 MB  OK
+[02:01:04]   anna.foresberg      C:\Users\anna.foresberg        201 MB  OK
+[02:01:18]   catherine.duch      C:\Users\catherine.duch         56 MB  OK
+[02:01:22]   chris.miller        C:\Users\chris.miller          178 MB  OK
+[02:01:34]   clara.marla         C:\Users\clara.marla            44 MB  OK
+[02:01:37]   clark.ethan         C:\Users\clark.ethan           312 MB  OK
+[02:01:58]   david.johnson       C:\Users\david.johnson         267 MB  OK[02:02:16]   drew.doughty        C:\Users\drew.doughty           73 MB  OK
+[02:02:21]   emily.davis         C:\Users\emily.davis           145 MB  OK
+[02:02:31]   fatima.marla        C:\Users\fatima.marla           38 MB  OK
+[02:02:34]   george.johnson      C:\Users\george.johnson        194 MB  OK
+[02:02:47]   isaac.lama          C:\Users\isaac.lama             62 MB  OK
+[02:02:51]   jane.smith          C:\Users\jane.smith            223 MB  OK
+[02:03:06]   jasmine.yuto        C:\Users\jasmine.yuto           81 MB  OK
+[02:03:12]   jeff.lopez          C:\Users\jeff.lopez            156 MB  OK
+[02:03:23]   john.doe            C:\Users\john.doe              289 MB  OK
+[02:03:42]   lisa.garcia         C:\Users\lisa.garcia           117 MB  OK
+[02:03:50]   lorraine.clark      C:\Users\lorraine.clark         95 MB  OK
+[02:03:57]   maria.mars          C:\Users\maria.mars             67 MB  OK
+[02:04:02]   mario.suman         C:\Users\mario.suman           134 MB  OK
+[02:04:11]   mike.wilson         C:\Users\mike.wilson           208 MB  OK
+[02:04:25]   nathan.wong         C:\Users\nathan.wong            51 MB  OK
+[02:04:29]   orka.peter          C:\Users\orka.peter            143 MB  OK
+[02:04:39]   robert.martinez     C:\Users\robert.martinez       176 MB  OK
+[02:04:51]   sarah.brown         C:\Users\sarah.brown           162 MB  OK
+[02:05:02]   sarah.whittle       C:\Users\sarah.whittle          88 MB  OK
+[02:05:08]   sophia.aido         C:\Users\sophia.aido           109 MB  OK
+--- System State Backup ---
+[02:05:15] Active Directory (N/A - not a domain controller)
+[02:05:15] Boot Configuration Data    ... OK (384 KB)
+[02:05:16] Certificate Services (N/A)
+[02:05:16] COM+ Class Registration    ... OK (12.8 MB)
+[02:05:18] IIS Metabase (N/A)
+[02:05:18] Windows Firewall config    ... OK (48 KB)
+[02:05:18] Task Scheduler jobs        ... OK (2.1 MB)
+[02:05:19] Event Logs                 ... OK (64.2 MB)
+
+--- Installed Software Inventory ---
+[02:05:20] Microsoft Edge 121.0.2277.112
+[02:05:20] Microsoft Visual C++ 2015-2022 Redistributable (x64)
+[02:05:20] VMware Tools 12.4.0
+[02:05:20] OpenSSH Server 9.5.0.0
+[02:05:20] Notepad++ 8.6.2
+[02:05:20] 7-Zip 23.01
+[02:05:20] Python 3.12.1
+
+--- Network Configuration Snapshot ---
+[02:05:21] Hostname:     TOASTER
+[02:05:21] Domain:       WORKGROUP
+[02:05:21] IPv4 Address: 192.168.120.108
+[02:05:21] Subnet Mask:  255.255.255.0
+[02:05:21] Gateway:      192.168.120.1
+[02:05:21] DNS Servers:  8.8.8.8, 8.8.4.4
+[02:05:21] Firewall:     Enabled (Domain/Private/Public)
+[02:05:21] Open ports:   22/tcp (sshd), 5985/tcp (WinRM), 5986/tcp (WinRM-SSL)
+--- Verification ---
+[02:05:22] Calculating SHA-256 checksums...
+[02:05:38] Registry hives:     a7c3e9f1d2b4086557e1ca3d9f8b2a61c4e7d0f3b5a89267d1c4e8f0a3b6d592
+[02:05:38] User profiles:      e2d4f6a8c0b193857d6e4f2a8c0d1b3e5f7a9c2d4e6b8a0d1f3c5e7b9a2d4f60
+[02:05:38] System state:       b8d0f2a4c6e8019b3d5f7a9c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e01
+
+===================================================================
+  BACKUP COMPLETE
+  Job ID:        TOASTER-FULL-20260106
+  Duration:      5 min 35 sec
+  Total Size:    4.31 GB
+  Files Backed:  142,847
+  Errors:        0
+  Warnings:      0
+  Status:        SUCCESS
+  Next Backup:   2026-01-07 02:00:00 EST (Full)
+===================================================================

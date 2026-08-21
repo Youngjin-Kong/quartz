@@ -1,0 +1,1411 @@
+PG/OSCP 2026-07-16 시험 — 192.168.142.112 FTP 익명 다운로드 PDF 5개 텍스트 추출
+====================================================================================================
+회수 출처 : ~/OSCP-EXAM/112/<해시이름>  (5개 전부 mtime 2021-11-25 = 박스 이미지 빌드 시각)
+추출 도구 : pypdf 5.4.0  ⚠️ Kali 에 pdftotext(poppler-utils) 미설치 → pypdf 로 대체함
+추출 일자 : 2026-08-21
+파일명    : FTP 익명 로그인으로 받은 원본 그대로. 확장자 없는 20자 hex 이름임
+
+■ 해시 파일명 ↔ 문서 대조표
+----------------------------------------------------------------------------------------------------
+  2d5ef5a0f0c9579458c9  Staedtler Catalogue 2019 (Intro Section)   5p  3557581B  [미끼]
+                        └ PDF Title 메타데이터: "18_304 - Staedtler - Catalogue 2019 - 0. Intro Section_Packaged Wiro.indd"
+  4835e976619690ae006e  Interstat Contents Guide 2014              5p  1258508B  [미끼]
+                        └ PDF Title 메타데이터: "Interstat Contents Guide 2014_p1-3.indd"
+  4e8cce46d6abec9a9d9a  BIC #MADE Stationery Catalogue 2019 (독일어) 5p 1617905B [미끼]
+                        └ Title 메타데이터 없음. 본문 1페이지에서 판별함
+  77cfe070405f6ca327a5  ★ AuditorzRus "Annual Report"              8p   438095B  [★ 실제 재료]
+                        └ Title 메타데이터 없음 / Author: "Windows User" / Creator: MS Word 2016
+                        └ 본문 1페이지 레터헤드 = AuditorzRus, www.auditorzr.us
+  c5237630ef40e2585d35  Pentel Catalogue 2021-2022                 5p   841392B  [미끼]
+                        └ Title 메타데이터 없음. 본문 1페이지에서 판별함
+
+■ ★ 패스워드 목록 위치 — 5개 중 이것 하나뿐임
+----------------------------------------------------------------------------------------------------
+  파일 : 77cfe070405f6ca327a5  (AuditorzRus Annual Report)
+  위치 : 8페이지 중 «5페이지» / 문서 내 표기 "Pg. 03"
+  절   : "Password Audit Findings"  →  하위 "Findings"  →  «Password / Instances» 표
+  형태 : 사내 패스워드 감사 결과를 가장한 「자주 쓰인 비밀번호 + 사용 계정 수」 표 10행
+  용도 : 이 10개가 곧 이 박스의 패스워드 워드리스트임. 문서 2페이지 목차에도
+         "Password Audit Findings ___ 3" 으로 항목이 노출돼 있음
+  참고 : 같은 문서 6페이지("Pg. 04", "Notes to Staff" 절)에 패스워드 정책이 있음
+         — 최소 8자 + 숫자 1개 이상. 위 표에서 후보를 거를 때 쓰는 조건임
+
+  ▸ 나머지 4개는 전부 문구류 카탈로그로 내용상 재료 없음. 부피만 큰 미끼임
+    (미끼 4개 합계 7.27MB vs 실제 재료 0.43MB — 제일 «작은» 파일이 정답이었음)
+
+■ 이 파일 읽는 법
+----------------------------------------------------------------------------------------------------
+  `===== <해시> (원제: ...) =====`  로 파일이 갈리고
+  `----- [<해시>] page N/M -----`   로 페이지가 갈림
+  추출 텍스트는 pypdf 원문 그대로임. 줄바꿈·공백 손대지 않음
+
+====================================================================================================
+
+PG/OSCP 2026-07-16 시험 — 192.168.142.112 FTP 익명 다운로드 PDF 5개 텍스트 추출
+추출 도구: pypdf 5.4.0 (Kali 에 pdftotext/poppler-utils 미설치)
+원본 경로: ~/OSCP-EXAM/112/<해시이름>  (전부 mtime 2021-11-25)
+====================================================================================================
+
+====================================================================================================
+===== 2d5ef5a0f0c9579458c9 (원제: 18_304 - Staedtler - Catalogue 2019 - 0. Intro Section_Packaged Wiro.indd) =====
+====================================================================================================
+파일크기: 3557581 bytes / 페이지수: 5
+Title   : 18_304 - Staedtler - Catalogue 2019 - 0. Intro Section_Packaged Wiro.indd
+Author  : 
+Subject : 
+Creator : Adobe InDesign CC 14.0 (Macintosh)
+Producer: Adobe PDF Library 15.0
+----------------------------------------------------------------------------------------------------
+----- [2d5ef5a0f0c9579458c9] page 1/5 -----
+Product Catalogue
+19_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   119_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   1 04/12/2019   16:1604/12/2019   16:16
+
+----- [2d5ef5a0f0c9579458c9] page 2/5 -----
+STAEDTLER 
+a modern brand rich in tradition
+STAEDTLER is one of the world’s leading manufacturers 
+and suppliers of writing, colouring and drawing instruments 
+as well as premium quality modelling/polymer clays. 
+It is also one of the oldest manufacturing companies in Germany, 
+drawing on centuries of experience and expertise in the 
+development of innovative writing and drawing instruments.
+It was in 1835 that Johann Sebastian STAEDTLER set up his 
+pencil manufacturing plant in Nuremberg, and records show 
+that one of the founder’s ancestors was actually making pencils 
+as early as 1662. In 1853, the pencil maker from Nuremberg 
+showcased his wares at the Exhibition of the Industry of All 
+Nations in New York; just a few years later, these high-quality, 
+German-made products had already made a name for themselves 
+in France, Britain, Italy, Russia, America and the Middle East. 
+Soon STAEDTLER was progressing to both round and hexagonal 
+wood pencils in 48 colours, and by 1870 STAEDTLER employed 
+54 people and already produced over 2 million pencils.
+Today, STAEDTLER is an international company located in 
+27 countries, employing over 2,100 people. It is Europe’s 
+largest manufacturer of wood-cased pencils, offering a 
+comprehensive range of stationery for school, home and 
+work environments. Many of these products are now 
+internationally recognised classics, such as the Noris HB 
+pencil, the Mars plastic eraser and Lumocolor markers.
+Throughout the company’s history, quality and innovation 
+have remained the key to STAEDTLER’s continuing 
+success, with regular breakthroughs in product design, 
+performance and manufacturing process. Recent innovations 
+include WOPEX, a groundbreaking way of producing 
+pencils that maximises the usage of raw materials, and 
+Noris colour, an enhanced range of coloured pencils 
+made by the same innovative production process.
+2
+19_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   219_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   2 04/12/2019   11:2704/12/2019   11:27
+
+----- [2d5ef5a0f0c9579458c9] page 3/5 -----
+Philip Wesolowski 
+Managing Director 
+STAEDTLER (UK) Ltd
+We’d like to invite you on an expedition, a Design Journey 
+with STAEDTLER. We can promise you our biggest and most 
+exciting ever new product launch, taking our range into brand 
+new territory and encouraging creativity at every turn with 
+inspirational new products in a truly staggering range of colours.
+Here’s just a small selection of some of the treats we  
+have in store.
+Design Journey is the title of our new art range specifically 
+designed to foster creativity in people of every age. It’s a 
+comprehensive collection of fabulous products backed by 
+engaging displays to inspire and instruct.
+The new visually appealing Comic Range uses fun graphics in the 
+brightest of colours to motivate children and adults alike to pick 
+up a pencil and start writing, drawing or colouring.
+Our unique and very popular triplus family is expanding and 
+extending yet again with two brand new products plus exciting 
+new colours and other developments across the existing range. 
+Believe it or not, we’re now offering an incredible 60 colours in 
+the triplus fineliner range.
+It’s not all about writing and drawing though, we’ve also got 
+some new FIMO products that really do open up all sorts of 
+exciting new modelling opportunities. FIMO leather-effect 
+not only mimics the look and texture of leather, it’s also more 
+flexible and elastic after hardening than the core range so it can 
+be braided, pierced, embossed as well as cut and sewn. Sounds 
+intriguing? It is! 
+Step into your STAEDTLER catalogue and let the  
+Design Journey begin!
+3
+19_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   319_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   3 04/12/2019   11:2704/12/2019   11:27
+
+----- [2d5ef5a0f0c9579458c9] page 4/5 -----
+STAEDTLER has always been committed to longevity. It applies 
+to the products as well as to the manufacturing processes. Using 
+innovative technology, the long-standing company continuously 
+strives to make its production processes more efficient and to 
+lengthen the service life of its products. The result: Longevity 
+for the benefit of the environment. That’s our promise to 
+produce our premium quality range in the most efficient, 
+environmentally-friendly way with proper consideration for both 
+natural resources and the many people involved in the process.
+All of our woodcased pencils (blacklead and colour) 
+which are made in Germany are manufactured 
+from PEFC or FSC® certified wood. 
+PEFC provides a guarantee to purchasers of wood and 
+paper products that they are promoting the sustainable 
+management of forests. FSC® certification provides a credible 
+link between responsible production and consumption of 
+forest products, enabling consumers and businesses to 
+make purchasing decisions that benefit people and the 
+environment as well as providing ongoing business value. 
+At STAEDTLER UK we celebrated 50 years of 
+excellence in 2016 with a year-long programme of CSR 
+activities including working with local schools. 
+The company is a firm advocate of ongoing personal and 
+professional development and actively encourages all personnel 
+to learn new skills and achieve further qualifications. 
+2019 saw STAEDTLER becoming an official UK 
+Superbrand. We were delighted to have achieved 
+‘Superbrands’ status and anticipate this additional 
+accolade to have a positive impact on our business.
+STAEDTLER 
+Striving for excellence 
+4
+19_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   419_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   4 04/12/2019   11:2704/12/2019   11:27
+
+----- [2d5ef5a0f0c9579458c9] page 5/5 -----
+STAEDTLER Premium 
+Lifestyle choice
+View the full range of pens, pencils and co-ordinating 
+accessories in the STAEDTLER Premium brochure.
+Quality and performance are central to everything we do at 
+STAEDTLER but with STAEDTLER Premium we have raised 
+craftsmanship to an entirely new level. So much more than 
+writing instruments, the pens and pencils in this luxury range are 
+style statements in themselves, combining timeless elegance, 
+incomparable performance and the very finest materials.
+Designed for people who appreciate beauty and individuality in 
+equal measures, STAEDTLER Premium is the latest chapter in the 
+STAEDTLER story of progress through innovation. The various 
+different styles, Corium, Lignum, Resina and new Metallum, 
+have Latin names to reflect the high-grade materials used, 
+such as the finest leathers, tactile wood or brilliant resin.
+A development in the Premium journey is the sophisticated 
+Initium Metallum series, characterised by a hand-brushed, 
+clear anodised aluminium form with matt chrome-plated metal 
+fittings. Eminently suitable for engraving and with a lovely 
+velvet-soft feel, the design is available as a fountain pain, 
+twist-action ballpoint, rollerball and  mechanical pencil.
+Whether you choose to express your personality through 
+the metropolitan Corium Urbes line, the Initium Metallum 
+series or with your own completely unique design in 
+hand-crafted leather, STAEDTLER Premium invites you 
+to join an exclusive club devoted to style and luxury.
+5
+19_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   519_275 - Staedtler AD Product Catalogue 2020 - 0. Intro Section v2.indd   5 04/12/2019   10:4104/12/2019   10:41
+
+
+====================================================================================================
+===== 4835e976619690ae006e (원제: Interstat Contents Guide 2014_p1-3.indd) =====
+====================================================================================================
+파일크기: 1258508 bytes / 페이지수: 5
+Title   : Interstat Contents Guide 2014_p1-3.indd
+Author  : 
+Subject : 
+Creator : Adobe InDesign CS5.5 (7.5.3)
+Producer: Acrobat Distiller 10.1.10 (Windows)
+----------------------------------------------------------------------------------------------------
+----- [4835e976619690ae006e] page 1/5 -----
+4
+A B C
+CODE DESCRIPTION
+ADH080 A = 8g x 3 Carded Power Glue Stick
+ADH081 B = 25g x 2 Carded Power Glue Stick
+ADH082 C = 35g x 1 Carded Power Glue Stick
+POWER GLUE STICKS
+Quality with the name you can trust. Non-Toxic Glue, 
+ideal for home, school and offi  ce use.
+%HVɢYɪʙɂɏ
+CODE DESCRIPTION
+MFS400 8g Glue Stick
+MFS401 25g Glue Stick
+MFS402 40g Glue Stick
+ARTLINE GLUE STICKS
+Goes on purple, then dries clear. 
+For Home, Offi  ce and Schools. 
+Easy, Clean and Washable, 
+Acid Free.
+'LVʋʠȼHʋʢʖQɒ
+FɼOʝʦɠ
+CODE DESCRIPTION
+ADH00098G  8g Bostik Glue Stick
+ADH000925G 25g Bostik Glue Stick
+ADH000936G 36g Bostik Glue Stick
+BOSTIK GLUE STICK
+The easy to use, quick setting, 
+non wrinkling paper glue. 
+Solvent free, acid free and 
+non-toxic. Excellent for school, 
+the offi  ce or at home. Stick 
+paper, card, foil, crepe, tissue, 
+photographs and much more.
+CODE DESCRIPTION
+96010NCA 10g Glue Stick Adhesive
+96020NCA 20g Glue Stick Adhesive
+96040NCA 40g Glue Stick Adhesive
+STAEDTLER GLUE STICK 
+ADHESIVE
+Multi-purpose glue for bonding paper, 
+cardboard, photos, labels, fabric, 
+plastic and many other surfaces. 
+Spreads lightly and dries clear and 
+wrinkle-free. Twist-off   cap and blue, 
+easy-to-use turn base. Glue is solvent-
+free, acid-free, non-toxic, virtually 
+odourless and easily washable from 
+most textiles. Ideal for general use, 
+arts and crafts projects around school, 
+offi  ce or home.
+CODE DESCRIPTION
+ADH0040 19.5g Pritt Power Stick
+PRITT POWER STICK
+Multi-purpose gluing just got smart 
+and strong in an easy stick format. 
+Extra strong, solvent free, acid free - 
+safe for scrapbooking and archiving. 
+Sticks to almost anything - except 
+your fi  ngers: leather, wood, ceramics, 
+polystyrene, many plastics, glass, 
+photographs, board and so much more.
+CODE DESCRIPTION
+ADH001 11g Pritt Stick
+ADH002 22g Pritt Stick
+ADH003 43g Pritt Stick
+PRITT GLUE STICK
+t PGUIFJOHSFEJFOUTJO1SJUU4UJDLDPNFGSPNSFOFXBCMF
+TPVSDFT5IFSFJTOP171PS17"	PJMCBTFEDPNQPOFOUT
+t 1SJUU4UJDLTBSFTPMWFOUGSFF
+t 1SJUUJTVQUPYTUSPOHFSUIBONBJODPNQFUJUPSTJOUIFNBSLFU
+t 1SJUUHMVFTVQUPUJNFTNPSFXJUIPOFTUJDLUIBONBJO
+competitors in the market
+t 5IFTQFDJBMBJSUJHIUDPOUBJOFSLFFQTHMVFGSFTIGPSMPOHFS
+increased life time, reduced waste
+t 8BTIBCMFJODPMEXBUFS
+t 1SJUU4UJDLTBSFQSPEVDFEJOSFEVDFEFNJTTJPOQMBOU
+%HVɢȿɰɸȵʑɠ
+CODE DESCRIPTION
+1592729 Pritt Stick 20g Pink Just4Girls
+1697413 Pritt Stick 20g Xtreme Green
+PRITT COLOUR STICKS
+8JUI1SJUU+VTU(JSMTBOE
+Xtreme Green you can 
+Colour & Glue in one!  Dries 
+to a vivid bright colour. 
+Ideal for crafts and glitter 
+projects - Let the colour 
+shine through.
+CODE DESCRIPTION
+ADH070 A = 8g Power Glue Stick
+ADH071 B = 15g Power Glue Stick
+ADH072 C = 25g Power Glue Stick
+ADH073 D = 35g Power Glue Stick
+POWER GLUE STICKS
+Quality with the name you can trust. Non-Toxic Glue, 
+ideal for home, school and offi  ce use.
+A B C D
+%HVɢYɪʙɂɏ
+ADHESIVES & ADHESIVE TAPES
+
+----- [4835e976619690ae006e] page 2/5 -----
+5
+CODE DESCRIPTION
+1592736 Pritt Rainbow Sticks 10g x 4
+PRITT RAINBOW 
+STICKS
+8JUI1SJUU3BJOCPX
+Sticks you can Colour & 
+Glue in one!  Dries to a 
+vivid bright colour. Ideal 
+for crafts and glitter 
+projects - Let the colour 
+shine through. 
+CODE DESCRIPTION
+ADH0003 25ml Bostik Clear Adhesive
+BOSTIK CLEAR ADHESIVE
+The all-purpose household 
+adhesive, which is clear, strong 
+and quick drying. Excellent for use 
+in the home, offi  ce and school.  
+It provides good adhesion to 
+cardboard, leather, glass, etc and is 
+acid free which means it’s safe for 
+photographs and scrapbooking.
+&ȵHʋɠɳʙɂɏ
+CODE DESCRIPTION
+ADH0005 25ml Bostik Clear Gel Adhesive
+BOSTIK CLEAR GEL ADHESIVE
+The original multi-purpose Bostik 
+Clear is now available in a Gel 
+formula!  The non-drip, non-run 
+feature is great for vertical, more 
+absorbent surfaces and is ideal for 
+scrap booking and card making.  
+Features a precision nozzle for fi  ne 
+crafts and repairs!
+&ȵHʋɠȰɰɗ
+CODE DESCRIPTION
+ADH0088 25ml Pritt Clear Glue
+PRITT CLEAR GLUE
+1SJUU$MFBS(MVFGPSFWFSZEBZ
+household gluing and for arts 
+and crafts. Toluene Free - no glue 
+sniffi  ng. Dries clear, stays clear.
+EAGLE LIQUID GLUE
+Water based glue. Suitable for 
+paper and board. Ideal for home 
+and school use.
+CODE DESCRIPTION
+ADH0058TY33035 A = 35ml Eagle Liquid Glue
+ADH0058TY33050 B = 50ml Eagle Liquid Glue
+ADH0059TY33012 C = 125ml Eagle Liquid Glue
+A B C
+CODE DESCRIPTION
+ADH0041 50ml Economy Glue (Clear)
+ELITE STATIONERY GLUE
+Ideal for school, home and 
+offi  ce. Suitable for paper, 
+cardboard etc.
+CODE DESCRIPTION
+ADH0043 250ml Bulk Economy Glue (Clear)
+ELITE TWIST 
+STATIONERY GLUE
+Ideal for school, home and 
+offi  ce. Suitable for paper, 
+cardboard etc.
+CODE DESCRIPTION
+32035 A = 300ml Photomount 6094 - Permanent (292g)
+81693 B = 300ml Spraymount 6065 - Repositionable (290g)
+10989 C = 130ml Super 77 Multipurpose Spray Adhesive (385g)
+81719 D = 406ml Super 77 Multipurpose Spray Adhesive (124g)
+SCOTCH® ADHESIVE SPRAYS
+Scotch adhesive spray glues are fast and easy. Ideal 
+GPSMBSHFQSPKFDUT.4QSBZ.PVOU"EIFTJWFJTBPOF
+surface, clear, long aging, quick tack, low soak-in, 
+non-staining, non-wrinkling adhesive. Excellent for 
+short term bonding for lay-outs, package designs and 
+photo compositions.
+B C DA
+CODE DESCRIPTION
+ADH0046 125g Foska White Craft Glue
+FOSKA WHITE CRAFT GLUE
+4VJUBCMFGPS4DIPPM1SPKFDUT
+and Crafts.
+ADHESIVES & ADHESIVE TAPES
+
+----- [4835e976619690ae006e] page 3/5 -----
+6
+CODE DESCRIPTION
+1698282 Pattex 100% Glue 50g Bottle 
+1698286 Pattex 100% Gel 20g Tube
+PATTEX 100% ADHESIVE
+1BUUFYJTBOFXJOOPWBUJPOGSPN
+Henkel. It is perfect for a wide range of 
+applications including home repairs, DIY 
+BOEDSBGUJOHQSPKFDUT1BUUFY(MVFBOE
+Gel are both fl  exible yet versatile. They will 
+provide strong bonding in and around the 
+home & offi  ce on a wide range of materials.
+CODE DESCRIPTION
+1629609 3g Loctite Super Glue
+1704981 3g Loctite Power Flex Gel Super Glue
+572189 5g Loctite Precision Super Glue
+577091 5g Loctite Easy Brush Super Glue
+LOCTITE SUPER GLUE
+Universal Instant Adhesive. Works on 
+china, metal, rubber, leather, wood, 
+paper and most plastics.
+CODE DESCRIPTION
+ADH0047 3g Foska Super Glue
+FOSKA SUPER GLUE
+HDBSEFETVQFSHMVF'PSQMBTUJD
+NFUBM
+
+wood rubber, paper and leather.
+6ʦȼʑɠ
+VʤUʝQɒ
+CODE DESCRIPTION
+ADH0006 25g Bostik Prestik 
+ADH0007 100g Bostik Prestik
+BOSTIK PRESTIK
+1SFTUJLJTUIFPSJHJOBMSFVTBCMFBEIFTJWF
+
+which is clean, safe and easy to use. It 
+provides the perfect alternative to drawing 
+pins and sticky tape. This wonder product 
+XJUIVTFTJOUIFIPNF
+PóDFBOE
+school will not shrink or dry out, so it can 
+be used over and over again.
+CODE DESCRIPTION
+960STIK 100g Multi-Purpose Re-Usable Adhesive
+STAEDTLER 
+MUL TI-PURPOSE 
+RE-USABLE ADHESIVE
+Multi-purpose, re-usable adhesive. Clean, 
+safe and easy to use. A simple way to stick up 
+posters, calendars, maps, cards, art and craft 
+work, etc. The ideal alternative to drawing 
+QJOTBOETUJDLZUBQFH
+INTERSTAT SUPER TAC
+Multi purpose, re-usable adhesive. Sticks 
+objects in place on walls - at school, home 
+and in the offi  ce.
+CODE DESCRIPTION
+ADH110 100g Interstat Super Tac
+CODE DESCRIPTION
+ADH0008 3g Bostik Blits Stik Super Glue
+BLITS STIK SUPER GLUE
+Super quick, super strong, 
+multi-purpose cyanoacrylate 
+glue. This fast setting super glue 
+is waterproof, easy to apply and 
+non-toxic when cured.
+CODE DESCRIPTION
+ADH0060 120ml Ponal Wood Glue
+ADH00601 200ml Ponal Wood Glue
+ADH00602 500ml Ponal Wood Glue
+PONAL WOOD GLUE
+1POBM8PPE(MVFJTTVJUBCMF
+for DIY , Hobby, Craft and 
+School projects. Dries faster, 
+clearer and stronger.
+CODE DESCRIPTION
+11745 125ml Bostik Wood ‘n Paper
+BOSTIK WOOD ‘N PAPER
+5IJTTPMWFOUGSFF17"XPPE
+glue is also a great paper 
+glue.  It is fast setting, dries 
+clear and provides excellent 
+adhesion to hard and soft 
+woods, chipboard, supawood, 
+paper, cardboard, felt, cloth, 
+cork and other textiles.
+ADHESIVES & ADHESIVE TAPES
+
+----- [4835e976619690ae006e] page 4/5 -----
+7
+CODE DESCRIPTION
+ADH009 100g Pritt Multi Tack
+PRITT MUL TI TACK
+No classroom, home or 
+offi  ce should be without 
+/&81SJUU.VMUJ5BDL3F
+VTF1SJUU.VMUJ5BDLBHBJO
+and again for Strong and 
+easy mounting. 
+TOWER ADHESIVE GLUE TAPE
+Adhesive glue tape is easy to apply and allows for fast and 
+mess-free gluing, mounting and scrapbooking.
+CODE DESCRIPTION
+TWAT6P 5m x 6mm Tape - Permanent 
+TWAT6R 5m x 6mm Tape - Removable
+CODE DESCRIPTION
+ERD40PK1 8.4mm x 16m Dotliner Glue Tape
+ERR40PK1 Dotliner Glue Tape (Refi  ll)
+PENTEL DOTLINER GLUE TAPE & REFILL
+Dotliner refi  llable acid-free glue tape.
+CODE DESCRIPTION
+111 A = 111 Mounting Tape (For Rough Surfaces) - 18mm x 500mm
+116 B = 116 Mounting Tape (For Smooth Surfaces) - 18mm x 1m
+199 C = 199 Mounting Squares - 25mm x 25mm
+2410 424 Mounting Tape - 24mm x 10m
+SCOTCHMOUNT ™  MOUNTING SQUARES & TAPE
+Scotch® mounting products 
+- hold fast with a bond that 
+lasts! Self-sticking tapes, 
+strong high-density foam 
+with adhesive on both sides. 
+For mounting pictures, 
+mirrors and other items 
+either on a rough or smooth 
+wall or other surface.
+A B C
+CODE DESCRIPTION
+TAP0012 12mm x 33m
+TAP0013 18mm x 33m
+CODE DESCRIPTION
+TAP0014 24mm x 33m
+SICAD DOUBLE-SIDED TAPE
+Double sided tape suitable for fi  xing of photographs, pattern books 
+and other light samples and easy jobs. Easy to use.
+SICAD CLEAR TAPE
+Single sided tape fi  t for school, offi  ce, 
+stationery and home applications. 
+Suitable for general purpose uses, easy 
+unwinding and tear. 
+CODE DESCRIPTION
+TAP0008 12mm x 33m Large Core
+TAP0008SC 12mm x 33m Small Core
+TAP0007 12mm x 66m
+TAP00071 12mm x 50m
+TAP0038 18mm x 50m
+TAP0006 24mm x 50m
+CODE DESCRIPTION
+MMM030 810 Magic ™ Tape - 12mm x 25m
+MMM031 810 Magic ™ Tape - 18mm x 25m
+MMM033 810 Magic ™ Tape - 12mm x 50m
+MMM034 810 Magic ™ Tape - 18mm x 50m
+MMM035 810 Magic ™ Tape - 24mm x 50m
+SCOTCH® MAGIC™ TAPES
+Stick with the original! Look for the 
+green plaid to fi  nd the very best tape 
+for the offi  ce. Scotch ® Magic™ Tape 
+disappears on paper, won’t show on 
+copies, pulls off   the roll smoothly 
+BOEDVUTFBTJMZ3FTJTUTTQMJUUJOHBOE
+tearing, resists yellowing, cracking and 
+drying out. Can be written on. Trusted 
+RVBMJUZGPSPWFSZFBST
+SCOTCH® 
+TRANSPARENT TAPE 
+500 & 600
+Scotch® Transparent Tape 
+has a strong fi  lm backing, 
+excellent holding power 
+with the traditional glossy 
+fi  nish.  Stain and moisture 
+resistant. Excellent 
+multipurpose tape for the 
+home and offi  ce.
+CODE DESCRIPTION
+MMM050 500 Economy Tape - 12mm x 66m
+MMM051 500 Economy Tape - 24mm x 66m
+MMM052 500 Economy Tape - 18mm x 66m
+SICAD INVISIBLE TAPE
+Writable and “invisible” single sided 
+tape, recommended for repairing 
+documents and drawings; doesn’t 
+show when photocopied. Easy tear. 
+No noise unwinding; for stationery, 
+school, offi  ce, etc.
+CODE DESCRIPTION
+TAP0027 12mm x 50m
+TAP0028 18mm x 50m
+TAP0029 24mm x 50m
+ADHESIVES & ADHESIVE TAPES
+
+----- [4835e976619690ae006e] page 5/5 -----
+8
+CODE DESCRIPTION
+TAP0040 12mm x 50m (Black)
+TAP0041 12mm x 50m (Blue)
+TAP0042 12mm x 50m (Red)
+TAP0043 12mm x 50m (Green)
+TAP0044 12mm x 50m (Orange)
+TAP0045 12mm x 50m (Yellow)
+TAP0046 12mm x 50m (White)
+SICAD PVC BAG SEALER TAPE
+17$#BH4FBMFS5BQF
+CODE DESCRIPTION
+20267 Scotch® 301-PC6T Tower Pack (Clear)
+20283 Scotch® 301-PT6T Tower Pack (Tan)
+Acrylic adhesive has long-term resistance to ultraviolet light and aging. Used for long-term moving and 
+TUPSBHFJOBXJEFSBOHFPGUFNQFSBUVSFTNNYN
+SCOTCH® PACKAGING TAPE 
+SICAD BINDING TAPE
+General purpose single sided tape, 
+suitable for binding of insulation 
+covers such as pipes and panels, 
+also fi  t for general packaging 
+and “emergency” mending of 
+sunshades, etc.
+CODE DESCRIPTION
+TAP0032 48mm x 25m (Red)
+TAP0033 48mm x 25m (White)
+TAP0034 48mm x 25m (Black)
+TAP0035 48mm x 25m (Blue)
+TAP0036 48mm x 25m (Green)
+TAP00361 48mm x 25m (Yellow)
+TAP0054 48mm x 25m (Silver)
+SICAD MASKING TAPE
+Single sided tape, saturated crepe paper 
+backing, natural rubber adhesive. Masking 
+tape for indoor applications in buildings.
+CODE DESCRIPTION
+TAP0018 12mm x 40m
+TAP0019 18mm x 40m
+TAP0020 24mm x 40m
+TAP0021 36mm x 40m
+TAP0022 48mm x 40m
+CODE DESCRIPTION
+TAP0002 48mm x 50m (Buff  )
+TAP0003 48mm x 100m (Buff  )
+TAP0004 48mm x 50m (Clear)
+TAP0005 48mm x 100m (Clear)
+SICAD PACKAGING TAPE -  BUFF & CLEAR
+Standard carton and 
+packaging tape, suitable for 
+most common use. 
+SICAD PVC CARTON 
+SEALING TAPE
+17$DBSUPOTFBMJOHUBQF
+CODE DESCRIPTION
+TAP0048 48mm x 50m (Green)
+TAP0049 48mm x 50m (Yellow)
+TAP0050 48mm x 50m (White)
+TAP0051 48mm x 50m (Black)
+TAP0052 48mm x 50m (Navy Blue)
+TAP0053 48mm x 50m (Red)
+TAP0055 48mm x 50m (Orange)
+CODE DESCRIPTION
+1523403 48mm x 5m Power Tape (Silver)
+1178563 48mm x 5m Power Tape (Black)
+PATTEX POWER TAPE
+1BUUFY1PXFS5BQF
+XJUIFYUSBTUSPOH
+adhesive with high tack and easy tear, for 
+TPGVTFTJOBOEBSPVOEUIFPóDF
+BOEIPNF3FTJTUBOUUPUIFQSFTTVSFPG
+water and air. Suitable for packaging, 
+binding and many repairing and 
+industrial applications.
+CODE DESCRIPTION
+578658 80kg Mount Tape (Blue)
+578762 120kg Mount Tape (Red)
+PATTEX NO MORE NAILS
+The ideal instant mounting solution. 
+Available in indoor and indoor/
+outdoor options. Fast and clean. 
+4USPOHFOPVHIUPIPMEVQUPLH
+BOELHSFTQFDUJWFMZ
+ADHESIVES & ADHESIVE TAPES
+
+
+====================================================================================================
+===== 4e8cce46d6abec9a9d9a (원제: [메타데이터에 Title 없음]) =====
+====================================================================================================
+파일크기: 1617905 bytes / 페이지수: 5
+Title   : 
+Author  : 
+Subject : 
+Creator : Adobe InDesign CC 2015 (Windows)
+Producer: Adobe PDF Library 15.0
+----------------------------------------------------------------------------------------------------
+----- [4e8cce46d6abec9a9d9a] page 1/5 -----
+#MADE
+STATIONERY CATALOGUE
+2019  
+
+----- [4e8cce46d6abec9a9d9a] page 2/5 -----
+Wir bieten einfache, 
+kreative und zuverlässige Lösungen 
+für jedermann, überall, jederzeit. 
+Unsere Schreibwaren sind aus unserem Leben nicht mehr wegzudenken. Ritual, 
+Gewohnheit, Gefühl, Geschmack, Trendsetter… BIC ® -Produkte sind Symbole 
+und Botschafter, aufregende Erinnerungen, Abenteuer, Lernerfahrungen, Brücken 
+zwischen den Generationen von gestern, heute und morgen. Sie verbinden jene, 
+die sie verwenden und lieben.
+Beim ersten Mal.
+Und immer wieder.
+1
+MADE#
+
+----- [4e8cce46d6abec9a9d9a] page 3/5 -----
+Nos produits de papeterie sont subtilement connectés aux moments de 
+la vie. Un rituel, une habitude, une sensation, un goût, un nouveau geste… 
+les produits BIC® sont des jalons et des transmetteurs, ils déclenchent des 
+souvenirs, des découvertes, des expériences instructives qui créent des 
+ponts entre les générations passées, actuelles et futures. Ils connectent 
+tous ceux qui les utilisent et les aiment.
+Pour la première fois.
+Et après pour toujours.
+2
+MADE#
+Nous offrons des produits simples,
+inventifs et fiables pour tous,
+partout dans le monde, à tout moment.
+
+----- [4e8cce46d6abec9a9d9a] page 4/5 -----
+NEW OFFERIN 2019
+#
+2 Haupttrends  
+für die Weiterentwicklung 
+des Schreibwarenmarktes 
+Die Gewohnheiten und Erwartungen der Verbraucher bei Schreibwaren entwickeln sich.... 
+hin zu einem farbenfrohen und bedeutungsvollen Gebrauch
+Les attentes des clients en matière de papeterie évoluent vers des… produits colorés et utiles.
+ 1. WEITERENTWICKLUNG DES SORTIMENTS MIT IMMER MEHR FARBEN COLOURS
+15 COLOURS
+3 neue Farben 
+Das grösste Farbangebot bei 
+Kugelschreibern
+3 nouvelles couleurs 
+La plus ample offre de couleurs 
+parmi les stylos à bille.
+NEW
+NEW 
+4 Farben
+4 couleurs
+2 tendances principales   
+pour continuer à développer 
+le marché de la papeterie.  
+ 1. NOUS CONTINUONS À DÉVELOPPER LA GAMME AVEC DE PLUS EN PLUS DE COULEURS
+3
+
+----- [4e8cce46d6abec9a9d9a] page 5/5 -----
+NEW OFFERIN 2019
+#
+ 2. MEHR FUN IN DAS SORTIMENT MIT DECORS EINBRINGEN DECORS
+ 2. AVEC DECORS, NOUS INTRODUISONS PLUS DE PLAISIR DANS LA GAMME
+NEW
+NEW
+Soft Touch durch ein neues 
+Gehäuse mit samtigem Grip
+Le nouveau corps à texture 
+veloutée offre un toucher doux.
+COLLECTION 1
+ COLLECTION 2
+ COLLECTION 3
+NEW ROLL-OUT von
+3 Kollektionen pro Jahr
+3 Designs pro Kollektion
+UN LANCEMENT DE
+3 collections par an
+3 designs par collection
+4
+
+
+====================================================================================================
+===== 77cfe070405f6ca327a5 (원제: [메타데이터에 Title 없음]) =====
+====================================================================================================
+파일크기: 438095 bytes / 페이지수: 8
+Title   : 
+Author  : Windows User
+Subject : 
+Creator : Microsoft® Word 2016
+Producer: Microsoft® Word 2016
+----------------------------------------------------------------------------------------------------
+----- [77cfe070405f6ca327a5] page 1/8 -----
+Annual 
+Report 
+ 
+ 
+ 
+  
+AuditorzRus 
+   Tel 555 8932 
+Fax 555 1022 
+598 Ananoymous Lane, Leetville, 
+1337 
+www.auditorzr.us 
+info@auditorzr.us 
+    
+
+----- [77cfe070405f6ca327a5] page 2/8 -----
+ 
+ 
+Table of Contents 
+    
+Contents 
+To Our Stockholders __________________________________________________________ 1 
+Security Summary ____________________________________________________________ 2 
+Password Audit Findings _______________________________________________________ 3 
+Notes to Staff ________________________________________________________________ 4 
+Independent Auditor’s Report ___________________________________________________ 5 
+Contact Information ___________________________________________________________ 6 
+Company Information _________________________________________________________ 6 
+ 
+ 
+
+----- [77cfe070405f6ca327a5] page 3/8 -----
+Pg. 01 
+ 
+To Our Stockholders  
+   
+ 
+To Our Stockholders 
+Strategic Highlights 
+We’d like to thank the service providers for completing very thorough testing on all 
+environments in scope.  
+Financial Highlights 
+Having a secure perimeter and internal network reduces the risk of loss of revenue due to a 
+cyber-attack.  
+Operating Highlights 
+The recognition for the effort is due to the hard work from our new CISO, who has worked 
+tirelessly to improve our security posture.  
+Looking Ahead 
+We have made huge strides, however, more is needed to ensure that the threat landscape is 
+minimized.  
+“The results from 
+this year’s 
+security audit 
+have improved 
+since last year” 
+
+----- [77cfe070405f6ca327a5] page 4/8 -----
+Pg. 02 
+ 
+Security Summary  
+   
+ 
+Security Summary 
+We would like to thank our customer for their support and time, as well as understanding  the 
+potential delays to a normal ‘work day’ caused during a full business-wide audit.  
+ 
+The results speak for themselves though, and an overall increase in the security posture has 
+been noted. This includes staff performing very well on simulated social engineering attacks, 
+including last month’s phishing assessment.  
+ 
+On the other hand, an area of weakness has been observed on several accounts regarding 
+password age and complexity. All staff are urged to familiarize themselves with the new 
+Password Policy that will be circulated in the coming weeks.  
+ 
+ 
+
+----- [77cfe070405f6ca327a5] page 5/8 -----
+Pg. 03 
+ 
+Password Audit Findings  
+   
+ 
+Password Audit Findings 
+Statement of Position 
+• Statement  
+• Findings 
+• Recommendations 
+Statement  
+A password audit is conducted on an annual basis to assess if staff are complying with the 
+minimum password complexity requirements, and which are popularly used password phrases.  
+Findings 
+The table below details the most commonly used passwords, as well as how many instances 
+were noted on the entire company network 
+ 
+Password Instances 
+Passw0rd 27 
+password@1 23 
+Password1234 21 
+Qwerty7 19 
+Covid19 13 
+c0r0n@ 12 
+L0ckD0wn2020 11 
+Million2 5 
+aaron431 3 
+!Password-Reset0000 2 
+Recommendations 
+• User Awareness Training 
+• Account lockouts 
+
+----- [77cfe070405f6ca327a5] page 6/8 -----
+Pg. 04 
+ 
+Notes to Staff  
+   
+ 
+Notes to Staff 
+Accounts 
+It is critical that staff take note of the new password policy when setting a new password. This 
+is a minimum of 8 characters, with at least one number.  
+Security 
+Staff need to immediately change the default password after a reset request, in order to ensure 
+that there are no instances of password reuse on the network.  
+Going Concern 
+Further user awareness training will be conducted to ensure security practices meet the 
+necessary requirements, as described in this report and policy framework documentation.  
+Liabilities 
+Staff who are found to be in a security violation more than three times in a period of two years 
+may face dismissal. Please consult your line manager for more information in this regard.  
+Takeaways 
+We are only as secure as our weakest point – therefore we urge all staff and third-party 
+vendors to take security seriously on an ongoing basis.  
+We all want to feel 
+secure - no matter 
+what we are doing. 
+Pease play your 
+part!
+
+
+----- [77cfe070405f6ca327a5] page 7/8 -----
+Pg. 05 
+ 
+Independent Auditor’s Report  
+   
+ 
+Independent Auditor’s Report 
+Please refer to the following (separate) documents: 
+ 
+1.1 Unqualified Opinion 
+1.2 Qualified Opinion Report 
+1.3 Adverse Opinion Report 
+1.4 Disclaimer of Opinion Report 
+1.5 Auditor’s Report on Internal Controls of Public Companies 
+1.6 Going Concern 
+
+----- [77cfe070405f6ca327a5] page 8/8 -----
+Pg. 06 
+ 
+Contact Information  
+   
+ 
+Contact Information 
+Should you need to get in touch with anyone who worked on the most recent audit, please the 
+contact information below: 
+ 
+Lee Smith 
+Head Auditor 
+Tel 555 8935 
+Fax 555 1022 
+lee@auditorzr.us  
+Samantha Adams 
+Analyst 
+Tel 555 8937 
+Fax 555 1022 
+sam@auditorzr.us 
+    
+ 
+Simon Deer 
+Quality Assurance Officer 
+Tel 555 8933 
+Fax 555 1022 
+simon@auditorzr.us 
+  
+ 
+Company Information 
+AuditorzRus 
+598 Ananoymous Lane, Leetville, 1337 
+Tel 555 8932 
+Fax 555 1022 
+www.auditorzr.us 
+ 
+
+
+
+====================================================================================================
+===== c5237630ef40e2585d35 (원제: [메타데이터에 Title 없음]) =====
+====================================================================================================
+파일크기: 841392 bytes / 페이지수: 5
+Title   : 
+Author  : 
+Subject : 
+Creator : Adobe InDesign 16.0 (Macintosh)
+Producer: 3-Heights™ PDF Optimization Shell 6.3.1.5 (http://www.pdf-tools.com)
+----------------------------------------------------------------------------------------------------
+----- [c5237630ef40e2585d35] page 1/5 -----
+Catalogue 202 1 - 2022Catalogue 202 1 - 2022
+
+----- [c5237630ef40e2585d35] page 2/5 -----
+WHAT’S NEW    4
+CORPORATE PARTNERSHIPS    5
+PENTEL AND THE  ENVIRONMENT  6
+ENERGEL    8
+GEL PENS & ROLLERBALLS               14
+BALLPOINT PENS                   18
+PLASTIC & FIBRE TIPS                21
+MARKERS                 24 
+Permanent                 25 
+Whiteboard Markers                28 
+Wet-Erase Chalk Markers                30 
+Paint Markers                 31 
+Highlighters                 32 
+Marker Usage Guide                33
+MECHANICAL PENCILS                34 
+AND REFILL LEADS 
+Pencils                  35 
+Refill Leads                 39
+CORRECTION                 40 
+Pens                  41 
+Tape                  41 
+Erasers                  42
+PENTEL ARTS                 43
+GIFT COLLECTION                 56 
+EnerGel Philography                57 
+EnerGel Sterling                 57 
+Sterling Fountain Pen                57 
+Sterling Symphony                 57 
+Sterling Excel                 58 
+Sterling Executive                 58 
+GraphGear                 58
+RECYCOLOGY                 59
+DISPLAYS                  64
+WALLETS                 70
+BLISTER CARDS                 74
+REFILLS                  74
+LEGEND
+Refillable
+Latex-FreeRecycology
+Quick  
+Drying Ink
+Xylene & 
+Toluene-Free
+Acid Free LO Low-odour
+LFLATEXFREE
+XTF
+Some items are available while stocks last.  
+For more information contact your Pentel representative.
+Line widths described in this catalogue are approximate. 
+Percentage of recycled content correct at time of going to press.
+COLOUR CODES
+D - GreenCA - Blue/Black E - Brown
+A - Black B - Red C - Blue
+F - Orange G - Yellow K - Light Green
+M - Assorted N - Grey P - Pink
+S - Sky Blue S3 - Turquoise V - Violet
+V4 - Magenta
+P3 - Coral Pink SP - Sepia V3 - Lilac
+W - White X - Gold Y - Ochre
+The letter ‘M’ in front of a colour denotes a metallic 
+shade. The letter ‘L’ denotes a pastel colour
+At Pentel we pride ourselves on quality, innovation 
+and reliability, which is reflected throughout our  
+entire range. In the following pages you will find  
+all your favourite products, together with new and 
+exciting items, giving you the performance you 
+expect from Pentel.
+From the quick-drying, smudge-reducing EnerGel, 
+to unique Hybrid Dual Metallic pens, to the  
+colourful and convenient Pentel Arts collection, 
+there’s something to inspire everyone to be  
+creative. 
+Our Recycology range reflects our commitment  
+to manufacturing products that are better for the  
+environment. The collection includes display  
+books and presentation files that are all made  
+from at least 50% recycled materials, without  
+compromising quality. 
+For trade customers, to complement our range of 
+products we offer a variety of merchandising
+solutions and displays. For more information  
+see page 64. 
+Pentel have a company-wide total quality  
+management programme and many of our  
+factories are registered to ISO standards. We 
+recognise the importance of developing products 
+that benefit consumers and the environment by 
+using low-odour inks and recycled materials  
+where possible.
+For more information on any of our products 
+please contact your local representative or call 
+our customer services team on  
+00 44 (0) 1793 823333.
+E-mail salesoffice@pentel.co.uk or  
+visit our website: www.pentel.co.uk  
+get social with us
+WZ - Warm Silver Z - Silver MA - Smoke Grey
+PG - Rose Gold BG - Burgundy D3 - Olive Green
+For Brush Sign Pens see page 50
+For Hybrid Dual Metallic Pens see page 16
+CONTENTS
+
+----- [c5237630ef40e2585d35] page 3/5 -----
+WHAT’S NEW
+When it comes to innovation and excellent performance, fresh thinking 
+and outstanding new ideas you’ll find our 2021-2022 catalogue full of 
+exciting products and initiatives.
+It’s estimated that over two-thirds of the writing instruments  
+technology we take for granted in the world today has been inspired 
+by Pentel innovation. And it’s thanks to the efforts and close 
+collaboration of our research and development and production teams 
+that we continue to create products that are not only fit for purpose, 
+but inspiring.
+Our fantastic EnerGel range, which has just celebrated its 20th  
+anniversary, continues to grow. We’re adding more beautiful colours to 
+the EnerGel Xm Retractable family, offering consumers an extensive 
+range of 20 colours to choose from. New to the family is EnerGel Noir; 
+its slim matt barrel and lightly grooved finger grip make it a pleasure to 
+write with. 
+The latest additions to our popular gel pen range continue to amaze: 
+with seven new sparkling colours, Hybrid Dual Metallic pens are truly 
+incredible. Infused with two colours of glitter into the dye ink the effect 
+is like a hologram. Remaining unique to Pentel, the stunning range of 
+Hybrid Dual Metallic pens now have 15 shimmering colours available 
+and are perfect for use on cards, decorations and drawings. 
+The bright, modern iZee (easy) makes a fabulous addition to the 
+ballpoint pen range. Designed in France, iZee is available in an array of 
+vibrant colours and a choice of retractable or cap style versions,  
+making it perfect for everyday writing. A twist on the original Superb 
+pen sees the introduction of Superb Anti-Bacterial. Its barrel is treated 
+with anti-bacterial formula to help prevent the spread of germs and 
+reduce the risk of infection. Ideal for use in educational, medical, food 
+and cosmetic industry environments.
+Our Graphgear pencil family is renowned for its quality, reliability and  
+performance and the latest additions are no exception. The fresh new 
+colours of Graphgear 300 not only look fantastic but are available in 
+four lead sizes to suit all needs. 
+A broad tip has also been introduced to the Maxiflo range offering the 
+usual benefits of Maxiflo ink technology while producing vivid, dense 
+and solid lines making messages and charts stand out.
+Our Pentel Arts range, which is ideal for artists, students and craft 
+enthusiasts, continues to offer new and exciting products. In addition 
+to the wide variety of high-quality art materials already available, we’ve 
+introduced a further 12 beautiful colours to the Brush Sign Pen family. 
+Its flexible brush-like tip makes it ideal for modern lettering, calligraphy, 
+illustrations and journaling. Draw, sketch and write with the new  
+Pointliner, which contains ISO-certified water and fade-resistant  
+pigment ink which can be used with watercolours and dye ink  
+products. It’s available in five tip sizes and is ideal for creating the most 
+intricate details or bold lines and shading.
+Our product ranges are updated during the life of this catalogue, so  
+for the latest information please visit our website www.pentel.co.uk
+ 
+CORPORATE PARTNERSHIPS
+Pentel is proud to be a corporate partner of Breast 
+Cancer Now and Prostate Cancer UK. Thanks to your 
+support we continue to raise thousands of pounds 
+to help fund vital projects in the UK and Ireland to 
+improve the lives of those who suffer from these 
+diseases.
+We’ve supported Breast Cancer Now since 2006 and 
+have raised over £1.4 million for the charity to date.  
+Our relationship with Prostate Cancer UK began in 
+2009 and donations to the charity are in excess  
+of £628,000. 
+Our special edition products are available from many  
+customers, plus our own online store. We make a  
+donation to the respective charity for every pen sold 
+through these channels.
+Find out more about our partnerships with Breast  
+Cancer Now and Prostate Cancer UK and help us raise 
+more money to support the work of these important  
+charities. 
+      Breast Cancer Now is the charity that’s  
+     steered by world-class research and  
+     powered by life-changing care. They’re 
+here for anyone affected by breast cancer, the whole way through, 
+providing support for today and hope for the future. 
+They believe that if we all act now, we can change the future of 
+breast cancer and make sure that, by 2050, everyone diagnosed  
+with the disease lives – and is supported to live well. 
+Visit www.breastcancernow.org for more information 
+See page 13 for product details.
+      Prostate Cancer UK is leading the fight  
+      against prostate cancer. They’re here  
+      for the millions of families concerned  
+or affected by prostate cancer wherever they live in the UK. They 
+support men and their families living with the impact of prostate  
+cancer now, fund research to protect men in the future and  
+campaigns to raise awareness and drive change.
+Visit www.prostatecanceruk.org for more information 
+See page 13 for product details.                                          
+
+
+----- [c5237630ef40e2585d35] page 4/5 -----
+RECYCOLOGY
+Our commitment to the three Rs – reduce, reuse, recycle – 
+is encapsulated in one word: Recycology.
+It’s how we describe the efforts we make to use natural  
+resources sensitively and responsibly throughout our 
+business. It’s also about how Pentel can help you choose 
+products that have a reduced impact on the environment.
+We offer you a wide range of writing instruments, filing 
+products and display books made using a minimum of 50% 
+recycled material. Plus, many of our pens, and all our  
+pencils, are refillable.
+ACTING RESPONSIBLY WITH RECYCOLOGY
+At every level of our business we’re working hard to help  
+preserve and protect the environment, whether that’s by 
+using recycled plastic in our pens or introducing new  
+cardboard packaging for our customers.
+This isn’t new for us. Our parent company in Tokyo has a 
+dedicated environmental management framework based on 
+its Environmental Principles programme that was established 
+in the mid-1990s. This framework informs, develops and 
+LOCAL ACTION
+In the UK we want to encourage everyone who buys a Pentel 
+product that can be refilled to do just that. So that’s why 
+we’ve developed our message,  
+‘If You Love It, Refill It’, to help  
+identify those items that can  
+be used over and again. When  
+you view our catalogue, you’ll  
+see this logo next to certain  
+products and you’ll find the  
+refills listed, to make it easy  
+to select the right one.
+We’re all aware of the need to reduce or eradicate single-use 
+plastic in packaging and it’s no different at Pentel. Boxes 
+of Pentel loose pens, pencils and markers are made using 
+recycled board, and we’re introducing many new wallet sets 
+made from board, not plastic.
+Where we continue to use recycled polypropylene for best 
+protection of products, we encourage you to keep your  
+Pentel products together in these sets, or to recycle the  
+plastic appropriately. In addition, many of our most  
+popular blister packs now also include a reminder that you 
+can recycle the card and plastic separately.
+RECYCOLOGY DISPLAY BOOKS AND 
+PRESENTATION FILES 
+Nearly 15 years ago Pentel launched a range of display 
+books, presentation files and folders, all made using 50% 
+recycled materials*. Recycology filing products use fewer 
+valuable resources than non-recycled equivalents, without 
+compromising quality. Ideal for projects, presentations,  
+recipe collections or hobbies, the Recycology range is ideal 
+for office, school or home and helps you keep precious  
+documents and photos protected and organised.
+RECYCOLOGY WRITING INSTRUMENTS
+Where you see the Recycology logo next to a Pentel  
+product this denotes that the item contains a minimum of 
+50% recycled material*. Where practical, our factories try 
+to manufacture as many products using recycled material as 
+possible. We’re proud to say that two thirds of our  
+quick-drying EnerGel range is classified under the  
+Recycology umbrella, including our hugely popular EnerGel X 
+retractable rollerball, which is made using a minimum of 84% 
+recycled material (and it’s refillable).
+And don’t forget to refill your Pentel pen or mechanical pencil.  
+Over 40% of the products in our entire UK range can be  
+refilled, even including our Roll ‘n’ Glue and Brush Glue bottles.
+So, there’s really no need to throw away a  
+perfectly re-usable Pentel product. 
+operates environmental management systems to make Pentel 
+activities at factories and offices more effective in terms of 
+sustainability and protection of the environment. Pentel’s 
+factories in Japan, Taiwan, Thailand and Mexico are all  
+accredited to ISO 14001 for environmental management 
+systems.
+In product development Pentel factories have a duty to use 
+recycled materials wherever possible. And it’s always been 
+our goal to make products that last a long time or can be 
+refilled, to reduce the need to throw away perfectly usable 
+products.
+And what could be more responsible than a refillable pencil?  
+Pentel have been designing and manufacturing mechanical 
+pencils for more than 50 years. Each time you choose a  
+Pentel mechanical Pentel you’re helping to reduce the  
+requirement for thousands of trees that are chopped down 
+every year to make traditional wood-case pencils.
+PENTEL AND THE ENVIRONMENT
+REDUCE, REUSE AND RECYCLE
+RECYCLE
+Developing products
+using recycled materials
+such as plastic 
+and paper
+LONG-LIFE 
+PRODUCTS
+Extending products’
+lifecycle using
+superior ink and refill
+technology
+CLEAN
+Reducing waste, 
+controlling chemical
+substances, addressing
+RoHS directives
+PRODUCTS 
+WITH MINIMAL 
+ADVERSE
+IMPACT ON THE 
+ENVIRONMENT
+*Percentage based on total weight of product excluding consumable elements.
+
+----- [c5237630ef40e2585d35] page 5/5 -----
+9
+•  Premium retractable roller pen 
+•  Sophisticated, satin finish metal body
+•  Chrome plated trim and metal pocket clip
+•  Smooth operating twist retractable  
+mechanism
+•  Supplied with black ink
+B S
+Z
+A C
+WZ
+E
+W
+PHILOGRAPHY
+BL2007 
+0.7mm tip gives approx a  
+0.35mm line width
+•  Premium retractable roller pen 
+•  Smart metal body, pocket clip  
+and nib advance
+•  Wave design, grooved finger  
+grip for extra control
+•  Lightweight barrel for comfortable  
+writing all day
+•  Supplied with black ink
+B
+PGMA
+P
+V Z
+LS S
+BL407 
+0.7mm tip gives approx a  
+0.35mm line width
+•   Waterproof, light-fast and  
+fade-resistant ink
+•   Archive-safe - perfect for  
+signing cheques, contracts and  
+other legal documents
+•   Conforms to ISO 27668-2 standard
+•   Sophisticated black barrel with  
+gold (0.5mm) or silver (0.7mm) trim
+•  Made from 54% recycled material*
+* Percentage based on the total weight of the product  
+excluding the ink and refill
+LRP7 
+Refill
+LRP5 
+Refill
+AX
+AX
+BLP75 
+0.5mm tip gives approx a  
+0.25mmline width
+AX BX CX
+BLP77 
+0.7mm tip gives approx  
+a 0.35mm line width
+AX BX CX
+eNeRgel
+LR7 
+Refill
+FX
+S3X
+GX KX NX
+V3X
+CX CAX DX
+PX
+AX D3X
+EX
+SX
+BX BGX
+P3X
+SPX VX V4X
+FX
+S3X
+GX KX NX
+V3X
+CX CAX DX
+PX
+AX D3X
+EX
+SX
+BX BGX
+P3X
+SPX VX V4X
+LR7 
+Refill
+eNeRgel8
+With its revolutionary low viscosity liquid gel ink,  the EnerGel formula is  quicker drying and 
+smoother flowing than ordinary gel ink, giving  a similar sensation to liquid ink. Because the 
+ink  dries super quickly it’s appreciated by right and left-handed  writers alike, as it reduces 
+smudging on paper or hands.
+Unlike liquid ink products, though, EnerGel doesn’t  need a regulator to control its 
+flow – the ink is  delivered directly from the reservoir or refill  to the tip in one  
+smooth transition. That’s why  the family of EnerGel products gives you the  ultimate,  
+yet affordable, writing experience. The majority of the EnerGel range is made from a  
+minimum of 50% recycled material. 
+Scan this code to  
+watch EnerGel video
+ENERGEL
+barrel colour
+barrel colour
+Red ink available while stocks last
+Red ink available while stocks last
+LFLATEXFREE
+
+
+====================================================================================================
+추출 요약
+====================================================================================================
+2d5ef5a0f0c9579458c9 | pages=5 | bytes=3557581 | 추출문자수=7611 | 원제=18_304 - Staedtler - Catalogue 2019 - 0. Intro Section_Packaged Wiro.indd
+4835e976619690ae006e | pages=5 | bytes=1258508 | 추출문자수=13212 | 원제=Interstat Contents Guide 2014_p1-3.indd
+4e8cce46d6abec9a9d9a | pages=5 | bytes=1617905 | 추출문자수=2252 | 원제=(없음)
+77cfe070405f6ca327a5 | pages=8 | bytes=438095 | 추출문자수=4768 | 원제=(없음)
+c5237630ef40e2585d35 | pages=5 | bytes=841392 | 추출문자수=15391 | 원제=(없음)

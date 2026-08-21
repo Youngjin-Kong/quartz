@@ -20,26 +20,26 @@ manual_tags: true
 tech_count: 4
 ---
 > [!info] PG Practice — Sorcerer · Intermediate · Linux (Debian 10)
-> **타겟** 192.168.120.100 · **OS** Debian 10 (buster), 커널 4.19 계열 · **플래그 2개**
-> **경로 요약** 7742 nginx 디렉터리 열거 → `/zipfiles/max.zip`에 **홈 디렉터리 백업(개인 SSH 키 포함)** → `authorized_keys`의 `command="scp_wrapper.sh"` 강제 명령에 갇힌 셸 → **그 제한 자체를 scp로 덮어써서 해제** → `max` 셸 → SUID `/usr/sbin/start-stop-daemon` → root
-> **핵심 교훈** 강제 명령(forced command)은 **자기 자신이 적혀 있는 파일을 보호하지 못한다.**
+> 타겟 192.168.120.100 · OS Debian 10 (buster), 커널 4.19 계열 · 플래그 2개
+> **경로 요약** 7742 nginx 디렉터리 열거 → `/zipfiles/max.zip`에 홈 디렉터리 백업(개인 SSH 키 포함) → `authorized_keys`의 `command="scp_wrapper.sh"` 강제 명령에 갇힌 셸 → 그 제한 자체를 scp로 덮어써서 해제 → `max` 셸 → SUID `/usr/sbin/start-stop-daemon` → root
+> **핵심 교훈** 강제 명령(forced command)은 자기 자신이 적혀 있는 파일을 보호하지 못한다.
 
 ## 0. 이 박스에서 배우는 것
 
-- **웹루트에 놓인 백업 아카이브가 왜 치명적인가** — `.zip` 하나가 `id_rsa`·`authorized_keys`·앱 설정 백업을 동시에 준다. 크리덴셜 스터핑이 아니라 **파일 노출**이 foothold다
-- **SSH `authorized_keys` 옵션 필드의 구조와 한계** — `command=`·`no-pty`·`no-port-forwarding`이 각각 무엇을 막고, **무엇을 못 막는가**
+- **웹루트에 놓인 백업 아카이브가 왜 치명적인가** — `.zip` 하나가 `id_rsa`·`authorized_keys`·앱 설정 백업을 동시에 준다. 크리덴셜 스터핑이 아니라 파일 노출이 foothold다
+- **SSH `authorized_keys` 옵션 필드의 구조와 한계** — `command=`·`no-pty`·`no-port-forwarding`이 각각 무엇을 막고, 무엇을 못 막는가
 - **제한된 채널(scp 전용)로 그 제한을 해제하는 사고** — 이 박스의 전부다. "쓰기 권한이 있는 대상 중에 나를 가두는 규칙 파일이 포함돼 있는가"라는 질문
-- **`scp -O`** — OpenSSH 9 이후 `scp`의 기본 전송 방식이 바뀌어서, **옛 서버·강제 명령 환경에서는 `-O` 없이는 조용히 실패**한다. 시험장에서 이 한 글자에 30분을 태울 수 있다
+- **`scp -O`** — OpenSSH 9 이후 `scp`의 기본 전송 방식이 바뀌어서, 옛 서버·강제 명령 환경에서는 `-O` 없이는 조용히 실패한다. 시험장에서 이 한 글자에 30분을 태울 수 있다
 - **SUID 바이너리 열거와 GTFOBins 대조** — `start-stop-daemon`처럼 "관리용 도구"가 SUID로 남아 있으면 그대로 root다. `sh -p`의 의미까지
 - **자동 도구(linpeas)를 썼을 때의 수동 대안** — `find / -perm -4000 -type f 2>/dev/null` 한 줄이면 같은 결론에 도달한다
 
 > [!tip] 시험 출제 가능성
 > | 요소 | 시험 출제 가능성 | 이유 |
 > |---|---|---|
-> | **웹에 방치된 백업/아카이브 파일** | **매우 높음** | `.zip`·`.tar.gz`·`.bak`·`.old`·`.swp`는 디렉터리 열거의 1순위 확장자다. 시험 박스의 foothold가 여기서 나오는 경우가 흔하다 |
-> | **유출된 개인 SSH 키로 로그인** | **매우 높음** | 리눅스 박스의 정석 foothold. 이 노트의 `[[Slort]]`·`[[Astronaut]]` 계열과 같은 반사신경 |
-> | **`command=` 강제 명령 우회** | 중간 | 그 자체는 흔치 않지만, **"제한된 원시(primitive)로 무엇을 할 수 있는가"** 라는 사고는 시험 전 구간에 적용된다. 파일 읽기만 되는 LFI, 쓰기만 되는 업로드도 같은 사고다 |
-> | **SUID → GTFOBins** | **매우 높음** | 리눅스 권한상승의 기본. `find / -perm -4000`은 셸 잡고 3분 안에 친다 |
+> | 웹에 방치된 백업/아카이브 파일 | 매우 높음 | `.zip`·`.tar.gz`·`.bak`·`.old`·`.swp`는 디렉터리 열거의 1순위 확장자다. 시험 박스의 foothold가 여기서 나오는 경우가 흔하다 |
+> | 유출된 개인 SSH 키로 로그인 | 매우 높음 | 리눅스 박스의 정석 foothold. 이 노트의 `[[Slort]]`·`[[Astronaut]]` 계열과 같은 반사신경 |
+> | `command=` 강제 명령 우회 | 중간 | 그 자체는 흔치 않지만, **"제한된 원시(primitive)로 무엇을 할 수 있는가"** 라는 사고는 시험 전 구간에 적용된다. 파일 읽기만 되는 LFI, 쓰기만 되는 업로드도 같은 사고다 |
+> | SUID → GTFOBins | 매우 높음 | 리눅스 권한상승의 기본. `find / -perm -4000`은 셸 잡고 3분 안에 친다 |
 >
 > 변형은 이런 모습이다 — zip 대신 `.git` 디렉터리 노출, `id_rsa` 대신 `.pgpass`·`.netrc`·`credentials.xml`, `start-stop-daemon` 대신 `env`·`python3.9`·`pkexec`. **원리는 동일하다.**
 
@@ -109,23 +109,23 @@ OS and Service detection performed. Please report any incorrect results at https
 
 | 플래그 | 역할 | 빼면 어떻게 되는가 |
 |---|---|---|
-| `-p-` | 65535 포트 전수 | **이 박스는 `-p-` 없이는 풀리지 않는다.** 정답 서비스가 **7742**에 있다. 기본 스캔(top 1000)은 22/80/111/2049만 보여주고, 웹루트 백업도 Tomcat도 못 본다 |
-| `-sCV` | 기본 NSE + 버전 탐지 | `Apache Tomcat 7.0.4`, `OpenSSH 7.9p1 Debian 10+deb10u2` 같은 **정확한 버전 문자열**이 안 나온다. `rpcinfo` NSE도 안 돌아서 **mountd/nfs_acl의 존재를 놓친다** |
+| `-p-` | 65535 포트 전수 | **이 박스는 `-p-` 없이는 풀리지 않는다.** 정답 서비스가 7742에 있다. 기본 스캔(top 1000)은 22/80/111/2049만 보여주고, 웹루트 백업도 Tomcat도 못 본다 |
+| `-sCV` | 기본 NSE + 버전 탐지 | `Apache Tomcat 7.0.4`, `OpenSSH 7.9p1 Debian 10+deb10u2` 같은 정확한 버전 문자열이 안 나온다. `rpcinfo` NSE도 안 돌아서 **mountd/nfs_acl의 존재를 놓친다** |
 | `-Pn` | ping 사전탐지 생략 | PG 랩은 ICMP를 막는 경우가 있다. 빼면 "host down"으로 오판 |
 | `-A` | OS 추측 + traceroute | OS 추측이 `Linux 5.0 - 5.14`로 나왔는데 **이건 틀렸다** (실제로는 Debian 10 / 4.19 커널). 아래 경고 참조 |
-| `--min-rate 5000` | 초당 최소 패킷 | 전수 스캔이 **31초**에 끝났다. 이 옵션 없이는 수십 분 |
+| `--min-rate 5000` | 초당 최소 패킷 | 전수 스캔이 31초에 끝났다. 이 옵션 없이는 수십 분 |
 | `-oN nmap.log` | 사람이 읽는 포맷 저장 | 재스캔 없이 다시 읽는다. 시험 리포트 증거로도 쓴다 |
 
 > [!warning] `OS details: Linux 5.0 - 5.14`를 믿고 커널 익스플로잇을 고르지 마라
-> nmap의 OS 지문은 **TCP/IP 스택 특성 추측**이다. 이 박스는 `OpenSSH 7.9p1 Debian 10+deb10u2` 배너가 **Debian 10 (buster)** 를 가리키고, buster의 표준 커널은 **4.19** 계열이다. 실제로 [[Pelican]]에서 같은 배너의 박스를 덤프해 보니 `4.19.0-10-amd64`였다.
+> nmap의 OS 지문은 TCP/IP 스택 특성 추측이다. 이 박스는 `OpenSSH 7.9p1 Debian 10+deb10u2` 배너가 Debian 10 (buster) 를 가리키고, buster의 표준 커널은 4.19 계열이다. 실제로 [[Pelican]]에서 같은 배너의 박스를 덤프해 보니 `4.19.0-10-amd64`였다.
 > 즉 nmap의 `5.0 - 5.14`는 **오탐**이다. 이 오탐을 믿고 5.x 대상 커널 익스플로잇을 컴파일하면 시간을 버린다 — 실제로 이 박스에서 그렇게 됐다(6장 ⑤).
 > **버전 판정은 독립 근거 2개** 규칙([[Hub]] · [[Levram]] · [[RubyDome]] · [[Astronaut]] · [[Squid]]). 커널 버전은 셸을 잡은 뒤 `uname -a`로 확정한다.
 
 **이 스캔에서 읽어야 할 세 줄**
 
 1. `7742/tcp open http nginx` + `http-title: SORCERER` — **비표준 포트의 커스텀 앱**. 80번의 nginx는 제목조차 없는데 7742는 박스 이름을 달고 있다. 여기가 본진이다
-2. `2049/tcp open nfs` + `rpcinfo`에 mountd 3개 — NFS 익스포트가 존재한다. 리눅스 박스에서 NFS는 **`no_root_squash` 권한상승**의 단골 통로다
-3. `8080/tcp open http Apache Tomcat 7.0.4` — **10년도 더 된 버전**. 반사적으로 `/manager/html`과 PUT 계열 CVE가 떠오른다 (2-6 참조)
+2. `2049/tcp open nfs` + `rpcinfo`에 mountd 3개 — NFS 익스포트가 존재한다. 리눅스 박스에서 NFS는 `no_root_squash` 권한상승의 단골 통로다
+3. `8080/tcp open http Apache Tomcat 7.0.4` — 10년도 더 된 버전. 반사적으로 `/manager/html`과 PUT 계열 CVE가 떠오른다 (2-6 참조)
 
 ### 1-2. 서비스 식별 — whatweb 원문
 
@@ -143,8 +143,8 @@ Title[Apache Tomcat/7.0.4]
 
 두 줄에서 얻는 것:
 
-- 7742는 **`PasswordField[password]`** — 로그인 폼이 있다. 인증 우회/기본 자격증명/SQLi 후보
-- 8080은 whatweb이 `HTTPServer` 헤더를 못 뽑았다. **Tomcat이 `Server:` 헤더를 안 보내도록 설정됐거나 nmap의 favicon 해시로만 판정된 것** [가정]. 버전 판정 근거가 **nmap의 title/favicon 하나뿐**이므로 신뢰도가 낮다 — 8080에 직접 붙어 기본 페이지 문구를 확인해야 확정이다
+- 7742는 `PasswordField[password]` — 로그인 폼이 있다. 인증 우회/기본 자격증명/SQLi 후보
+- 8080은 whatweb이 `HTTPServer` 헤더를 못 뽑았다. Tomcat이 `Server:` 헤더를 안 보내도록 설정됐거나 nmap의 favicon 해시로만 판정된 것 [가정]. 버전 판정 근거가 **nmap의 title/favicon 하나뿐**이므로 신뢰도가 낮다 — 8080에 직접 붙어 기본 페이지 문구를 확인해야 확정이다
 
 ### 1-3. 7742 웹 앱 — 로그인 시도
 
@@ -156,10 +156,11 @@ Title[Apache Tomcat/7.0.4]
 
 ![[Pasted image 20260710132020.png]]
 
-> [!warning] 로그인 폼을 보면 뚫으려 하기 전에 **뒤를 먼저 뒤진다**
-> 폼이 보이면 무의식적으로 자격증명을 추측하게 된다. 그런데 커스텀 로그인 폼은 **소스·주변 디렉터리에 정답이 있는 경우가 훨씬 많다.**
-> 순서: ① 페이지 소스 보기 → ② robots.txt / 주석 → ③ **디렉터리 열거** → ④ 그래도 없으면 자격증명 공략.
-> 이 박스는 ③에서 끝났다. ④에 시간을 태웠다면 손해였다(6장 ①).
+#### 로그인 폼을 보면 뚫으려 하기 전에 뒤를 먼저 뒤진다
+
+폼이 보이면 무의식적으로 자격증명을 추측하게 된다. 그런데 커스텀 로그인 폼은 **소스·주변 디렉터리에 정답이 있는 경우가 훨씬 많다.**
+순서: ① 페이지 소스 보기 → ② robots.txt / 주석 → ③ 디렉터리 열거 → ④ 그래도 없으면 자격증명 공략.
+이 박스는 ③에서 끝났다. ④에 시간을 태웠다면 손해였다(6장 ①).
 
 ### 1-4. 디렉터리 열거 — `/zipfiles/` 발견
 
@@ -214,7 +215,7 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 | `-t 50` | 동시 스레드 | 기본값보다 빠르지만 랩 네트워크에서 안정적인 상한. 너무 올리면 404 필터가 오작동한다 |
 | `-x html,txt` | 확장자 추가 | 여기서는 결정적이지 않았다. **`-x zip,bak,tar.gz,old,sql`을 넣었다면 훨씬 빨리 끝났을 것이다** — 아래 tip |
 
-> [!tip] 이 박스의 진짜 교훈 — 확장자 리스트에 **아카이브·백업**을 넣어라
+> [!tip] 이 박스의 진짜 교훈 — 확장자 리스트에 아카이브·백업을 넣어라
 > 정답 파일은 `.zip`이었다. `-x html,txt`로는 `zipfiles` **디렉터리**를 우연히 맞춰야만 발견된다.
 > 다음부터는 이렇게 친다:
 > ```bash
@@ -225,9 +226,9 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 > 그리고 **디렉터리 리스팅이 켜진 경로를 만나면 무조건 브라우저로 직접 연다.** feroxbuster는 마지막 줄에서 그걸 알려줬다:
 > `http://192.168.120.100:7742/zipfiles/ => Directory listing (add --scan-dir-listings to scan)`
 
-> [!danger] feroxbuster는 **디렉터리 리스팅을 기본적으로 재귀 스캔하지 않는다**
+> [!danger] feroxbuster는 디렉터리 리스팅을 기본적으로 재귀 스캔하지 않는다
 > 위 마지막 줄이 그 경고다. `--scan-dir-listings`을 주지 않으면 리스팅 안의 파일은 워드리스트에 그 이름이 있을 때만 잡힌다.
-> **여기서는 운 좋게 `francis`·`miriam`·`max`·`sofia`가 사람 이름 워드리스트에 있었다.** 이름이 특이했다면 `zipfiles/` 디렉터리만 찾고 내용물은 못 봤을 수 있다.
+> 여기서는 운 좋게 `francis`·`miriam`·`max`·`sofia`가 사람 이름 워드리스트에 있었다. 이름이 특이했다면 `zipfiles/` 디렉터리만 찾고 내용물은 못 봤을 수 있다.
 > **스캐너가 "디렉터리 리스팅"이라고 말하면 사람이 직접 눈으로 연다.** 이건 스캐너 함정의 전형이다.
 
 ### 1-5. 아카이브 내용 — 홈 디렉터리 통째로
@@ -243,10 +244,11 @@ by Ben "epi" Risher 🤓                 ver: 2.13.1
 
 ![[Pasted image 20260710132345.png]]
 
-**크기가 답을 알려준다.** `max.zip`만 13,898바이트고 나머지 셋은 4,7xx바이트다. 4.7KB는 `.bashrc`(3.5KB)+`.profile`(807B)+`.bash_logout`(220B), 즉 **빈 홈 디렉터리의 스켈레톤 파일뿐**이다. `max.zip`의 9KB 초과분이 바로 **추가 파일** — 그게 SSH 키다.
+**크기가 답을 알려준다.** `max.zip`만 13,898바이트고 나머지 셋은 4,7xx바이트다. 4.7KB는 `.bashrc`(3.5KB)+`.profile`(807B)+`.bash_logout`(220B), 즉 빈 홈 디렉터리의 스켈레톤 파일뿐이다. `max.zip`의 9KB 초과분이 바로 추가 파일 — 그게 SSH 키다.
 
-> [!tip] 열거 결과에서 **크기가 튀는 항목을 먼저 연다**
-> 같은 종류 파일이 여럿일 때 크기 차이는 "여기에 뭔가 더 들어 있다"는 신호다. 4개를 순서대로 열지 말고 **13898부터 연다.** 시험장에서 몇 분을 아낀다.
+#### 열거 결과에서 크기가 튀는 항목을 먼저 연다
+
+같은 종류 파일이 여럿일 때 크기 차이는 "여기에 뭔가 더 들어 있다"는 신호다. 4개를 순서대로 열지 말고 **13898부터 연다.** 시험장에서 몇 분을 아낀다.
 
 압축을 풀면 `max`의 홈 디렉터리가 통째로 나온다:
 
@@ -284,7 +286,7 @@ max/.ssh/:
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC39t1AvYVZKohnLz6x92nX2cuwMyuKs0qUMW9Pa+zpZk2hb/ZsULBKQgFuITVtahJispqfRY+kqF8RK6Tr0vDcCP4jbCjadJ3mfY+G5rsLbGfek3vb9drJkJ0+lBm8/OEhThwWFjkdas2oBJF8xSg4dxS6jC8wsn7lB+L3xSS7A84RnhXXQGGhjGNfG6epPB83yTV5awDQZfupYCAR/f5jrxzI26jM44KsNqb01pyJlFl+KgOs1pCvXviZi0RgCfKeYq56Qo6Z0z29QvCuQ16wr0x42ICTUuR+Tkv8jexROrLzc+AEk+cBbb/WE/bVbSKsrK3xB9Bl9V9uRJT/faMENIypZceiiEBGwAcT5lW551wqctwi2HwIuv12yyLswYv7uSvRQ1KU/j0K4weZOqDOg1U4+klGi1is3HsFKrUZsQUu3Lg5tHkXWthgtlROda2Q33jX3WsV8P3Z4+idriTMvJnt2NwCDEoxpi/HX/2p0G5Pdga1+gXeXFc88+DZyGVg4yW1cdSR/+jTKmnluC8BGk+hokfGbX3fq9BIeiFebGnIy+py1e4k8qtWTLuGjbhIkPS3PJrhgSzw2o6IXombpeWCMnAXPgZ/x/49OKpkHogQUAoSNwgfdhgmzLz06MVgT+ap0To7VsTvBJYdQiv9kmVXtQQoUCAX0b84fazWQQ== max@sorcerer
 ```
 
-**같은 아카이브가 준 두 번째 선물** — Tomcat manager 자격증명:
+같은 아카이브가 준 두 번째 선물 — Tomcat manager 자격증명:
 
 ```bash
 ┌──(kali㉿kali)-[~/PG/Sorcerer/max]
@@ -295,17 +297,19 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC39t1AvYVZKohnLz6x92nX2cuwMyuKs0qUMW9Pa+zp
 </tomcat-users>
 ```
 
-> [!note] `manager-gui` 롤만 있다 — WAR 배포는 안 된다
-> Tomcat의 manager 애플리케이션은 롤이 넷으로 쪼개져 있다:
-> - `manager-gui` — HTML 화면 접근
-> - `manager-script` — `/manager/text` API (**`curl -T app.war` 배포는 이 롤이 필요**)
-> - `manager-jmx` · `manager-status` — 모니터링
->
-> 이 계정은 `manager-gui`뿐이므로 **화면에서 WAR 업로드는 가능하지만 스크립트 배포는 막힌다.** 시험에서 Tomcat 자격증명을 얻으면 **먼저 롤을 확인**하라 — 어느 공격 경로가 열려 있는지가 롤로 결정된다.
+#### `manager-gui` 롤만 있다 — WAR 배포는 안 된다
+
+Tomcat의 manager 애플리케이션은 롤이 넷으로 쪼개져 있다:
+
+- `manager-gui` — HTML 화면 접근
+- `manager-script` — `/manager/text` API (`curl -T app.war` 배포는 이 롤이 필요)
+- `manager-jmx` · `manager-status` — 모니터링
+
+이 계정은 `manager-gui`뿐이므로 **화면에서 WAR 업로드는 가능하지만 스크립트 배포는 막힌다.** 시험에서 Tomcat 자격증명을 얻으면 먼저 롤을 확인하라 — 어느 공격 경로가 열려 있는지가 롤로 결정된다.
 
 ### 1-6. NFS는 팠는가 — 정직한 기록
 
-`2049/tcp nfs`가 열려 있고 mountd가 셋이나 떠 있는데, **이 박스의 산출물에는 `showmount` 결과가 남아 있지 않다.** 실제로 익스포트를 열거했는지 확인할 수 없으므로 **결과를 지어내지 않는다.**
+`2049/tcp nfs`가 열려 있고 mountd가 셋이나 떠 있는데, **이 박스의 산출물에는 `showmount` 결과가 남아 있지 않다.** 실제로 익스포트를 열거했는지 확인할 수 없으므로 결과를 지어내지 않는다.
 
 같은 상황을 다시 만나면 다음 두 줄이 첫 수다:
 
@@ -314,40 +318,43 @@ showmount -e 192.168.120.100          # 익스포트 목록
 mount -t nfs 192.168.120.100:/EXPORT /mnt/nfs -o vers=3,nolock
 ```
 
-> [!warning] NFS는 이 박스에서 **훨씬 짧은 길이었을 수 있다** [가정]
-> `/home`이 익스포트돼 있었다면 zip을 거치지 않고 `max`의 `.ssh`를 바로 읽었을 것이고, `no_root_squash`였다면 SUID 바이너리를 직접 심어 권한상승까지 한 번에 갔을 것이다.
-> **확인하지 않았으므로 단정하지 않는다.** 다만 "열린 NFS를 보고 열거하지 않았다"는 것 자체가 정찰 누락이다.
+#### NFS는 이 박스에서 훨씬 짧은 길이었을 수 있다 [가정]
+
+`/home`이 익스포트돼 있었다면 zip을 거치지 않고 `max`의 `.ssh`를 바로 읽었을 것이고, `no_root_squash`였다면 SUID 바이너리를 직접 심어 권한상승까지 한 번에 갔을 것이다.
+**확인하지 않았으므로 단정하지 않는다.** 다만 "열린 NFS를 보고 열거하지 않았다"는 것 자체가 정찰 누락이다.
 
 ---
 
 ## 2. 취약점 분석
 
-> [!abstract] 이 박스에 CVE는 없다
-> 취약점은 셋 다 **오설정과 신뢰 경계 설계 오류**다.
-> ① 웹루트에 홈 디렉터리 백업 배포 → ② 강제 명령이 자기 자신을 보호하지 못함 → ③ 관리 도구가 SUID로 방치.
-> CVE 번호가 없는 취약점이 시험에 더 많이 나온다. **메커니즘을 이해해야 응용이 된다.**
+### 이 박스에 CVE는 없다
+
+취약점은 셋 다 **오설정과 신뢰 경계 설계 오류**다.
+① 웹루트에 홈 디렉터리 백업 배포 → ② 강제 명령이 자기 자신을 보호하지 못함 → ③ 관리 도구가 SUID로 방치.
+CVE 번호가 없는 취약점이 시험에 더 많이 나온다. 메커니즘을 이해해야 응용이 된다.
 
 ### 2-1. 배경 지식 ① — 왜 "백업 파일 노출"이 크리덴셜 유출인가
 
-정적 웹서버는 **디렉터리 안의 파일을 종류를 가리지 않고 그대로 준다.** nginx의 `autoindex on;` 은 거기에 **목록까지** 붙여준다. 개발자가 "백업은 사람만 볼 테니까"라고 생각한 순간 그 파일은 **인증 없는 전 세계 공개**가 된다.
+정적 웹서버는 **디렉터리 안의 파일을 종류를 가리지 않고 그대로 준다.** nginx의 `autoindex on;` 은 거기에 목록까지 붙여준다. 개발자가 "백업은 사람만 볼 테니까"라고 생각한 순간 그 파일은 인증 없는 전 세계 공개가 된다.
 
 홈 디렉터리 백업이 특히 나쁜 이유는 홈에 들어 있는 것들 때문이다:
 
 | 파일 | 무엇을 주는가 |
 |---|---|
-| `.ssh/id_rsa` | **그 사용자로 로그인하는 자격증명 그 자체** |
-| `.ssh/authorized_keys` | 어떤 키가 허용되는지 + **적용된 제한 옵션**(이 박스의 핵심) |
+| `.ssh/id_rsa` | 그 사용자로 로그인하는 자격증명 그 자체 |
+| `.ssh/authorized_keys` | 어떤 키가 허용되는지 + 적용된 제한 옵션(이 박스의 핵심) |
 | `.bash_history` | 실행한 명령, 종종 인라인 패스워드 |
 | `.netrc` · `.pgpass` · `.git-credentials` | 평문 자격증명 |
 | `*.bak` 앱 설정 | 이 박스의 `tomcat-users.xml.bak` |
 
-> [!tip] 웹에서 아카이브를 받으면 **반드시 전부 푼다**
-> `max.zip` 하나에서 ① SSH 개인키 ② 강제 명령 설정 ③ Tomcat 패스워드가 나왔다. 첫 번째만 보고 멈추면 나머지를 놓친다.
-> `unzip -l`로 목록부터 보고, `.` 으로 시작하는 **숨은 파일이 포함돼 있는지** 확인하라 (`ls`만 하면 `.ssh`가 안 보인다).
+#### 웹에서 아카이브를 받으면 반드시 전부 푼다
+
+`max.zip` 하나에서 ① SSH 개인키 ② 강제 명령 설정 ③ Tomcat 패스워드가 나왔다. 첫 번째만 보고 멈추면 나머지를 놓친다.
+`unzip -l`로 목록부터 보고, `.` 으로 시작하는 **숨은 파일이 포함돼 있는지** 확인하라 (`ls`만 하면 `.ssh`가 안 보인다).
 
 ### 2-2. `authorized_keys` 옵션 필드 해부
 
-키를 얻었으니 바로 붙으면 될 것 같지만, **같은 아카이브에 들어 있던 `authorized_keys`가 함정을 미리 알려준다**:
+키를 얻었으니 바로 붙으면 될 것 같지만, 같은 아카이브에 들어 있던 `authorized_keys`가 함정을 미리 알려준다:
 
 ```bash
 ┌──(kali㉿kali)-[~/PG/Sorcerer/max/.ssh]
@@ -355,15 +362,15 @@ mount -t nfs 192.168.120.100:/EXPORT /mnt/nfs -o vers=3,nolock
 no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/max/scp_wrapper.sh" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC39t1AvYVZKohn...(생략)... max@sorcerer
 ```
 
-`authorized_keys`의 한 줄은 **`[옵션,옵션,...] 키타입 키본문 주석`** 구조다. 옵션 필드는 **그 키로 인증했을 때만** 적용되는 서버측 제약이다:
+`authorized_keys`의 한 줄은 **`[옵션,옵션,...] 키타입 키본문 주석`** 구조다. 옵션 필드는 그 키로 인증했을 때만 적용되는 서버측 제약이다:
 
 | 옵션 | 무엇을 막는가 | 이 박스에서의 의미 |
 |---|---|---|
 | `no-port-forwarding` | `-L`/`-R` 터널 | 포트포워딩으로 내부 서비스에 못 붙는다 |
 | `no-X11-forwarding` | X11 포워딩 | 사실상 무의미 |
 | `no-agent-forwarding` | 에이전트 포워딩 | 키 재사용 차단 |
-| **`no-pty`** | **의사 터미널 할당 거부** | `ssh -t`를 줘도 **대화형 셸이 안 뜬다** |
-| **`command="/home/max/scp_wrapper.sh"`** | **강제 명령** | 사용자가 무엇을 요청하든 **서버는 이 스크립트만 실행한다.** 사용자가 보낸 원래 명령은 환경변수 `SSH_ORIGINAL_COMMAND`에 담겨 스크립트에 전달된다 |
+| `no-pty` | 의사 터미널 할당 거부 | `ssh -t`를 줘도 **대화형 셸이 안 뜬다** |
+| `command="/home/max/scp_wrapper.sh"` | 강제 명령 | 사용자가 무엇을 요청하든 **서버는 이 스크립트만 실행한다.** 사용자가 보낸 원래 명령은 환경변수 `SSH_ORIGINAL_COMMAND`에 담겨 스크립트에 전달된다 |
 
 그리고 그 스크립트:
 
@@ -385,20 +392,21 @@ esac
 **데이터 흐름을 한 줄씩 따라간다:**
 
 1. 클라이언트가 `ssh -i id_rsa max@target '<명령>'` 을 보낸다
-2. sshd가 키를 검증하고, `command=` 가 있으므로 **클라이언트의 `<명령>`을 버리고** `/home/max/scp_wrapper.sh`를 실행한다
+2. sshd가 키를 검증하고, `command=` 가 있으므로 클라이언트의 `<명령>`을 버리고 `/home/max/scp_wrapper.sh`를 실행한다
 3. 버려진 원래 명령은 `SSH_ORIGINAL_COMMAND` 환경변수로 스크립트에 넘어간다
 4. 스크립트는 그 문자열이 **`scp`로 시작하는지만** 본다
-5. 시작하면 `$SSH_ORIGINAL_COMMAND`를 **따옴표 없이** 실행한다. 아니면 `ACCESS DENIED.`
+5. 시작하면 `$SSH_ORIGINAL_COMMAND`를 따옴표 없이 실행한다. 아니면 `ACCESS DENIED.`
 
-즉 **의도된 기능은 "이 키는 scp 파일 전송 전용"** 이다.
+즉 의도된 기능은 "이 키는 scp 파일 전송 전용" 이다.
 
-> [!note] `case`의 패턴이 `'scp'*` 라는 점
-> 셸 `case`의 `'scp'*`는 **"scp로 시작하는 임의 문자열"** 이다. `scp -t /home/max/x` 도, `scp` 뒤에 무엇이 붙어도 통과한다.
-> `$SSH_ORIGINAL_COMMAND`가 **인용되지 않은 채** 실행되므로 셸 단어 분리와 글로빙이 그대로 일어난다. 여기에 `;`나 `&&`를 끼워 넣는 명령 주입을 떠올리는 것이 자연스럽지만 — **이 박스는 그럴 필요조차 없었다.** 더 단순한 길이 있다(2-3).
+#### `case`의 패턴이 `'scp'*` 라는 점
+
+셸 `case`의 `'scp'*`는 "scp로 시작하는 임의 문자열" 이다. `scp -t /home/max/x` 도, `scp` 뒤에 무엇이 붙어도 통과한다.
+`$SSH_ORIGINAL_COMMAND`가 **인용되지 않은 채** 실행되므로 셸 단어 분리와 글로빙이 그대로 일어난다. 여기에 `;`나 `&&`를 끼워 넣는 명령 주입을 떠올리는 것이 자연스럽지만 — 이 박스는 그럴 필요조차 없었다. 더 단순한 길이 있다(2-3).
 
 ### 2-3. 왜 이 제한이 스스로를 무너뜨리는가 — 이 박스의 핵심
 
-`command=`는 **어떤 프로그램이 실행되는지**를 통제한다. 그런데 이 설계에는 구멍이 있다:
+`command=`는 어떤 프로그램이 실행되는지를 통제한다. 그런데 이 설계에는 구멍이 있다:
 
 > **허용된 그 프로그램이 `authorized_keys` 자체를 덮어쓸 수 있다면, 제한은 자기 자신을 지키지 못한다.**
 

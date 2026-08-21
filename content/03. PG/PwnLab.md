@@ -23,33 +23,6 @@ manual_tags: true
 tech_count: 8
 ---
 
-> [!warning] 적대적 검증 정정 이력 (2026-08-20)
-> 초고의 터미널 블록 일부가 **실제 pty 캡처와 다르게 정리돼 있었다.** 명령을 붙이고 자르고, 프롬프트를
-> 다시 그리고, 한 명령의 출력을 두 블록으로 쪼갠 흔적이다. 값(플래그·해시·비밀번호·IP)은 전부 정확했고,
-> 틀린 것은 **어떤 명령이 언제 어느 프롬프트에서 실행됐는가**다. 아래는 `~/PG/PwnLab/` 원문으로 되돌렸다.
->
-> | 위치 | 초고가 적은 것 | 원문 |
-> |---|---|---|
-> | 3 리버스셸 | `$ python -c "import pty;..."` 가 한 줄로 찍힘 | `sh` 가 에코를 안 해 캡처에는 `$ www-data@pwnlab:...$` 만 있다. 명령은 코드펜스 밖으로 뺐다 |
-> | 4-2 su 블록 | `Password: (JWzXuBJJNy)` | 캡처에는 `Password: ` 만 있고 비번은 안 찍힌다. 값은 주석으로 뺐다 |
-> | 4-2 kent | `kent@pwnlab:/tmp$ id` | 실제는 `id; ls -la ~` — kent 홈 목록이 같이 나왔고 그게 "비었다"의 근거다 |
-> | 4-2 kane | `... /home/john` | 실제는 `... /home/john 2>&1` — `2>&1` 이 있어야 `Permission denied` 가 같이 보인다 |
-> | 4-3 | `kane@pwnlab:/tmp$ /home/kane/msgmike` | 그런 단독 실행은 없다. `strings ...; echo ===; ...; /home/kane/msgmike` 한 줄이었다 |
-> | 4-3 | **`kane@pwnlab:/tmp$ id`** → uid=1002 | 하이재킹 성공 뒤 프롬프트는 **`mike@pwnlab:/tmp$`** 다. 초고는 노트 자신의 주장과 모순됐다 |
-> | 4-4 | `mike@pwnlab:/tmp$ ls -la /home/mike` | 별도 실행이 아니라 위 `id; ls -la /home/mike` 의 뒷부분이다 |
-> | 4-4 | `root@pwnlab:/tmp# id` → uid=0 | `id` 단독 실행은 없었다. 실제 명령은 `whoami; id; ...; ls -la /root; cat /root/proof.txt` |
-> | 6장 (4) | `... date; cat /root/proof.txt` | 실제 명령에는 `; echo ---; cat /root/flag.txt` 가 더 붙어 있었고 **그게 안 찍힌 것이 핵심 단서**였다 |
-> | 6장 (4) | `echo "PATH=$PATH"` 와 PATH 복원이 별도 블록 | 한 줄이었다. 쪼개면 "PATH 를 보고 나서 고쳤다"는 서사가 되는데 실제로는 한 번에 쳤다 |
-> | 6장 (3) | `...` 로 줄인 명령 2개 | 전문으로 되돌렸고, 초고가 빠뜨린 **중간 시도 한 번**(따옴표 분리 우회)을 추가했다 |
->
-> 그밖에 정밀화한 것 — `/tmp` 의 `nosuid` 설명이 "마운트가 `/dev/sda1` 하나뿐"으로 읽혔는데, 실제로는
-> **`/tmp` 항목이 없어서** `/` 옵션을 물려받는 것이다(가상 파일시스템 마운트는 여럿 있고 그쪽은 다 `nosuid`).
-> 6장 (3)에는 초고가 빠뜨린 **중간 실패 한 번**을, (5)로는 SUID 열거 함정을 재현 가능한 `diff` 형태로 추가했다.
->
-> 감사에서 **재실행으로 확인해 그대로 둔 것**: `curl -F` 가 `.gif` 에 `Content-Type: image/gif` 를 자동으로
-> 넣는다는 것, `bash -p` 유무에 따른 EUID(각각 1000 / 0)는 Kali 에서 다시 재봐 같은 값이 나왔다.
-> SUID 목록 www-data↔root 차이, `sudo` 미설치, `exim4 4.84.2-1` 도 산출물과 일치한다.
-
 > [!info] PwnLab
 > 192.168.248.29 · Debian 8 jessie (32비트) · Fundamental · 플래그 2개
 > `?page=php://filter` 로 소스 → MySQL 평문 크리덴셜 → 로그인 → GIF 위장 업로드 →
