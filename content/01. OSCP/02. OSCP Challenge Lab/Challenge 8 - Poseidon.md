@@ -2,6 +2,7 @@
 tags:
   - type/machine
   - platform/pwk-challenge
+  - os/windows
   - status/solved
   - tech/ad/asreproast
   - tech/ad/dcsync
@@ -17,6 +18,7 @@ tags:
   - tech/exec/psexec
 type: machine
 platform: pwk-challenge
+os: windows
 ip: 192.168.170.163
 status: solved
 tech_count: 12

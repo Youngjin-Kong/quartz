@@ -9,6 +9,7 @@ tags:
   - tech/ad/acl-abuse
   - tech/ad/pth
   - tech/ad/bloodhound
+  - tech/ad/gmsa
   - tech/svc/smb
   - tech/exec/winrm
   - tech/cred/crack
@@ -22,7 +23,7 @@ domain: vintage.htb
 ports: [53, 88, 135, 139, 389, 445, 464, 593, 636, 3268, 3269, 5985, 9389]
 services: [domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, msrpc, ncacn_http, netbios-ssn]
 status: solved
-tech_count: 10
+tech_count: 11
 ---
 ## Nmap
 ```bash

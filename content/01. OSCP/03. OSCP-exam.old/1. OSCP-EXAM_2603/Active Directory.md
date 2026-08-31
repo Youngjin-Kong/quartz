@@ -6,6 +6,7 @@ tags:
   - status/solved
   - tech/ad/kerberoast
   - tech/ad/bloodhound
+  - tech/ad/gmsa
   - tech/win/potato
   - tech/win/seimpersonate
   - tech/win/sebackup
@@ -25,7 +26,7 @@ ports: [53, 135, 139, 445, 3389, 5985]
 services: [domain, http, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn]
 cves: [CVE-2024-23897]
 status: solved
-tech_count: 13
+tech_count: 14
 ---
 Target IP: 172.16.91.200
 --------------------------------------

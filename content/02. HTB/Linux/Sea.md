@@ -9,7 +9,7 @@ tags:
   - tech/enum/dirbust
 type: machine
 platform: htb
-ip: 10.129.66.148
+ip: 10.10.15.145
 domain: sea.htb
 cves: [CVE-2023-41425]
 status: unsolved

@@ -11,6 +11,7 @@ tags:
   - tech/win/seimpersonate
   - tech/win/sebackup
   - tech/win/serestore
+  - tech/win/scheduled-task
   - tech/web/lfi-rfi
   - tech/exec/rdp
   - tech/svc/smb
@@ -29,7 +30,7 @@ platform: pg
 os: linux
 ip: 192.168.107.110
 status: solved
-tech_count: 20
+tech_count: 21
 ---
 
 

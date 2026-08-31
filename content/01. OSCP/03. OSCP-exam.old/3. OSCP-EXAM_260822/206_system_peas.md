@@ -1,3 +1,36 @@
+---
+tags:
+  - type/machine
+  - platform/exam
+  - os/windows
+  - status/solved
+  - tech/ad/adcs
+  - tech/ad/acl-abuse
+  - tech/ad/ntlm-relay
+  - tech/ad/gpo-abuse
+  - tech/ad/gmsa
+  - tech/win/seimpersonate
+  - tech/win/sebackup
+  - tech/win/serestore
+  - tech/win/service-abuse
+  - tech/win/alwaysinstall
+  - tech/win/autologon
+  - tech/win/uac-bypass
+  - tech/win/dll-hijack
+  - tech/exec/rdp
+  - tech/svc/ftp
+  - tech/cred/mimikatz
+  - tech/cred/dpapi
+  - tech/enum/peas
+  - tech/payload/av-evasion
+type: machine
+platform: exam
+os: windows
+ip: 192.168.49.104
+domain: oscp.exam
+status: solved
+tech_count: 19
+---
 ```bash
 PS C:\Users\Administrator\Desktop> .\winPEASx64.exe
 .\winPEASx64.exe

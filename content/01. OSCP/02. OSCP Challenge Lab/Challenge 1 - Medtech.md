@@ -24,7 +24,7 @@ tags:
   - tech/payload/revshell
 type: machine
 platform: pwk-challenge
-ip: 192.168.243.121
+ip: 192.168.243.120
 status: solved
 tech_count: 19
 ---
