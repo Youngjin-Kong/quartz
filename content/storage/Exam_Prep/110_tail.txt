@@ -1,0 +1,200 @@
+-rw-r--r-- 1 root root   1518 Feb 27 21:26 dpkg.diversions.0
+-rw-r--r-- 1 root root    312 Feb 27 21:26 dpkg.diversions.1.gz
+-rw-r--r-- 1 root root    312 Feb 27 21:26 dpkg.diversions.2.gz
+-rw-r--r-- 1 root root    100 Apr 23  2024 dpkg.statoverride.0
+-rw-r--r-- 1 root root    120 Apr 23  2024 dpkg.statoverride.1.gz
+-rw-r--r-- 1 root root    120 Apr 23  2024 dpkg.statoverride.2.gz
+-rw-r--r-- 1 root root 763161 Mar  6 16:03 dpkg.status.0
+-rw-r--r-- 1 root root 192694 Mar  5 15:32 dpkg.status.1.gz
+-rw-r--r-- 1 root root 192696 Feb 27 22:06 dpkg.status.2.gz
+
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Backup files (limited 100) (T1552.001)
+-rw-r--r-- 1 root root 61 Feb 27 22:03 /var/lib/systemd/deb-systemd-helper-enabled/dpkg-db-backup.timer.dsh-also                                            
+-rw-r--r-- 1 root root 0 Apr 23  2024 /var/lib/systemd/deb-systemd-helper-enabled/timers.target.wants/dpkg-db-backup.timer
+-rw-r--r-- 1 root root 0 Aug 15 03:12 /var/lib/systemd/timers/stamp-dpkg-db-backup.timer
+-rw-r--r-- 1 root root 159 Apr 23  2024 /var/lib/sgml-base/supercatalog.old
+-rw-r--r-- 1 root root 68607 Aug 15 14:44 /var/log/site-backup.log
+-rw-r--r-- 1 root root 893 Apr 23  2024 /etc/xml/catalog.old
+-rw-r--r-- 1 root root 673 Apr 23  2024 /etc/xml/xml-core.xml.old
+-rw-r--r-- 1 root root 365 Apr 23  2024 /etc/xml/polkitd.xml.old
+-rw-r--r-- 1 root root 648 Apr 23  2024 /etc/.resolv.conf.systemd-resolved.bak
+-rwxr-xr-x 1 root root 226 Apr 23  2024 /usr/share/byobu/desktop/byobu.desktop.old
+-rw-r--r-- 1 root root 445715 Apr 23  2024 /usr/share/doc/manpages/Changes.old.gz
+-rw-r--r-- 1 root root 3132 Apr 23  2024 /usr/share/man/man8/vgcfgbackup.8.gz
+-rw-r--r-- 1 root root 11027 Feb 27 21:25 /usr/share/info/dir.old
+-rw-r--r-- 1 root root 154 Sep 26  2024 /usr/lib/systemd/system/dpkg-db-backup.timer
+-rw-r--r-- 1 root root 147 Sep 26  2024 /usr/lib/systemd/system/dpkg-db-backup.service
+-rw-r--r-- 1 root root 43976 Sep 23  2025 /usr/lib/x86_64-linux-gnu/open-vm-tools/plugins/vmsvc/libvmbackup.so
+-rw-r--r-- 1 root root 1891 Apr 23  2024 /usr/lib/python3/dist-packages/sos/report/plugins/__pycache__/ovirt_engine_backup.cpython-312.pyc
+-rw-r--r-- 1 root root 1802 Apr 23  2024 /usr/lib/python3/dist-packages/sos/report/plugins/ovirt_engine_backup.py
+-rw-r--r-- 1 root root 3506 Apr 19  2024 /usr/lib/modules/6.8.0-31-generic/kernel/drivers/power/supply/wm831x_backup.ko.zst
+-rw-r--r-- 1 root root 4352 Apr 19  2024 /usr/lib/modules/6.8.0-31-generic/kernel/drivers/net/team/team_mode_activebackup.ko.zst
+-rw-r--r-- 1 root root 43552 Jan 22  2026 /usr/lib/mysql/plugin/component_mysqlbackup.so
+-rwxr-xr-x 1 root root 2586 Sep 18  2025 /usr/libexec/dpkg/dpkg-db-backup
+-rwxr-xr-x 1 root root 28003 Mar 10  2024 /usr/src/linux-headers-6.8.0-31/tools/testing/selftests/net/test_bridge_backup_port.sh
+-rwxr-xr-x 1 root root 1086 Mar 10  2024 /usr/src/linux-headers-6.8.0-31/tools/testing/selftests/net/tcp_fastopen_backup_key.sh
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Searching tables inside readable .db/.sql/.sqlite files (limit 100) (T1005)
+Found /var/lib/command-not-found/commands.db: SQLite 3.x database, last written using SQLite version 3045001, file counter 5, database pages 987, cookie 0x4, schema 4, UTF-8, version-valid-for 5
+Found /var/lib/fwupd/pending.db: SQLite 3.x database, last written using SQLite version 3045001, file counter 4, database pages 14, cookie 0x5, schema 4, UTF-8, version-valid-for 4
+Found /var/lib/PackageKit/transactions.db: SQLite 3.x database, last written using SQLite version 3045001, file counter 5, database pages 8, cookie 0x4, schema 4, UTF-8, version-valid-for 5
+
+ -> Extracting tables from /var/lib/command-not-found/commands.db (limit 20)
+ -> Extracting tables from /var/lib/fwupd/pending.db (limit 20)                                                                                             
+ -> Extracting tables from /var/lib/PackageKit/transactions.db (limit 20)                                                                                   
+                                                                                                                                                            
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Web files?(output limit) (T1005)
+/var/www/:                                                                                                                                                  
+total 12K
+drwxr-xr-x  3 root root 4.0K Feb 27 21:52 .
+drwxr-xr-x 14 root root 4.0K Feb 27 21:52 ..
+drwxr-xr-x 10 root root 4.0K Mar  5 15:03 cloudsite
+
+/var/www/cloudsite:
+total 72K
+drwxr-xr-x 10 root root       4.0K Mar  5 15:03 .
+drwxr-xr-x  3 root root       4.0K Feb 27 21:52 ..
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ All relevant hidden files (not in /sys/ or the ones listed in the previous check) (limit 70) (T1564.001)
+-rw-r--r-- 1 root root 208 Apr 23  2024 /var/.updated                                                                                                       
+-rw-r--r-- 1 landscape landscape 0 Apr 23  2024 /var/lib/landscape/.cleanup.user
+-rw------- 1 root root 0 Apr 23  2024 /etc/.pwd.lock
+-rw-r--r-- 1 root root 208 Apr 23  2024 /etc/.updated
+-rw-r--r-- 1 root root 220 Mar 31  2024 /etc/skel/.bash_logout
+-rw-r--r-- 1 root root 648 Apr 23  2024 /etc/.resolv.conf.systemd-resolved.bak
+-rw-r--r-- 1 sarah sarah 220 Mar 31  2024 /home/sarah/.bash_logout
+-rw-r--r-- 1 root root 414 Apr 23  2024 /usr/share/vim/vim91/pack/dist/opt/editorconfig/.editorconfig
+-rw-r--r-- 1 root root 11 Aug 27  2022 /usr/share/ieee-data/.lastupdate
+-rw-r--r-- 1 root root 2 Aug 15 03:12 /run/cloud-init/.ds-identify.result
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Readable files inside /tmp, /var/tmp, /private/tmp, /private/var/at/tmp, /private/var/tmp, and backup folders (limit 70) (T1552.001)
+-rw-rw-r-- 1 sarah sarah 0 Aug 15 14:34 /tmp/linpeas_host_checker_9126.err                                                                                  
+-rw-rw-r-- 1 sarah sarah 0 Aug 15 14:37 /tmp/linpeas_host_checker_27152.json
+-rw-rw-r-- 1 sarah sarah 0 Aug 15 14:37 /tmp/linpeas_host_checker_27152.err
+-rw-rw-r-- 1 sarah sarah 0 Aug 15 14:34 /tmp/linpeas_host_checker_9126.json
+-rw-r--r-- 1 root root 0 Jul 16 05:12 /var/backups/dpkg.arch.0
+-rw-r--r-- 1 root root 51200 Mar  5 14:57 /var/backups/alternatives.tar.0
+-rw-r--r-- 1 root root 32 Mar  6 15:59 /var/backups/dpkg.arch.1.gz
+-rw-r--r-- 1 root root 32 Mar  5 14:57 /var/backups/dpkg.arch.2.gz
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Searching passwords in history files (T1552.001)
+                                                                                                                                                            
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Searching *password* or *credential* files in home (limit 70) (T1552.001)
+/etc/apparmor.d/1password                                                                                                                                   
+/etc/credstore
+/etc/credstore.encrypted
+/etc/pam.d/common-password
+/usr/bin/systemd-ask-password
+/usr/bin/systemd-tty-ask-password-agent
+/usr/lib/git-core/git-credential
+/usr/lib/git-core/git-credential-cache
+/usr/lib/git-core/git-credential-cache--daemon
+/usr/lib/git-core/git-credential-store
+  #)There are more creds/passwds files in the previous parent folder
+
+/usr/lib/grub/i386-pc/password.mod
+/usr/lib/grub/i386-pc/password_pbkdf2.mod
+/usr/lib/mysql/plugin/component_validate_password.so
+/usr/lib/mysql/plugin/validate_password.so
+/usr/lib/python3/dist-packages/cloudinit/config/cc_set_passwords.py
+/usr/lib/python3/dist-packages/cloudinit/config/__pycache__/cc_set_passwords.cpython-312.pyc
+/usr/lib/python3/dist-packages/launchpadlib/credentials.py
+/usr/lib/python3/dist-packages/launchpadlib/__pycache__/credentials.cpython-312.pyc
+/usr/lib/python3/dist-packages/launchpadlib/tests/__pycache__/test_credential_store.cpython-312.pyc
+/usr/lib/python3/dist-packages/launchpadlib/tests/test_credential_store.py
+/usr/lib/python3/dist-packages/oauthlib/oauth2/rfc6749/grant_types/client_credentials.py
+/usr/lib/python3/dist-packages/oauthlib/oauth2/rfc6749/grant_types/__pycache__/client_credentials.cpython-312.pyc
+/usr/lib/python3/dist-packages/oauthlib/oauth2/rfc6749/grant_types/__pycache__/resource_owner_password_credentials.cpython-312.pyc
+/usr/lib/python3/dist-packages/oauthlib/oauth2/rfc6749/grant_types/resource_owner_password_credentials.py
+/usr/lib/python3/dist-packages/twisted/cred/credentials.py
+/usr/lib/python3/dist-packages/twisted/cred/__pycache__/credentials.cpython-312.pyc
+/usr/lib/systemd/systemd-reply-password
+/usr/lib/systemd/system/multi-user.target.wants/systemd-ask-password-wall.path
+/usr/lib/systemd/system/sysinit.target.wants/systemd-ask-password-console.path
+/usr/lib/systemd/system/systemd-ask-password-console.path
+/usr/lib/systemd/system/systemd-ask-password-console.service
+/usr/lib/systemd/system/systemd-ask-password-plymouth.path
+/usr/lib/systemd/system/systemd-ask-password-plymouth.service
+  #)There are more creds/passwds files in the previous parent folder
+
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/caching_sha2_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/mysql_clear_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/mysql_native_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/__pycache__/caching_sha2_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/__pycache__/mysql_clear_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/__pycache__/mysql_native_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/aio/plugins/__pycache__/sha256_password.cpython-312.pyc
+  #)There are more creds/passwds files in the previous parent folder
+
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/caching_sha2_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/mysql_clear_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/mysql_native_password.py
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/__pycache__/caching_sha2_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/__pycache__/mysql_clear_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/__pycache__/mysql_native_password.cpython-312.pyc
+/usr/local/lib/python3.12/dist-packages/mysql/connector/plugins/__pycache__/sha256_password.cpython-312.pyc
+  #)There are more creds/passwds files in the previous parent folder
+
+/usr/local/lib/python3.12/dist-packages/mysql/vendor/plugin/mysql_native_password.so
+/usr/share/doc/git/contrib/credential
+/usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret.c
+/usr/share/doc/git/contrib/credential/netrc/git-credential-netrc.perl
+/usr/share/doc/git/contrib/credential/netrc/t-git-credential-netrc.sh
+/usr/share/doc/git/contrib/credential/osxkeychain/git-credential-osxkeychain.c
+/usr/share/doc/git/contrib/credential/wincred/git-credential-wincred.c
+/usr/share/man/man1/git-credential.1.gz
+/usr/share/man/man1/git-credential-cache.1.gz
+/usr/share/man/man1/git-credential-cache--daemon.1.gz
+/usr/share/man/man1/git-credential-store.1.gz
+  #)There are more creds/passwds files in the previous parent folder
+
+/usr/share/man/man7/gitcredentials.7.gz
+/usr/share/man/man7/systemd.system-credentials.7.gz
+
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Checking for TTY (sudo/su) passwords in audit logs (T1552.001)
+                                                                                                                                                            
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Checking for TTY (sudo/su) passwords in audit logs (T1083)
+                                                                                                                                                            
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Searching passwords inside logs (limit 70) (T1552.001)
+                                                                                                                                                            
+?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ï£ Checking all env variables in /proc/*/environ removing duplicates and filtering out useless env vars (T1552.007,T1082)
+_=                                                                                                                                                          
+GSM_SKIP_SSH_AGENT_WORKAROUND=true
+HOME=/home/sarah
+LANG=en_US.UTF-8
+LESSCLOSE=/usr/bin/lesspipe %s %s
+LESSOPEN=| /usr/bin/lesspipe %s
+_=./linpeas.sh
+LISTEN_FDNAMES=dbus.socket
+LISTEN_FDS=1
+LOGNAME=sarah
+MANAGERPID=9020
+MEMORY_PRESSURE_WRITE=c29tZSAyMDAwMDAgMjAwMDAwMAA=
+NOTIFY_SOCKET=/run/user/1000/systemd/notify
+PWD=/home/sarah
+SHELL=/bin/bash
+SHLVL=1
+SHLVL=2
+SSH_AUTH_SOCK=/run/user/1000/gnupg/S.gpg-agent.ssh
+SSH_CLIENT=192.168.49.115 47362 22
+SSH_CLIENT=192.168.49.115 59454 22
+SSH_CONNECTION=192.168.49.115 47362 192.168.115.110 22
+SSH_CONNECTION=192.168.49.115 59454 192.168.115.110 22
+SSH_TTY=/dev/pts/0
+SSH_TTY=/dev/pts/1
+TERM=xterm-256color
+USER=sarah
+_=/usr/bin/dd
+_=/usr/bin/grep
+_=/usr/bin/xxd
+XDG_DATA_DIRS=/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+XDG_DATA_DIRS=/usr/local/share:/usr/share:/var/lib/snapd/desktop
+XDG_RUNTIME_DIR=/run/user/1000
+
+
+                                ?î‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïó
+?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê??API Keys Regex ?†‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê??                                                                         
+                                ?ö‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïê?ê‚ïù                                                                                                          
+Regexes to search for API keys aren't activated, use param '-r'
+```
