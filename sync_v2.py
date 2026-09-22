@@ -95,7 +95,8 @@ def sync_and_deploy():
         # 고정 제외 패턴
         ignore_func = shutil.ignore_patterns(
             '.obsidian', '.trash', 'private', '*.canvas',
-            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm'
+            'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm','storage',
+            '무제','PEN-200','_backup','_AUDIT','_HANDOFF','_STATUS','_PLAYBOOK'
         )
         shutil.copytree(SOURCE_VAULT, DEST_QUARTZ_CONTENT, ignore=ignore_func)
 
