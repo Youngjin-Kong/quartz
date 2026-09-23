@@ -1,8 +1,18 @@
 import shutil
 import os
 import re
+import stat
+import time
 import subprocess
 import sys
+
+# 파이프로 리다이렉트되면 stdout 이 cp949 로 잡혀 이모지에서 죽는다.
+# PYTHONIOENCODING 은 인터프리터 기동 시점에만 읽히므로 여기서 직접 재설정한다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 
 # 경로 설정
 SOURCE_VAULT = r"C:\Users\QQ\Documents\Obsidian Vault"
@@ -21,6 +31,43 @@ PLACEHOLDER_AWS_SECRET = '[REDACTED-AWS-SECRET]'
 PLACEHOLDER_GH_TOKEN = '[REDACTED-GITHUB-PAT]'
 
 
+def _force_remove(func, path, _exc):
+    """git objects 처럼 읽기 전용으로 잠긴 파일에서 rmtree 가 WinError 5 로 죽는 것을 방지"""
+    for i in range(5):
+        try:
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+            return
+        except PermissionError:
+            time.sleep(0.4)
+        except FileNotFoundError:
+            return
+    print(f"⚠️ Could not remove {path}")
+
+
+def _rmtree_force(path):
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_force_remove)
+    else:
+        shutil.rmtree(path, onerror=lambda f, p, exc: _force_remove(f, p, exc))
+
+
+def _remove_with_retry(path, attempts=5, delay=0.4):
+    """인덱서·백신이 갓 복사된 파일을 잠깐 잡고 있는 경우가 있어 재시도한다"""
+    for i in range(attempts):
+        try:
+            os.chmod(path, stat.S_IWRITE)
+            os.remove(path)
+            return True
+        except PermissionError:
+            if i == attempts - 1:
+                return False
+            time.sleep(delay)
+        except FileNotFoundError:
+            return True
+    return False
+
+
 def filter_publish_false(content_dir):
     """파일 내용을 검사하여 publish: false가 포함된 md 파일 삭제"""
     deleted_count = 0
@@ -32,9 +79,12 @@ def filter_publish_false(content_dir):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         header = f.read(1000) # YAML 분석을 위해 넉넉히 읽음
                         if 'publish: false' in header or 'publish: "false"' in header:
-                            os.remove(file_path)
-                            print(f"🚫 Excluded by Frontmatter: {file}")
-                            deleted_count += 1
+                            f.close()
+                            if _remove_with_retry(file_path):
+                                print(f"🚫 Excluded by Frontmatter: {file}")
+                                deleted_count += 1
+                            else:
+                                print(f"🔒 Locked, could not exclude: {file}")
                 except Exception as e:
                     print(f"⚠️ Error reading {file}: {e}")
     return deleted_count
@@ -90,13 +140,13 @@ def sync_and_deploy():
     try:
         # 1. 로컬 파일 동기화
         if os.path.exists(DEST_QUARTZ_CONTENT):
-            shutil.rmtree(DEST_QUARTZ_CONTENT)
+            _rmtree_force(DEST_QUARTZ_CONTENT)
 
         # 고정 제외 패턴
         ignore_func = shutil.ignore_patterns(
-            '.obsidian', '.trash', 'private', '*.canvas',
+            '.git', '.obsidian', '.trash', 'private', '*.canvas',
             'pen-200.pdf', '*Extra Mile Offensive Cloud Lab*', '*OSCP-OS-*', 'OSCP-eaxm','storage',
-            '무제','PEN-200','_backup','_AUDIT','_HANDOFF','_STATUS','_PLAYBOOK','CLAUDE'
+            '무제','PEN-200','_backup','_AUDIT','_HANDOFF','_STATUS','_PLAYBOOK','CLAUDE.md'
         )
         shutil.copytree(SOURCE_VAULT, DEST_QUARTZ_CONTENT, ignore=ignore_func)
 
